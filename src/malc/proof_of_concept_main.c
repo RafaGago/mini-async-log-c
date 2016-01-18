@@ -48,15 +48,15 @@ malc_type_ids;
 #endif
 /*----------------------------------------------------------------------------*/
 static inline bl_err malc_log(
-  void* malc_ptr, uword sev, const char* format, int argc, ...
+  void* malc_ptr, uword sev, const char* format, const u8* types, int argc, ...
   )
 {
   bl_err err = bl_ok;
   va_list vargs;
   va_start (vargs, argc);
-  while (argc--) {
-    int type = va_arg (vargs, int);
-    switch (type) {
+
+  for (uword i = 0; i < argc; ++i) {
+    switch (types[i]) {
     case type_float: {
       printf ("float\n");
       float dummy = (float) va_arg (vargs, double);
@@ -143,12 +143,20 @@ end_process_loop:
     malc_ptr,\
     sev,\
     pp_vargs_first (__VA_ARGS__),\
-    pp_vargs_count (pp_vargs_ignore_first (__VA_ARGS__))\
-    pp_if (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))(\
+    pp_if_else (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))(\
+    /*if*/\
+      (u8[]) { pp_apply(\
+          malc_get_typeid, pp_comma, pp_vargs_ignore_first (__VA_ARGS__)\
+          )}\
       pp_comma()\
-      pp_apply(\
-        malc_prepend_typeid, pp_comma, pp_vargs_ignore_first (__VA_ARGS__)\
-        )))
+      pp_vargs_count (pp_vargs_ignore_first (__VA_ARGS__))\
+      pp_comma()\
+      pp_vargs_ignore_first (__VA_ARGS__)\
+    ,/*else*/\
+      nullptr\
+      pp_comma()\
+      0\
+    ))
 
 #define malc_log_private(malc_ptr, sev, ...)\
   ((sev >= malc_get_sev (malc_ptr)) ?\
