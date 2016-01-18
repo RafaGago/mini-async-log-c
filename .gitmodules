@@ -1,0 +1,3 @@
+[submodule "dependencies/base_library"]
+	path = dependencies/base_library
+	url = https://github.com/RafaGago/base_library.git

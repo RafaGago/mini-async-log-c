@@ -1,0 +1,9 @@
+*~
+build/linux
+build/windows
+build/stage
+build/premake/premake5
+dependencies/cmocka
+eclipse/.metadata/*
+eclipse/RemoteSystemsTempFiles/*
+
