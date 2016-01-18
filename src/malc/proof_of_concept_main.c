@@ -87,7 +87,7 @@ static inline bl_err malc_log(
       u16 dummy = (u16) va_arg (vargs, int);
       break;
       }
-#ifndef BL_32C preprocessor expansion
+#ifndef BL_32
     case type_i32: {
       printf ("i32\n");
       i32 dummy = va_arg (vargs, i32);
