@@ -30,16 +30,16 @@ malc_type_ids;
 #define malc_get_typeid(token)\
   _Generic ((token),\
     float:   type_float,\
-	  double:  type_double,\
-	  u8:      type_u8,\
+    double:  type_double,\
+    u8:      type_u8,\
     i8:      type_i8,\
-	  u16:     type_u16,\
+    u16:     type_u16,\
     i16:     type_i16,\
-	  u32:     type_u32,\
+    u32:     type_u32,\
     i32:     type_i32,\
-	  u64:     type_u64,\
+    u64:     type_u64,\
     i64:     type_i64,\
-	  default: type_error\
+    default: type_error\
     )
 #define malc_prepend_typeid(token) malc_get_typeid (token), token
 /*----------------------------------------------------------------------------*/
