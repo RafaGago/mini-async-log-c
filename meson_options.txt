@@ -1,0 +1,12 @@
+option(
+    'pic_statlibs',
+     type        : 'boolean',
+     value       : false,
+     description : 'Compile static libraries with -fPIC (pos independent)'
+     )
+option(
+    'sharedlib',
+     type        : 'boolean',
+     value       : false,
+     description : 'compile as shared libraries'
+     )
