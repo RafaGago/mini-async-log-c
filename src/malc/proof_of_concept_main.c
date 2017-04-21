@@ -46,20 +46,6 @@ static inline malc_lit loglit (char const* literal)
   malc_lit l = { literal };
   return l;
 }
-
-/*----------------------------------------------------------------------------*/
-typedef struct malc_str {
-  char const* str;
-  u16         len; /* not null terminated*/
-}
-malc_str;
-
-static inline malc_str logstr (char const* str, u16 len)
-{
-  bl_assert ((str && len) || len == 0);
-  malc_str s = { str, len };
-  return s;
-}
 /*----------------------------------------------------------------------------*/
 typedef struct malc_mem {
   u8 const* mem;
