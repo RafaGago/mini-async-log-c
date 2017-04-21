@@ -40,8 +40,6 @@ typedef struct malc_lit {
 }
 malc_lit;
 
-malc_lit loglitdummy;
-
 static inline malc_lit loglit (char const* literal)
 {
   bl_assert (literal);
@@ -135,7 +133,7 @@ static inline malc_mem logmem (u8 const* mem, u16 size)
     )
 /*----------------------------------------------------------------------------*/
 #else
-template<typename T> struct mal_type_code {};
+template<typename T> struct mal_type_traits {};
 
 template<> struct mal_type_traits<float> {
   static const char  code = malc_type_float;
@@ -252,13 +250,11 @@ static inline bl_err malc_log(
   ...
   )
 {
-  puts ("- entrydata -----");
   printf ("fmt: %s\n",e->format);
   printf ("info: %s\n",e->info);
   printf ("compressed: %d\n", (int) e->compressed_count);
   printf ("min field size: %d\n", (int) min_size);
   printf ("max field size: %d\n", (int) max_size);
-  puts ("-----------------");
 
   bl_err err = bl_ok;
   va_list vargs;
@@ -333,7 +329,7 @@ static inline bl_err malc_log(
       }
     case malc_type_vptr: {
       void* v = va_arg (vargs, void*);
-      printf ("vptr: %08lx\n", (u64) v);
+      printf ("vptr: 0x%08lx\n", (u64) v);
       break;
       }
     case malc_type_lit: {
@@ -343,12 +339,12 @@ static inline bl_err malc_log(
       }
     case malc_type_str: {
       malc_str v = va_arg (vargs, malc_str);
-      printf ("string: len: %d, %s", (int) v.len, v.str);
+      printf ("string: len: %d, %s\n", (int) v.len, v.str);
       break;
       }
     case malc_type_bytes: {
       malc_mem  v = va_arg (vargs, malc_mem);
-      printf ("mem: len: %d, ptr: %08lx\n", v.size, (u64) v.mem);
+      printf ("mem: len: %d, ptr: 0x%08lx\n", v.size, (u64) v.mem);
       break;
       }
     default: {
@@ -369,9 +365,6 @@ static inline char malc_get_sev (void* dummy)
   return (char) malc_sev_warning;
 }
 /*----------------------------------------------------------------------------*/
-//TODO sanitize strings cfg
-//TODO detect same log entry at high rate
-
 #define malc_log_private_impl(malc_ptr, sev, ...) \
   malc_log( \
     (malc_ptr), \
@@ -440,21 +433,22 @@ int main (void)
 
   u8 mem[4] = { 0, 1, 2, 3, };
 
-  puts ("omitted");
+  puts ("- omitted entry -----");
   malc_log_private(
     nullptr, malc_sev_debug, "the format string", v8, v16, v32, vi32
     );
-  puts ("4 params");
+  puts ("- 4 builtins -------");
   malc_log_private(
     nullptr, malc_sev_warning, "format string 1", v8, v16, v32, vi32, vi64
     );
-  puts ("no params");
+  puts ("- no params -------");
   malc_log_private (nullptr, malc_sev_error, "format string 2");
-  puts ("non builtin params");
+  puts ("- non-builtin -------");
   malc_log_private(
     nullptr,
     malc_sev_error,
     "format string 2",
+    (void*) nullptr,
     loglit ("a literal"),
     logstr ("a string", sizeof "a string" - 1),
     logmem (mem, sizeof mem)
