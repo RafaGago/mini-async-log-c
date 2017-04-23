@@ -4,6 +4,8 @@
 #include <bl/base/integer.h>
 #include <bl/base/error.h>
 #include <bl/base/assert.h>
+#include <bl/base/alloc.h>
+#include <bl/base/thread.h>
 
 #include <malc/libexport.h>
 #include <malc/cfg.h>
@@ -22,7 +24,7 @@ malc_destinations;
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT uword malc_get_size (void);
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_create (malc** l);
+extern MALC_EXPORT bl_err malc_create (malc** l, alloc_tbl const* tbl);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_destroy (malc* l);
 /*----------------------------------------------------------------------------*/
@@ -32,12 +34,12 @@ extern MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_terminate (malc* l);
 /*------------------------------------------------------------------------------
-Unfortunately each thread has to initialize its thread local storage buffer
-explicitly, as there is no way in C to unexplicitly initialize thread local
+Each application controlled thread has to initialize its thread local storage
+buffer explicitly, as there is no way in C to unexplicitly initialize thread local
 resources from the logger when a thread is launched. The good thing is that
 each thread can have a different buffer size.
 ------------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_producer_init_tls (malc* l, u32 bytes);
+extern MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, u32 bytes);
 /*------------------------------------------------------------------------------
 timeout_us: timeout to block before returning. 0 just runs one iteration.
 
@@ -81,7 +83,16 @@ static inline malc_lit loglit (char const* literal)
   return l;
 }
 /*------------------------------------------------------------------------------
-Passes a memory area by value to mal log. It will be printed as hex.
+Passes a string by value (deep copy) to mal log.
+------------------------------------------------------------------------------*/
+static inline malc_mem logstr (char const* str, u16 len)
+{
+  bl_assert ((str && len) || len == 0);
+  malc_mem s = { str, len };
+  return s;
+}
+/*------------------------------------------------------------------------------
+Passes a memory area by value (deep copy) to mal log. It will be printed as hex.
 ------------------------------------------------------------------------------*/
 static inline malc_mem logmem (u8 const* mem, u16 size)
 {

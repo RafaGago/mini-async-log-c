@@ -12,6 +12,7 @@ Features (Planned)
 
 TODO
 
+- Enqueue strategy: Heap, thread local storage and bounded.
 - Security: Sanitized log strings (removing newlines: attacker trying to fake
     log entries).
 - Security: Rate limit of the same log entry (attacker trying to erase

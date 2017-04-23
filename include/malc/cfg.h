@@ -18,14 +18,12 @@ typedef struct malc_worker_cfg {
   bool start_own_thread;
 }
 malc_worker_cfg;
+
 /*------------------------------------------------------------------------------
 timestamp:
   Timestamp at the producer side. It's slower but more precise. In general if
   you can't tolerate ~10ms jitter on the logging timestamp you should set this
   at the expense of performance.
-can_use_heap:
-  Each producer has a buffer in TLS, when it's exhausted and this variable is
-  set the heap is used until TLS buffers start to be available.
 block_on_empty_tls_buffer:
   When this is set and "can_use_heap" is not set the call will block until TLS
   buffers are available. If both "can_use_heap" and "block_on_empty_tls_buffer"
@@ -33,10 +31,23 @@ block_on_empty_tls_buffer:
 ------------------------------------------------------------------------------*/
 typedef struct malc_producer_cfg {
   bool timestamp;
-  bool can_use_heap;
-  bool block_on_empty_tls_buffer;
+  bool block_on_empty_tls_buffer; /* will change: should be a severity too*/
 }
 malc_producer_cfg;
+/*------------------------------------------------------------------------------
+
+heap_allocator:
+  Each producer may have a buffer in TLS, when it's exhausted and this variable
+  is not null the pointed heap allocator is used until the TLS buffers start
+  to be available again. If there is no TLS buffer the heap_allocator is the
+  second used choice. Note that this allocator is only used to enqueue log
+  entries from the heap. The TLS allocator is the one passed on "malc_init".
+
+------------------------------------------------------------------------------*/
+typedef struct malc_alloc_cfg {
+  alloc_tbl const* heap_allocator;
+}
+malc_alloc_cfg;
 /*------------------------------------------------------------------------------
 sanitize_log_entries:
   The log entries are removed from any character that may make them to be
@@ -71,8 +82,9 @@ malc_security;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_cfg {
   malc_worker_cfg   worker;
-  malc_security     sec;
   malc_producer_cfg producer;
+  malc_security     sec;
+  malc_alloc_cfg    alloc;
 }
 malc_cfg;
 /*----------------------------------------------------------------------------*/
