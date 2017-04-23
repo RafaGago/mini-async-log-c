@@ -59,7 +59,6 @@ threads = dependency ('threads')
 #- malc ------------------------------------------------------------------------
 
 malc_srcs = [
-    'src/malc/backend.c',
     'src/malc/memory.c',
     'src/malc/malc.c',
     'src/malc/tls_buffer.c',
