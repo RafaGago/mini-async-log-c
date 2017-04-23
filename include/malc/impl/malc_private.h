@@ -376,7 +376,7 @@ extern MALC_EXPORT bl_err malc_log(
     (malc_ptr), \
     (malc_const_entry[]) {{ \
       /* "" is prefixed to forbid compilation of non-literal format strings*/ \
-      ""pp_vargs_first (__VA_ARGS__), \
+      "" pp_vargs_first (__VA_ARGS__), \
       (char[]) { \
         sev, \
         /* this block builds the "info" string (the conditional is to skip*/ \
@@ -436,15 +436,15 @@ extern MALC_EXPORT bl_err malc_log(
 #if !defined (MALC_STRIP_LOG_FILELINE)
   #define MALC_TO_STR(s) #s
   #define MALC_CONCAT_FILELINE(file, line) "(" file ":" MALC_TO_STR (lin) ") "
-  #define MALC_FILELINE MALC_CONCAT_FILELINE (__FILE__, __LINE__)
+  #define malc_fileline MALC_CONCAT_FILELINE (__FILE__, __LINE__)
 #else
-  #define MALC_FILELINE
+  #define malc_fileline
 #endif
 /*----------------------------------------------------------------------------*/
-#if !defined (MAL_GET_LOGGER_INSTANCE_FUNCNAME)
-    #define MAL_GET_LOGGER_INSTANCE_FUNC get_malc_logger_instance()
+#if !defined (MALC_GET_LOGGER_INSTANCE_FUNCNAME)
+    #define MALC_GET_LOGGER_INSTANCE_FUNC get_malc_logger_instance()
 #else
-    #define MAL_GET_LOGGER_INSTANCE_FUNC MAL_GET_LOGGER_INSTANCE_FUNCNAME()
+    #define MALC_GET_LOGGER_INSTANCE_FUNC MALC_GET_LOGGER_INSTANCE_FUNCNAME()
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef MALC_STRIP_LOG_DEBUG

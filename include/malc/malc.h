@@ -153,6 +153,8 @@ static inline malc_mem logmem (u8 const* mem, u16 size)
 #define log_critical_i_if(malc_ptr, condition, ...)\
   malc_critical_i_if ((malc_ptr), (condition), __VA_ARGS__)
 
+#define log_fileline malc_fileline
+
 #endif /*#if !defined (MALC_NO_SHORT_MACROS)*/
 
 #endif /* __MALC_H__ */
