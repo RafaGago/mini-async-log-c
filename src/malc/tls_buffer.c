@@ -59,12 +59,12 @@ static bl_err tls_buffer_alloc_priv(
   bool copy_old = false;
   uword slots   = old_slots + expand;
   if (unlikely (slots > t->slot_count)) {
-    return bl_invalid;
+    return bl_would_overflow;
   }
   u8* slot_start = old;
   u8* slot_end   = old + (slots * t->slot_size);
   u8* check_iter;
-  if (likely (slot_end < t->mem_end)) {
+  if (likely (slot_end <= t->mem_end)) {
     check_iter = slot_start + (old_slots * t->slot_size);
   }
   else {

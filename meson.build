@@ -25,7 +25,7 @@ include_dirs = [
 include_dirs += base_library.get_variable ('include_dirs')
 
 test_include_dirs  = include_dirs
-#test_include_dirs += [ include_directories ('test/src') ]
+test_include_dirs += [ include_directories ('test/src') ]
 test_include_dirs +=  base_library.get_variable ('test_include_dirs')
 
 pkg_mod = import ('pkgconfig')
@@ -65,6 +65,8 @@ malc_srcs = [
     'src/malc/tls_buffer.c',
 ]
 malc_test_srcs = [
+    'test/src/malc/tests_main.c',
+    'test/src/malc/tls_buffer_test.c',
 ]
 
 #cflags += [ '-E' ] #erase
@@ -78,23 +80,24 @@ malc_lib = build_target(
     c_args              : cflags + lib_cflags,
     install             : true
     )
-#pkg_mod.generate(
-#    libraries   : malc_lib,
-#    version     : '0.0.1',
-#    name        : 'libmalc',
-#    filebase    : 'malc',
-#    description : 'simulator task scheduler'
-#    )
-#test(
-#    'malc',
-#    executable(
-#        'malc-test',
-#        malc_test_srcs,
-#        include_directories : test_include_dirs,
-#        link_with           : malc_lib,
-#        link_args           : test_link_args,
-#        dependencies        : threads
-#    ))
+pkg_mod.generate(
+    libraries   : malc_lib,
+    version     : '0.0.1',
+    name        : 'libmalc',
+    filebase    : 'malc',
+    description : 'simulator task scheduler'
+    )
+test(
+    'malc',
+    executable(
+        'malc-test',
+        malc_test_srcs,
+        include_directories : test_include_dirs,
+        link_with           : malc_lib,
+        link_args           : test_link_args,
+        c_args              : cflags + test_cflags,
+        dependencies        : threads
+    ))
 
 proof_srcs = [
     'src/malc/proof_of_concept_main.c',
