@@ -21,6 +21,9 @@ enum malc_destinations {
 }
 malc_destinations;
 
+#ifdef __cplusplus
+  extern "C" {
+#endif
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT uword malc_get_size (void);
 /*----------------------------------------------------------------------------*/
@@ -156,5 +159,9 @@ static inline malc_mem logmem (u8 const* mem, u16 size)
 #define log_fileline malc_fileline
 
 #endif /*#if !defined (MALC_NO_SHORT_MACROS)*/
+
+#ifdef __cplusplus
+  } /* extern "C" { */
+#endif
 
 #endif /* __MALC_H__ */

@@ -337,13 +337,31 @@ template<> struct mal_type_traits<malc_mem> {
 #include <type_traits>
 
 #define malc_get_type_code(value)\
-  mal_type_traits<typename std::remove_cv<decltype (value)>::type>::code
+  mal_type_traits< \
+    typename std::remove_cv< \
+      typename std::remove_reference< \
+        decltype (value) \
+        >::type \
+      >::type \
+    >::code
 
 #define malc_get_type_min_size(value)\
-  mal_type_traits<typename std::remove_cv<decltype (value)>::type>::min
+  mal_type_traits< \
+    typename std::remove_cv< \
+      typename std::remove_reference< \
+        decltype (value) \
+        >::type \
+      >::type \
+    >::min
 
 #define malc_get_type_max_size(value)\
-  mal_type_traits<typename std::remove_cv<decltype (value)>::type>::max
+  mal_type_traits< \
+    typename std::remove_cv< \
+      typename std::remove_reference< \
+        decltype (value) \
+        >::type \
+      >::type \
+    >::max
 
 #endif /* __cplusplus*/
 /*----------------------------------------------------------------------------*/
@@ -360,6 +378,10 @@ malc_const_entry;
 /*----------------------------------------------------------------------------*/
 struct malc;
 /*----------------------------------------------------------------------------*/
+#ifdef __cplusplus
+  extern "C" {
+#endif
+/*----------------------------------------------------------------------------*/
 extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_log(
@@ -370,6 +392,10 @@ extern MALC_EXPORT bl_err malc_log(
   int                     argc,
   ...
   );
+/*----------------------------------------------------------------------------*/
+#ifdef __cplusplus
+  } /* extern "C" { */
+#endif
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_PRIVATE_IMPL(malc_ptr, sev, ...) \
   malc_log( \

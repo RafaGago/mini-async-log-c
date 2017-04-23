@@ -20,6 +20,10 @@ typedef struct qnode {
   u8          slots;
 }
 qnode;
+
+#ifdef __cplusplus
+  extern "C" {
+#endif
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT uword malc_get_size (void)
 {
@@ -236,3 +240,6 @@ end_process_loop:
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
+#ifdef __cplusplus
+  } /* extern "C" { */
+#endif
