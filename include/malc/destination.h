@@ -12,7 +12,8 @@ typedef struct malc_dst_cfg {
   bool        show_severity;
   u8          severity;
   char const* severity_file_path;
-};
+}
+malc_dst_cfg;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_dst {
   bl_err (*create)       (void** logdst, alloc_tbl const* alloc);

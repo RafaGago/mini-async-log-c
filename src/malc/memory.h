@@ -9,8 +9,8 @@
 #include <malc/cfg.h>
 
 /*----------------------------------------------------------------------------*/
-extern const uword alloc_slot_size      = 64;
-extern const uword alloc_slot_size_log2 = static_log2_ceil_u (alloc_slot_size);
+#define alloc_slot_size 32
+#define alloc_slot_size_log2 (static_log2_ceil_u (alloc_slot_size))
 /*----------------------------------------------------------------------------*/
 enum alloc_tags {
   alloc_tag_free    = 0,
@@ -20,12 +20,12 @@ enum alloc_tags {
   alloc_tag_total   = 4,
 };
 typedef u8 alloc_tag;
-extern const uword alloc_tag_bits = static_log2_ceil_u (alloc_tag_total);
+#define alloc_tag_bits static_log2_ceil_u (alloc_tag_total)
 /*----------------------------------------------------------------------------*/
 typedef struct memory {
-  malc_aloc_cfg cfg;
-  alloc_tbl     default_allocator;
-  bl_tss        tss_key;
+  malc_alloc_cfg cfg;
+  alloc_tbl      default_allocator;
+  bl_tss         tss_key;
 }
 memory;
 /*----------------------------------------------------------------------------*/
@@ -45,7 +45,7 @@ extern bl_err memory_tls_init (memory* m, u32 bytes, alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
 extern bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 bytes);
 /*----------------------------------------------------------------------------*/
-extern void memory_dealloc (memory* m, u8* mem, alloc_tag tag);
+extern void memory_dealloc (memory* m, u8* mem, alloc_tag tag, u32 bytes);
 /*----------------------------------------------------------------------------*/
 
 #endif /* __MALC_ALLOCATOR__ */

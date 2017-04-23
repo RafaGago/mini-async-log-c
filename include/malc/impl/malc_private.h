@@ -54,7 +54,7 @@ typedef struct malc_str {
   char const* str;
   u16         len;
 }
-malc_mem;
+malc_str;
 /*----------------------------------------------------------------------------*/
 #ifndef __cplusplus
 #define malc_get_type_code(value)\
@@ -358,14 +358,16 @@ typedef struct malc_const_entry {
 }
 malc_const_entry;
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT uword malc_get_min_severity (void const* malc_ptr);
+struct malc;
 /*----------------------------------------------------------------------------*/
-extern  MALC_EXPORT bl_err malc_log(
-  void* malc_ptr,
-  const malc_const_entry* e,
-  uword min_size,
-  uword max_size,
-  int   argc,
+extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
+/*----------------------------------------------------------------------------*/
+extern MALC_EXPORT bl_err malc_log(
+  struct malc*            l,
+  malc_const_entry const* e,
+  uword                   va_min_size,
+  uword                   va_max_size,
+  int                     argc,
   ...
   );
 /*----------------------------------------------------------------------------*/
@@ -533,172 +535,172 @@ static inline bl_err malc_warning_silencer() { return bl_ok; }
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_DEBUG
 
-#define MALC_DEBUG(...)\
+#define malc_debug(...)\
   MALC_LOG_PRIVATE(MALC_GET_LOGGER_INSTANCE_FUNC, malc_sev_debug, __VA_ARGS__)
 
-#define MALC_DEBUG_IF(condition, ...)\
+#define malc_debug_if(condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     MALC_GET_LOGGER_INSTANCE_FUNC, (condition), malc_sev_debug, __VA_ARGS__\
     )
 
-#define MALC_DEBUG_I(malc_ptr, ...)\
+#define malc_debug_i(malc_ptr, ...)\
   MALC_LOG_PRIVATE ((malc_ptr), malc_sev_debug, __VA_ARGS__)
 
-#define MALC_DEBUG_I_IF(malc_ptr, condition, ...)\
+#define malc_debug_i_if(malc_ptr, condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     (malc_ptr), (condition), malc_sev_debug, __VA_ARGS__\
     )
 
 #else
 
-#define MALC_DEBUG(...)                           malc_warning_silencer()
-#define MALC_DEBUG_IF(condition, ...)             malc_warning_silencer()
-#define MALC_DEBUG_I(malc_ptr, ...)               malc_warning_silencer()
-#define MALC_DEBUG_I_IF(malc_ptr, condition, ...) malc_warning_silencer()
+#define malc_debug(...)                           malc_warning_silencer()
+#define malc_debug_if(condition, ...)             malc_warning_silencer()
+#define malc_debug_i(malc_ptr, ...)               malc_warning_silencer()
+#define malc_debug_i_if(malc_ptr, condition, ...) malc_warning_silencer()
 
 #endif
 
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_TRACE
 
-#define MALC_TRACE(...)\
+#define malc_trace(...)\
   MALC_LOG_PRIVATE(MALC_GET_LOGGER_INSTANCE_FUNC, malc_sev_trace, __VA_ARGS__)
 
-#define MALC_TRACE_IF(condition, ...)\
+#define malc_trace_if(condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     MALC_GET_LOGGER_INSTANCE_FUNC, (condition), malc_sev_trace, __VA_ARGS__\
     )
 
-#define MALC_TRACE_I(malc_ptr, ...)\
+#define malc_trace_i(malc_ptr, ...)\
   MALC_LOG_PRIVATE ((malc_ptr), malc_sev_trace, __VA_ARGS__)
 
-#define MALC_TRACE_I_IF(malc_ptr, condition, ...)\
+#define malc_trace_i_if(malc_ptr, condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     (malc_ptr), (condition), malc_sev_trace, __VA_ARGS__\
     )
 
 #else
 
-#define MALC_TRACE(...)                           malc_warning_silencer()
-#define MALC_TRACE_IF(condition, ...)             malc_warning_silencer()
-#define MALC_TRACE_I(malc_ptr, ...)               malc_warning_silencer()
-#define MALC_TRACE_I_IF(malc_ptr, condition, ...) malc_warning_silencer()
+#define malc_trace(...)                           malc_warning_silencer()
+#define malc_trace_if(condition, ...)             malc_warning_silencer()
+#define malc_trace_i(malc_ptr, ...)               malc_warning_silencer()
+#define malc_trace_i_if(malc_ptr, condition, ...) malc_warning_silencer()
 
 #endif
 
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_NOTICE
 
-#define MALC_NOTICE(...)\
+#define malc_notice(...)\
   MALC_LOG_PRIVATE (MALC_GET_LOGGER_INSTANCE_FUNC, malc_sev_note, __VA_ARGS__)
 
-#define MALC_NOTICE_IF(condition, ...)\
+#define malc_notice_if(condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     MALC_GET_LOGGER_INSTANCE_FUNC, (condition), malc_sev_note, __VA_ARGS__\
     )
 
-#define MALC_NOTICE_I(malc_ptr, ...)\
+#define malc_notice_i(malc_ptr, ...)\
   MALC_LOG_PRIVATE ((malc_ptr), malc_sev_note, __VA_ARGS__)
 
-#define MALC_NOTICE_I_IF(malc_ptr, condition, ...)\
+#define malc_notice_i_if(malc_ptr, condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     (malc_ptr), (condition), malc_sev_note, __VA_ARGS__\
     )
 
 #else
 
-#define MALC_NOTICE(...)                           malc_warning_silencer()
-#define MALC_NOTICE_IF(condition, ...)             malc_warning_silencer()
-#define MALC_NOTICE_I(malc_ptr, ...)               malc_warning_silencer()
-#define MALC_NOTICE_I_IF(malc_ptr, condition, ...) malc_warning_silencer()
+#define malc_notice(...)                           malc_warning_silencer()
+#define malc_notice_if(condition, ...)             malc_warning_silencer()
+#define malc_notice_i(malc_ptr, ...)               malc_warning_silencer()
+#define malc_notice_i_if(malc_ptr, condition, ...) malc_warning_silencer()
 
 #endif
 
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_WARNING
 
-#define MALC_WARNING(...)\
+#define malc_warning(...)\
   MALC_LOG_PRIVATE(\
     MALC_GET_LOGGER_INSTANCE_FUNC, malc_sev_warning, __VA_ARGS__\
     )
 
-#define MALC_WARNING_IF(condition, ...)\
+#define malc_warning_if(condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     MALC_GET_LOGGER_INSTANCE_FUNC, (condition), malc_sev_warning, __VA_ARGS__\
     )
 
-#define MALC_WARNING_I(malc_ptr, ...)\
+#define malc_warning_i(malc_ptr, ...)\
   MALC_LOG_PRIVATE ((malc_ptr), malc_sev_warning, __VA_ARGS__)
 
-#define MALC_WARNING_I_IF(malc_ptr, condition, ...)\
+#define malc_warning_i_if(malc_ptr, condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     (malc_ptr), (condition), malc_sev_warning, __VA_ARGS__\
     )
 
 #else
 
-#define MALC_WARNING(...)                           malc_warning_silencer()
-#define MALC_WARNING_IF(condition, ...)             malc_warning_silencer()
-#define MALC_WARNING_I(malc_ptr, ...)               malc_warning_silencer()
-#define MALC_WARNING_I_IF(malc_ptr, condition, ...) malc_warning_silencer()
+#define malc_warning(...)                           malc_warning_silencer()
+#define malc_warning_if(condition, ...)             malc_warning_silencer()
+#define malc_warning_i(malc_ptr, ...)               malc_warning_silencer()
+#define malc_warning_i_if(malc_ptr, condition, ...) malc_warning_silencer()
 
 #endif
 
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_ERROR
 
-#define MALC_ERROR(...)\
+#define malc_error(...)\
   MALC_LOG_PRIVATE (MALC_GET_LOGGER_INSTANCE_FUNC, malc_sev_error, __VA_ARGS__)
 
-#define MALC_ERROR_IF(condition, ...)\
+#define malc_error_if(condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     MALC_GET_LOGGER_INSTANCE_FUNC, (condition), malc_sev_error, __VA_ARGS__\
     )
 
-#define MALC_ERROR_I(malc_ptr, ...)\
+#define malc_error_i(malc_ptr, ...)\
   MALC_LOG_PRIVATE ((malc_ptr), malc_sev_error, __VA_ARGS__)
 
-#define MALC_ERROR_I_IF(malc_ptr, condition, ...)\
+#define malc_error_i_if(malc_ptr, condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     (malc_ptr), (condition), malc_sev_error, __VA_ARGS__\
     )
 
 #else
 
-#define MALC_ERROR(...)                           malc_error_silencer()
-#define MALC_ERROR_IF(condition, ...)             malc_error_silencer()
-#define MALC_ERROR_I(malc_ptr, ...)               malc_error_silencer()
-#define MALC_ERROR_I_IF(malc_ptr, condition, ...) malc_error_silencer()
+#define malc_error(...)                           malc_error_silencer()
+#define malc_error_if(condition, ...)             malc_error_silencer()
+#define malc_error_i(malc_ptr, ...)               malc_error_silencer()
+#define malc_error_i_if(malc_ptr, condition, ...) malc_error_silencer()
 
 #endif
 
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_CRITICAL
 
-#define MALC_CRITICAL(...)\
+#define malc_critical(...)\
   MALC_LOG_PRIVATE(\
     MALC_GET_LOGGER_INSTANCE_FUNC, malc_sev_critical, __VA_ARGS__\
     )
 
-#define MALC_CRITICAL_IF(condition, ...)\
+#define malc_critical_if(condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     MALC_GET_LOGGER_INSTANCE_FUNC, (condition), malc_sev_critical, __VA_ARGS__\
     )
 
-#define MALC_CRITICAL_I(malc_ptr, ...)\
+#define malc_critical_i(malc_ptr, ...)\
   MALC_LOG_PRIVATE ((malc_ptr), malc_sev_critical, __VA_ARGS__)
 
-#define MALC_CRITICAL_I_IF(malc_ptr, condition, ...)\
+#define malc_critical_i_if(malc_ptr, condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     (malc_ptr), (condition), malc_sev_critical, __VA_ARGS__\
     )
 
 #else
 
-#define MALC_CRITICAL(...)                           malc_critical_silencer()
-#define MALC_CRITICAL_IF(condition, ...)             malc_critical_silencer()
-#define MALC_CRITICAL_I(malc_ptr, ...)               malc_critical_silencer()
-#define MALC_CRITICAL_I_IF(malc_ptr, condition, ...) malc_critical_silencer()
+#define malc_critical(...)                           malc_critical_silencer()
+#define malc_critical_if(condition, ...)             malc_critical_silencer()
+#define malc_critical_i(malc_ptr, ...)               malc_critical_silencer()
+#define malc_critical_i_if(malc_ptr, condition, ...) malc_critical_silencer()
 
 #endif
 

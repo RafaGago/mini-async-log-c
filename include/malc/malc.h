@@ -4,7 +4,7 @@
 #include <bl/base/integer.h>
 #include <bl/base/error.h>
 #include <bl/base/assert.h>
-#include <bl/base/alloc.h>
+#include <bl/base/allocator.h>
 #include <bl/base/thread.h>
 
 #include <malc/libexport.h>
@@ -24,7 +24,7 @@ malc_destinations;
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT uword malc_get_size (void);
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_create (malc** l, alloc_tbl const* tbl);
+extern MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* tbl);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_destroy (malc* l);
 /*----------------------------------------------------------------------------*/
@@ -85,10 +85,10 @@ static inline malc_lit loglit (char const* literal)
 /*------------------------------------------------------------------------------
 Passes a string by value (deep copy) to mal log.
 ------------------------------------------------------------------------------*/
-static inline malc_mem logstr (char const* str, u16 len)
+static inline malc_str logstr (char const* str, u16 len)
 {
   bl_assert ((str && len) || len == 0);
-  malc_mem s = { str, len };
+  malc_str s = { str, len };
   return s;
 }
 /*------------------------------------------------------------------------------
@@ -101,57 +101,57 @@ static inline malc_mem logmem (u8 const* mem, u16 size)
   return b;
 }
 /*----------------------------------------------------------------------------*/
-#if !defined (MALC_NO_SHORT_MACROS)
+#if !defined (MALC_NO_SHORT_LOG_MACROS)
 
-#define log_debug(...)    MALC_DEBUG    (__VA_ARGS__)
-#define log_trace(...)    MALC_TRACE    (__VA_ARGS__)
-#define log_notice(...)   MALC_NOTICE   (__VA_ARGS__)
-#define log_warning(...)  MALC_WARNING  (__VA_ARGS__)
-#define log_error(...)    MALC_ERROR    (__VA_ARGS__)
-#define log_critical(...) MALC_CRITICAL (__VA_ARGS__)
+#define log_debug(...)    malc_debug    (__VA_ARGS__)
+#define log_trace(...)    malc_trace    (__VA_ARGS__)
+#define log_notice(...)   malc_notice   (__VA_ARGS__)
+#define log_warning(...)  malc_warning  (__VA_ARGS__)
+#define log_error(...)    malc_error    (__VA_ARGS__)
+#define log_critical(...) malc_critical (__VA_ARGS__)
 
-#define log_debug_i(malc_ptr, ...)    MALC_DEBUG_I    ((malc_ptr), __VA_ARGS__)
-#define log_trace_i(malc_ptr, ...)    MALC_TRACE_I    ((malc_ptr), __VA_ARGS__)
-#define log_notice_i(malc_ptr, ...)   MALC_NOTICE_I   ((malc_ptr), __VA_ARGS__)
-#define log_warning_i(malc_ptr, ...)  MALC_WARNING_I  ((malc_ptr), __VA_ARGS__)
-#define log_error_i(malc_ptr, ...)    MALC_ERROR_I    ((malc_ptr), __VA_ARGS__)
-#define log_critical_i(malc_ptr, ...) MALC_CRITICAL_I ((malc_ptr), __VA_ARGS__)
+#define log_debug_i(malc_ptr, ...)    malc_debug_i    ((malc_ptr), __VA_ARGS__)
+#define log_trace_i(malc_ptr, ...)    malc_trace_i    ((malc_ptr), __VA_ARGS__)
+#define log_notice_i(malc_ptr, ...)   malc_notice_i   ((malc_ptr), __VA_ARGS__)
+#define log_warning_i(malc_ptr, ...)  malc_warning_i  ((malc_ptr), __VA_ARGS__)
+#define log_error_i(malc_ptr, ...)    malc_error_i    ((malc_ptr), __VA_ARGS__)
+#define log_critical_i(malc_ptr, ...) malc_critical_i ((malc_ptr), __VA_ARGS__)
 
 #define log_debug_if(condition, ...)\
-  MALC_DEBUG_IF    ((condition), __VA_ARGS__)
+  malc_debug_if    ((condition), __VA_ARGS__)
 
 #define log_trace_if(condition, ...)\
-  MALC_TRACE_IF    ((condition), __VA_ARGS__)
+  malc_trace_if    ((condition), __VA_ARGS__)
 
 #define log_notice_if(condition, ...)\
-  MALC_NOTICE_IF   ((condition), __VA_ARGS__)
+  malc_notice_if   ((condition), __VA_ARGS__)
 
 #define log_warning_if(condition, ...)\
-  MALC_WARNING_IF  ((condition), __VA_ARGS__)
+  malc_warning_if  ((condition), __VA_ARGS__)
 
 #define log_error_if(condition, ...)\
-  MALC_ERROR_IF    ((condition), __VA_ARGS__)
+  malc_error_if    ((condition), __VA_ARGS__)
 
 #define log_critical_if(condition, ...)\
-  MALC_CRITICAL_IF ((condition), __VA_ARGS__)
+  malc_critical_if ((condition), __VA_ARGS__)
 
 #define log_debug_i_if(malc_ptr, condition, ...)\
-  MALC_DEBUG_I_IF    ((malc_ptr), (condition), __VA_ARGS__)
+  malc_debug_i_if    ((malc_ptr), (condition), __VA_ARGS__)
 
 #define log_trace_i_if(malc_ptr, condition, ...)\
-  MALC_TRACE_I_IF    ((malc_ptr), (condition), __VA_ARGS__)
+  malc_trace_i_if    ((malc_ptr), (condition), __VA_ARGS__)
 
 #define log_notice_i_if(malc_ptr, condition, ...)\
-  MALC_NOTICE_I_IF   ((malc_ptr), (condition), __VA_ARGS__)
+  malc_notice_i_if   ((malc_ptr), (condition), __VA_ARGS__)
 
 #define log_warning_i_if(malc_ptr, condition, ...)\
-  MALC_WARNING_I_IF  ((malc_ptr), (condition), __VA_ARGS__)
+  malc_warning_i_if  ((malc_ptr), (condition), __VA_ARGS__)
 
 #define log_error_i_if(malc_ptr, condition, ...)\
-  MALC_ERROR_I_IF    ((malc_ptr), (condition), __VA_ARGS__)
+  malc_error_i_if    ((malc_ptr), (condition), __VA_ARGS__)
 
 #define log_critical_i_if(malc_ptr, condition, ...)\
-  MALC_CRITICAL_I_IF ((malc_ptr), (condition), __VA_ARGS__)
+  malc_critical_i_if ((malc_ptr), (condition), __VA_ARGS__)
 
 #endif /*#if !defined (MALC_NO_SHORT_MACROS)*/
 

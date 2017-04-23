@@ -1,22 +1,46 @@
 #include <malc/malc.h>
 
+#include <bl/base/allocator.h>
+#include <bl/base/static_integer_math.h>
+#include <bl/base/utility.h>
+#include <bl/nonblock/mpsc_i.h>
+
+#include <malc/cfg.h>
+#include <malc/memory.h>
 /*----------------------------------------------------------------------------*/
 struct malc {
-
+  malc_producer_cfg producer;
+  memory            mem;
+  mpsc_i            q;
+  alloc_tbl const*  alloc;
 };
+/*----------------------------------------------------------------------------*/
+typedef struct qnode {
+  mpsc_i_node hook;
+  u8          slots;
+}
+qnode;
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT uword malc_get_size (void)
 {
   return sizeof (malc);
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT bl_err malc_create (malc** l)
+MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* alloc)
 {
+  bl_err err  = memory_init (&l->mem);
+  if (err) {
+    return err;
+  }
+  mpsc_i_init (&l->q);
+  l->alloc = alloc;
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_destroy (malc* l)
 {
+  memory_destroy (&l->mem);
+  /*TODO: no destroy on mpsc_i mpsc_i_destroy (&l->q);*/
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
@@ -37,7 +61,7 @@ MALC_EXPORT bl_err malc_terminate (malc* l)
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, u32 bytes)
 {
-  return bl_ok;
+  return memory_tls_init (&l->mem, bytes, l->alloc);
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
@@ -71,28 +95,45 @@ MALC_EXPORT bl_err malc_set_destination_severity(
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT uword malc_get_min_severity (void const* malc_ptr)
+MALC_EXPORT uword malc_get_min_severity (malc const* l)
 {
-
+  return malc_sev_debug;
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_log(
-  void* malc_ptr,
-  const malc_const_entry* e,
-  uword min_size,
-  uword max_size,
-  int   argc,
+  malc*                   l,
+  malc_const_entry const* e,
+  uword                   va_min_size,
+  uword                   va_max_size,
+  int                     argc,
   ...
   )
 {
+  /* TODO: this is very preliminary, */
   bl_assert (e && e->format && e->info);
+  uword     size  = va_max_size += sizeof (*e);
+  u8*       mem   = nullptr;
+  uword     slots = div_ceil (size, alloc_slot_size);
+  alloc_tag tag   = alloc_tag_tls;
+  bl_err    err   = memory_tls_alloc (&l->mem, &mem, slots);
+  /* a failure here will do va_max_size - va_min_size, and if the difference is
+     just one alloc_slot it will just overallocate, the block count will be
+     saved on the first byte. (256 slots will be the maximum size)*/
+  /* reminder: when expand fails the tls has to be deallocated */
+  if (unlikely (err)) {
+    /* TODO: now just testing the TLS */
+    /* err = memory_alloc (&l->m, &mem, &tag, size); */
+    if (unlikely (err)) {
+      return err;
+    }
+  }
+  qnode* n = (qnode*) mem;
+  mpsc_i_node_set (&n->hook, nullptr, tag, alloc_tag_bits);
+  mpsc_i_produce (&l->q, &n->hook, alloc_tag_bits);
 
-  bl_err err = bl_ok;
+#if 0
   va_list vargs;
   va_start (vargs, argc);
-
-  /*at this point vargs may be passed to the encoder through vargs*/
-
   char const* partype = &e->info[1];
 
   while (*partype) {
@@ -191,5 +232,7 @@ MALC_EXPORT bl_err malc_log(
 end_process_loop:
   va_end (vargs);
   return err;
+  #endif
+  return bl_ok;
 }
 /*----------------------------------------------------------------------------*/

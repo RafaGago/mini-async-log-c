@@ -15,22 +15,23 @@
 /*----------------------------------------------------------------------------*/
 bl_thread_local void* malc_tls = nullptr;
 /*----------------------------------------------------------------------------*/
-static bl_err memory_init (memory* m)
+bl_err memory_init (memory* m)
 {
-  bl_err err = bl_tss_init (&m->tss_key, &tls_buffer_destroy)
+  bl_err err = bl_tss_init (&m->tss_key, &tls_buffer_destroy);
   if (err) {
     return err;
   }
   m->default_allocator  = get_default_alloc();
   m->cfg.heap_allocator = &m->default_allocator;
+  return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-static void memory_destroy (memory* m)
+void memory_destroy (memory* m)
 {
-  bl_tss_destroy (m->key);
+  bl_tss_destroy (m->tss_key);
 }
 /*----------------------------------------------------------------------------*/
-static bl_err memory_tls_alloc (memory* m, u8** mem, u32 slots)
+bl_err memory_tls_alloc (memory* m, u8** mem, u32 slots)
 {
   if (unlikely (!malc_tls)) {
     return bl_invalid;
@@ -39,16 +40,16 @@ static bl_err memory_tls_alloc (memory* m, u8** mem, u32 slots)
   return tls_buffer_alloc (t, mem, slots);
 }
 /*----------------------------------------------------------------------------*/
-static bl_err memory_tls_expand(
+bl_err memory_tls_expand(
   memory* m, u8** mem, u8* oldmem, u32 expand_slots
   )
 {
   bl_assert (malc_tls);
   tls_buffer* t = (tls_buffer*) malc_tls;
-  return tls_buffer_expand (t, u8** mem, u8* oldmem, expand_slots);
+  return tls_buffer_expand (t, mem, oldmem, expand_slots);
 }
 /*----------------------------------------------------------------------------*/
-static bl_err memory_tls_init (memory* m, u32 bytes, alloc_tbl const* alloc)
+bl_err memory_tls_init (memory* m, u32 bytes, alloc_tbl const* alloc)
 {
   if (malc_tls) {
     return bl_locked;
@@ -68,12 +69,12 @@ static bl_err memory_tls_init (memory* m, u32 bytes, alloc_tbl const* alloc)
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-static void memory_tls_dealloc (memory* m, u8* mem, u32 slots)
+void memory_tls_dealloc (memory* m, u8* mem, u32 slots)
 {
   tls_buffer_dealloc (mem, slots, alloc_slot_size);
 }
 /*----------------------------------------------------------------------------*/
-static bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 bytes)
+bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 bytes)
 {
   if (m->cfg.heap_allocator) {
     *mem = bl_alloc (m->cfg.heap_allocator, bytes);
@@ -83,7 +84,7 @@ static bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 bytes)
   return bl_would_overflow;
 }
 /*----------------------------------------------------------------------------*/
-static void memory_dealloc (memory* m, u8* mem, alloc_tag tag, u32 bytes)
+void memory_dealloc (memory* m, u8* mem, alloc_tag tag, u32 bytes)
 {
   bl_assert (tag == alloc_tag_heap);
   bl_dealloc (m->cfg.heap_allocator, mem);

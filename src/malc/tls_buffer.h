@@ -1,5 +1,5 @@
-#ifndef __BL_TSS_BUFFER_H__
-#define __BL_TSS_BUFFER_H__
+#ifndef __MALC_TLS_BUFFER_H__
+#define __MALC_TLS_BUFFER_H__
 
 #include <bl/base/integer.h>
 #include <bl/base/allocator.h>

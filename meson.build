@@ -1,4 +1,3 @@
-# See https://github.com/anholt/libepoxy/blob/master/meson.build
 # TODO: version, tests, valgrind, visibility, config generation
 
 project(
@@ -20,7 +19,7 @@ libcmocka_path    = base_library.get_variable ('libcmocka_path')
 build_helpers_dir = base_library.get_variable ('build_helpers_dir')
 
 include_dirs = [
-#    include_directories ('include'),
+    include_directories ('include'),
     include_directories ('src'),
 ]
 include_dirs += base_library.get_variable ('include_dirs')
@@ -30,7 +29,7 @@ test_include_dirs  = include_dirs
 test_include_dirs +=  base_library.get_variable ('test_include_dirs')
 
 pkg_mod = import ('pkgconfig')
-#install_subdir ('include/malc', install_dir : 'include')
+install_subdir ('include/malc', install_dir : 'include')
 
 cflags = base_library.get_variable ('cflags')
 lib_cflags = []
@@ -60,30 +59,25 @@ threads = dependency ('threads')
 #- malc ------------------------------------------------------------------------
 
 malc_srcs = [
+    'src/malc/backend.c',
+    'src/malc/memory.c',
+    'src/malc/malc.c',
+    'src/malc/tls_buffer.c',
 ]
 malc_test_srcs = [
-    'src/malc/proof_of_concept_main.c',
 ]
 
 #cflags += [ '-E' ] #erase
-executable(
-    'malc-proof-of-concept',
-    malc_test_srcs,
-    include_directories : include_dirs,
-    link_with           : [ base_lib, ],
-    c_args              : cflags,
-    dependencies        : threads
-    )
 
-#malc_lib = build_target(
-#    'malc',
-#    malc_srcs,
-#    target_type         : libtype,
-#    include_directories : include_dirs,
-#    link_with           : [ base_lib, nonblock_lib ],
-#    c_args              : cflags + lib_cflags,
-#    install             : true
-#    )
+malc_lib = build_target(
+    'malc',
+    malc_srcs,
+    target_type         : libtype,
+    include_directories : include_dirs,
+    link_with           : [ base_lib, nonblock_lib ],
+    c_args              : cflags + lib_cflags,
+    install             : true
+    )
 #pkg_mod.generate(
 #    libraries   : malc_lib,
 #    version     : '0.0.1',
@@ -101,3 +95,14 @@ executable(
 #        link_args           : test_link_args,
 #        dependencies        : threads
 #    ))
+
+proof_srcs = [
+    'src/malc/proof_of_concept_main.c',
+]
+executable(
+    'malc-proof-of-concept',
+    proof_srcs,
+    include_directories : include_dirs,
+    link_with           : [ base_lib, ],
+    c_args              : cflags
+    )
