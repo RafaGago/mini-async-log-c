@@ -7,8 +7,13 @@
 #include <bl/base/thread.h>
 
 /*----------------------------------------------------------------------------*/
+extern bl_thread_local void* malc_tls;
+/*----------------------------------------------------------------------------*/
+typedef void (*tls_destructor) (void* mem, void* context);
+/*----------------------------------------------------------------------------*/
 typedef struct tls_buffer {
-  alloc_tbl const* alloc;
+  tls_destructor   destructor_fn;
+  void*            destructor_context;
   u8*              mem;
   u8*              mem_end;
   u8*              slot;
@@ -21,7 +26,9 @@ extern bl_err tls_buffer_init(
   tls_buffer**     t,
   u32              slot_size_and_align,
   u32              slot_count,
-  alloc_tbl const* alloc
+  alloc_tbl const* alloc,
+  tls_destructor   destructor_fn,
+  void*            destructor_context
   );
 /*----------------------------------------------------------------------------*/
 extern void bl_tss_dtor_callconv tls_buffer_destroy (void* opaque);

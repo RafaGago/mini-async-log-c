@@ -35,7 +35,7 @@ static int tls_test_init_setup (void **state)
   tls_test_setup (state);
   tls_context* c = (tls_context*) *state;
   bl_err err = tls_buffer_init(
-    &c->t, tls_buff_slot_size, tls_buff_slots, &c->alloc.alloc
+    &c->t, tls_buff_slot_size, tls_buff_slots, &c->alloc.alloc, nullptr, nullptr
     );
   assert_true (!err);
   return 0;
@@ -46,10 +46,11 @@ static void tls_init_test (void **state)
   tls_buffer* t;
   tls_context* c = (tls_context*) *state;
   bl_err err = tls_buffer_init(
-    &t, tls_buff_slot_size, tls_buff_slots, &c->alloc.alloc
+    &t, tls_buff_slot_size, tls_buff_slots, &c->alloc.alloc, nullptr, nullptr
     );
   assert_int_equal (err, bl_ok);
-  assert_true (t->alloc == &c->alloc.alloc);
+  assert_true (t->destructor_fn == nullptr);
+  assert_true (t->destructor_context == nullptr);
   assert_true (t->mem >= ((u8*) t) + sizeof (*t));
   assert_true (is_multiple ((uword) t->mem, tls_buff_slot_size));
   assert_true (t->slot_count == tls_buff_slots);

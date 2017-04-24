@@ -12,11 +12,15 @@
 #include <malc/tls_buffer.h>
 
 /*----------------------------------------------------------------------------*/
+bl_thread_local void* malc_tls = nullptr;
+/*----------------------------------------------------------------------------*/
 bl_err tls_buffer_init(
   tls_buffer**     out,
   u32              slot_size_and_align,
   u32              slot_count,
-  alloc_tbl const* alloc
+  alloc_tbl const* alloc,
+  tls_destructor   destructor_fn,
+  void*            destructor_context
   )
 {
   bl_assert (is_pow2 (slot_size_and_align));
@@ -27,9 +31,10 @@ bl_err tls_buffer_init(
   if (!t) {
     return bl_alloc;
   }
-  t->alloc      = alloc;
-  t->slot_size  = slot_size_and_align;
-  t->slot_count = slot_count;
+  t->destructor_fn      = destructor_fn;
+  t->destructor_context = destructor_context;
+  t->slot_size          = slot_size_and_align;
+  t->slot_count         = slot_count;
 
   uword mem  = ((uword) t) + sizeof (*t) + t->slot_size;
   mem       &= ~(((uword) t->slot_size) - 1);
@@ -43,9 +48,10 @@ bl_err tls_buffer_init(
 /*----------------------------------------------------------------------------*/
 void bl_tss_dtor_callconv tls_buffer_destroy (void* opaque)
 {
-  if (opaque) {
-    alloc_tbl const* alloc = ((tls_buffer*) opaque)->alloc;
-    bl_dealloc (alloc, opaque);
+  malc_tls      = nullptr;
+  tls_buffer* t = (tls_buffer*) opaque;
+  if (t && t->destructor_fn) {
+    t->destructor_fn (opaque, t->destructor_context);
   }
 }
 /*----------------------------------------------------------------------------*/

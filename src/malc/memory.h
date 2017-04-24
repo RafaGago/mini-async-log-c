@@ -7,6 +7,7 @@
 #include <bl/base/static_integer_math.h>
 
 #include <malc/cfg.h>
+#include <malc/tls_buffer.h>
 
 /*----------------------------------------------------------------------------*/
 #define alloc_slot_size 32
@@ -15,8 +16,8 @@
 enum alloc_tags {
   alloc_tag_free    = 0,
   alloc_tag_tls     = 1,
-  alloc_tag_heap    = 2,
-  alloc_tag_bounded = 3,
+  alloc_tag_bounded = 2,
+  alloc_tag_heap    = 3,
   alloc_tag_total   = 4,
 };
 typedef u8 alloc_tag;
@@ -33,19 +34,25 @@ extern bl_err memory_init (memory* m);
 /*----------------------------------------------------------------------------*/
 extern void memory_destroy (memory* m);
 /*----------------------------------------------------------------------------*/
-extern bl_err memory_tls_alloc (memory* m, u8** mem, u32 slots);
+extern bl_err memory_tls_init(
+  memory*          m,
+  u32              bytes,
+  alloc_tbl const* alloc,
+  tls_destructor   destructor_fn,
+  void*            destructor_context
+  );
+/*----------------------------------------------------------------------------*/
+extern bl_err memory_tls_alloc(
+  memory* m, u8** mem, alloc_tag* tag, u32 slots
+  );
 /*----------------------------------------------------------------------------*/
 extern bl_err memory_tls_expand(
   memory* m, u8** mem, u8* oldmem, u32 expand_slots
   );
 /*----------------------------------------------------------------------------*/
-extern void memory_tls_dealloc (memory* m, u8* mem, u32 slots);
+extern bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots);
 /*----------------------------------------------------------------------------*/
-extern bl_err memory_tls_init (memory* m, u32 bytes, alloc_tbl const* alloc);
-/*----------------------------------------------------------------------------*/
-extern bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 bytes);
-/*----------------------------------------------------------------------------*/
-extern void memory_dealloc (memory* m, u8* mem, alloc_tag tag, u32 bytes);
+extern void memory_dealloc (memory* m, u8* mem, alloc_tag tag, u32 slots);
 /*----------------------------------------------------------------------------*/
 
 #endif /* __MALC_ALLOCATOR__ */

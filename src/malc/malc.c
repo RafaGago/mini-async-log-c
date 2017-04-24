@@ -3,10 +3,17 @@
 #include <bl/base/allocator.h>
 #include <bl/base/static_integer_math.h>
 #include <bl/base/utility.h>
+#include <bl/base/to_type_containing.h>
+#include <bl/base/processor_pause.h>
 #include <bl/nonblock/mpsc_i.h>
 
 #include <malc/cfg.h>
 #include <malc/memory.h>
+
+#ifdef __cplusplus
+  extern "C" {
+#endif
+
 /*----------------------------------------------------------------------------*/
 struct malc {
   malc_producer_cfg producer;
@@ -15,15 +22,45 @@ struct malc {
   alloc_tbl const*  alloc;
 };
 /*----------------------------------------------------------------------------*/
+enum queue_command {
+  q_cmd_dealloc = 0,
+  q_cmd_max,
+};
+/*----------------------------------------------------------------------------*/
+typedef union qnode_type{
+  uword                   qcmd;
+  malc_const_entry const* entry;
+}
+qnode_type;
+/*----------------------------------------------------------------------------*/
 typedef struct qnode {
   mpsc_i_node hook;
+  qnode_type  type;
   u8          slots;
+  /* would be nice to have flexible arrays in C++ */
 }
 qnode;
+/*----------------------------------------------------------------------------*/
+static void malc_tls_destructor (void* mem, void* context)
+{
+/*When a thread goes out of scope we can't just erase the buffer TLS memory
+  chunk, such deallocation could leave dangled entries on the queue. To
+  guarantee that all the previous entries of a thread have been processed a
+  special node is sent to the queue. This node just commands the producer to
+  deallocate the whole chunk it points to.
 
-#ifdef __cplusplus
-  extern "C" {
-#endif
+  The node hook overwrites the TLS buffer header to guarantee that this
+  message can be sent even when the full TLS buffer is pending on the queue
+  (see static_assert below).
+ */
+  static_assert_ns (sizeof (qnode) <= sizeof (tls_buffer));
+  malc*  l     = (malc*) context;
+  qnode* n     = (qnode*) mem;
+  n->slots     = 0;
+  n->type.qcmd = q_cmd_dealloc;
+  mpsc_i_node_set (&n->hook, nullptr, alloc_tag_tls, alloc_tag_bits);
+  mpsc_i_produce (&l->q, &n->hook, alloc_tag_bits);
+}
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT uword malc_get_size (void)
 {
@@ -65,12 +102,35 @@ MALC_EXPORT bl_err malc_terminate (malc* l)
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, u32 bytes)
 {
-  return memory_tls_init (&l->mem, bytes, l->alloc);
+  return memory_tls_init (&l->mem, bytes, l->alloc, &malc_tls_destructor, l);
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
 {
-  return bl_ok;
+  /* INCOMPLETE */
+  mpsc_i_node* qn;
+  bl_err err;
+  while (1) {
+    err = mpsc_i_consume (&l->q, &qn, alloc_tag_bits);
+    if (err != bl_busy) {
+      break;
+    }
+    processor_pause();
+  }
+  if (likely (!err)) {
+    qnode* n = to_type_containing (qn, hook, qnode);
+    if (n->type.qcmd != q_cmd_dealloc) {
+      /* TODO, decode and send to all destinations */
+      alloc_tag tag = mpsc_i_node_get_tag (qn, alloc_tag_bits);
+      memory_dealloc (&l->mem, (u8*) n, tag, ((u32) n->slots) + 1);
+    }
+    else {
+      bl_assert (n->type.qcmd == q_cmd_dealloc);
+      bl_dealloc (l->alloc, n);
+    }
+    return bl_ok;
+  }
+  return (err == bl_empty) ? bl_nothing_to_do : err;
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_run_idle_task (malc* l, bool force)
@@ -113,13 +173,35 @@ MALC_EXPORT bl_err malc_log(
   ...
   )
 {
+#ifdef MALC_SAFETY_CHECK
+  if (unlikely (
+    !l ||
+    !e ||
+    !e->format ||
+    !e->info ||
+    e->compressed_count >= argc ||
+    va_min_size > va_max_size
+    )) {
+  /* code triggering this "bl_invalid" is either not using the macros or
+     malicious*/
+    return bl_invalid;
+  }
+#else
+  bl_assert(
+    l &&
+    e &&
+    e->format &&
+    e->info &&
+    e->compressed_count < argc &&
+    va_min_size <= va_max_size
+    );
+#endif
   /* TODO: this is very preliminary, */
-  bl_assert (e && e->format && e->info);
-  uword     size  = va_max_size += sizeof (*e);
-  u8*       mem   = nullptr;
-  uword     slots = div_ceil (size, alloc_slot_size);
-  alloc_tag tag   = alloc_tag_tls;
-  bl_err    err   = memory_tls_alloc (&l->mem, &mem, slots);
+  alloc_tag tag;
+  uword  size  = va_max_size += sizeof (*e);
+  u8*    mem   = nullptr;
+  uword  slots = div_ceil (size, alloc_slot_size);
+  bl_err err   = memory_tls_alloc (&l->mem, &mem, &tag, slots);
   /* a failure here will do va_max_size - va_min_size, and if the difference is
      just one alloc_slot it will just overallocate, the block count will be
      saved on the first byte. (256 slots will be the maximum size)*/
@@ -131,112 +213,11 @@ MALC_EXPORT bl_err malc_log(
       return err;
     }
   }
-  qnode* n = (qnode*) mem;
+  qnode* n      = (qnode*) mem;
+  n->slots      = 0;
+  n->type.entry = e;
   mpsc_i_node_set (&n->hook, nullptr, tag, alloc_tag_bits);
   mpsc_i_produce (&l->q, &n->hook, alloc_tag_bits);
-
-#if 0
-  va_list vargs;
-  va_start (vargs, argc);
-  char const* partype = &e->info[1];
-
-  while (*partype) {
-    switch (*partype) {
-    case malc_type_float: {
-      float v = (float) va_arg (vargs, double);
-      printf ("float: %f\n", v);
-      break;
-      }
-    case malc_type_double: {
-      double v = (double) va_arg (vargs, double);
-      printf ("double: %f\n", v);
-      break;
-      }
-    case malc_type_i8: {
-      i8 v = (i8) va_arg (vargs, int);
-      printf ("i8: %"PRId8"\n", v);
-      break;
-      }
-    case malc_type_u8: {
-      u8 v = (u8) va_arg (vargs, int);
-      printf ("u8: %"PRIu8"\n", v);
-      break;
-      }
-    case malc_type_i16: {
-      i16 v = (i16) va_arg (vargs, int);
-      printf ("i16: %"PRId16"\n", v);
-      break;
-      }
-    case malc_type_u16: {
-      u16 v = (u16) va_arg (vargs, int);
-      printf ("u16: %"PRIu16"\n", v);
-      break;
-      }
-#ifdef BL_32
-    case malc_type_i32: {
-      i32 v = (i32) va_arg (vargs, i32);
-      printf ("i32: %"PRId32"\n", v);
-      break;
-      }
-    case malc_type_u32: {
-      u32 v = (u32)  va_arg (vargs, u32);
-      printf ("u32: %"PRIu32"\n", v);
-      break;
-      }
-#else
-      case malc_type_i32: {
-      i32 v = (i32) va_arg (vargs, int);
-      printf ("i32: %"PRId32"\n", v);
-      break;
-      }
-    case malc_type_u32: {
-      u32 v = (u32) va_arg (vargs, int);
-      printf ("u32: %"PRIu32"\n", v);
-      break;
-      }
-#endif
-      case malc_type_i64: {
-      i64 v = (i64) va_arg (vargs, i64);
-      printf ("i64: %"PRId64"\n", v);
-      break;
-      }
-    case malc_type_u64: {
-      u64 v = (u64) va_arg (vargs, u64);
-      printf ("u64: %"PRIu64"\n", v);
-      break;
-      }
-    case malc_type_vptr: {
-      void* v = va_arg (vargs, void*);
-      printf ("vptr: 0x%08lx\n", (u64) v);
-      break;
-      }
-    case malc_type_lit: {
-      malc_lit v = va_arg (vargs, malc_lit);
-      printf ("string literal: %s\n", v.lit);
-      break;
-      }
-    case malc_type_str: {
-      malc_str v = va_arg (vargs, malc_str);
-      printf ("string: len: %d, %s\n", (int) v.len, v.str);
-      break;
-      }
-    case malc_type_bytes: {
-      malc_mem  v = va_arg (vargs, malc_mem);
-      printf ("mem: len: %d, ptr: 0x%08lx\n", v.size, (u64) v.mem);
-      break;
-      }
-    default: {
-      printf ("invalid\n");
-      err = bl_invalid;
-      goto end_process_loop;
-      }
-    }
-    ++partype;
-  }
-end_process_loop:
-  va_end (vargs);
-  return err;
-  #endif
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
