@@ -179,7 +179,7 @@ MALC_EXPORT bl_err malc_log(
     !e ||
     !e->format ||
     !e->info ||
-    e->compressed_count >= argc ||
+    e->compressed_count > argc ||
     va_min_size > va_max_size
     )) {
   /* code triggering this "bl_invalid" is either not using the macros or
@@ -192,7 +192,7 @@ MALC_EXPORT bl_err malc_log(
     e &&
     e->format &&
     e->info &&
-    e->compressed_count < argc &&
+    e->compressed_count <= argc &&
     va_min_size <= va_max_size
     );
 #endif
