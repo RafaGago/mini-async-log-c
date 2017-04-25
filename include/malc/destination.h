@@ -20,6 +20,8 @@ typedef struct malc_dst {
   bl_err (*destroy)      (void* logdst, alloc_tbl const* alloc);
   bl_err (*init)         (void* logdst);
   bl_err (*terminate)    (void* logdst);
+  bl_err (*flush)        (void* logdst);
+  bl_err (*idle_task)    (void* logdst);
   bl_err (*get_cfg)      (void const* logdst, malc_dst_cfg* cfg);
   bl_err (*set_cfg)      (void* logdst, malc_dst_cfg const* cfg);
   bl_err (*get_specific) (void const* logdst, void* cfg);
