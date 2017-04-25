@@ -66,6 +66,7 @@ malc_srcs = [
 malc_test_srcs = [
     'test/src/malc/tests_main.c',
     'test/src/malc/tls_buffer_test.c',
+    'test/src/malc/interface_test.c',
 ]
 
 #cflags += [ '-E' ] #erase
@@ -97,14 +98,3 @@ test(
         c_args              : cflags + test_cflags,
         dependencies        : threads
     ))
-
-proof_srcs = [
-    'src/malc/proof_of_concept_main.c',
-]
-executable(
-    'malc-proof-of-concept',
-    proof_srcs,
-    include_directories : include_dirs,
-    link_with           : [ base_lib, ],
-    c_args              : cflags
-    )

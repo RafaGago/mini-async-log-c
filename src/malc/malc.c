@@ -8,6 +8,7 @@
 #include <bl/nonblock/mpsc_i.h>
 
 #include <malc/cfg.h>
+#include <malc/stack_args.h>
 #include <malc/memory.h>
 
 #ifdef __cplusplus
@@ -40,6 +41,10 @@ typedef struct qnode {
   /* would be nice to have flexible arrays in C++ */
 }
 qnode;
+/*----------------------------------------------------------------------------*/
+#ifdef __cplusplus
+  extern "C" {
+#endif
 /*----------------------------------------------------------------------------*/
 static void malc_tls_destructor (void* mem, void* context)
 {

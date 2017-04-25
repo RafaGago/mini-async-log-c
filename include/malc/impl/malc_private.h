@@ -397,6 +397,14 @@ extern MALC_EXPORT bl_err malc_log(
   } /* extern "C" { */
 #endif
 /*----------------------------------------------------------------------------*/
+/* used for testing, ignore */
+#ifndef MALC_GET_MIN_SEVERITY_FNAME
+  #define MALC_GET_MIN_SEVERITY_FNAME malc_get_min_severity
+#endif
+#ifndef MALC_LOG_FNAME
+  #define MALC_LOG_FNAME malc_log
+#endif
+/*----------------------------------------------------------------------------*/
 #define MALC_LOG_CREATE_CONST_ENTRY(sev, ...) \
   static const char pp_tokconcat(malc_const_info_, __LINE__)[] = { \
     (char) (sev), \
@@ -426,7 +434,7 @@ extern MALC_EXPORT bl_err malc_log(
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_PRIVATE_IMPL(err, malc_ptr, sev, ...) \
   MALC_LOG_CREATE_CONST_ENTRY ((sev), __VA_ARGS__); \
-  (err) = malc_log( \
+  (err) = MALC_LOG_FNAME( \
     (malc_ptr), \
     &pp_tokconcat (malc_const_entry_, __LINE__), \
     /* min_size (0 if no args) */ \
@@ -458,7 +466,7 @@ extern MALC_EXPORT bl_err malc_log(
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_IF_PRIVATE(condition, err, malc_ptr, sev, ...) \
   do { \
-    if ((condition) && ((sev) >= malc_get_min_severity ((malc_ptr)))) { \
+    if ((condition) && ((sev) >= MALC_GET_MIN_SEVERITY_FNAME ((malc_ptr)))) { \
       MALC_LOG_PRIVATE_IMPL ((err), (malc_ptr), (sev), __VA_ARGS__); \
     } \
     else { \
