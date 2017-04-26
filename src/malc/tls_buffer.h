@@ -6,6 +6,20 @@
 #include <bl/base/error.h>
 #include <bl/base/thread.h>
 
+/* this trivial (but very specialized) SPSC algorithm relies on
+   TLS_BUFFER_FREE_UWORD being a forbidded value on the first word of an
+   allocated buffer and that the deallocating thread will know the
+   size.
+
+   TLS_BUFFER_FREE_UWORD is set to 1, so the first value on the chunk can be
+   a pointer. 1 is an invalid value in a non-tagged pointer
+
+   This makes it a suitable allocator for intrusive list nodes of variable
+   size. The first word will be a pointer and the size has to be stored
+   somewhere else */
+
+#define TLS_BUFFER_FREE_UWORD ((uword) 1)
+
 /*----------------------------------------------------------------------------*/
 extern bl_thread_local void* malc_tls;
 /*----------------------------------------------------------------------------*/

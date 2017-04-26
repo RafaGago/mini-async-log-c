@@ -60,8 +60,6 @@ static bl_err tls_buffer_alloc_priv(
   )
 {
   bl_assert (expand != 0 && mem && t);
-  /* this trivial SPSC algorithm relies on the fact that zero is a forbidden
-     value on the first word of each allocated entry */
   bool copy_old = false;
   uword slots   = old_slots + expand;
   if (unlikely (slots > t->slot_count)) {
@@ -81,7 +79,8 @@ static bl_err tls_buffer_alloc_priv(
     copy_old   = realloc;
   }
   while (check_iter < slot_end) {
-    if (unlikely (atomic_uword_load_rlx ((atomic_uword*) check_iter) != 0)) {
+    uword first_word = atomic_uword_load_rlx ((atomic_uword*) check_iter);
+    if (unlikely (first_word != TLS_BUFFER_FREE_UWORD)) {
       return bl_would_overflow;
     }
     check_iter += t->slot_size;
@@ -116,7 +115,7 @@ void tls_buffer_dealloc (void* mem, u32 slots, u32 slot_size)
   u8* slot = (u8*) mem;
   u8* end   = slot + (slot_size * slots);
   for (; slot < end; slot += slot_size) {
-    atomic_uword_store_rlx ((atomic_uword*) slot, 0);
+    atomic_uword_store_rlx ((atomic_uword*) slot, TLS_BUFFER_FREE_UWORD);
   }
 }
 /*----------------------------------------------------------------------------*/

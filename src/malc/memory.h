@@ -22,6 +22,7 @@ enum alloc_tags {
 };
 typedef u8 alloc_tag;
 #define alloc_tag_bits static_log2_ceil_u (alloc_tag_total)
+#define alloc_tag_mask (u_lsb_set (alloc_tag_bits))
 /*----------------------------------------------------------------------------*/
 typedef struct memory {
   malc_alloc_cfg cfg;

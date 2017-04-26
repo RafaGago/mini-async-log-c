@@ -28,16 +28,10 @@ enum queue_command {
   q_cmd_max,
 };
 /*----------------------------------------------------------------------------*/
-typedef union qnode_type{
-  uword                   qcmd;
-  malc_const_entry const* entry;
-}
-qnode_type;
-/*----------------------------------------------------------------------------*/
 typedef struct qnode {
   mpsc_i_node hook;
-  qnode_type  type;
-  u8          slots;
+  uword  data;
+  u8     slots;
   /* would be nice to have flexible arrays in C++ */
 }
 qnode;
@@ -59,12 +53,12 @@ static void malc_tls_destructor (void* mem, void* context)
   (see static_assert below).
  */
   static_assert_ns (sizeof (qnode) <= sizeof (tls_buffer));
-  malc*  l     = (malc*) context;
-  qnode* n     = (qnode*) mem;
-  n->slots     = 0;
-  n->type.qcmd = q_cmd_dealloc;
-  mpsc_i_node_set (&n->hook, nullptr, alloc_tag_tls, alloc_tag_bits);
-  mpsc_i_produce (&l->q, &n->hook, alloc_tag_bits);
+  malc*  l = (malc*) context;
+  qnode* n = (qnode*) mem;
+  n->slots = 0;
+  n->data  = q_cmd_dealloc;
+  mpsc_i_node_set (&n->hook, nullptr, 0, 0);
+  mpsc_i_produce_notag (&l->q, &n->hook);
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT uword malc_get_size (void)
@@ -116,7 +110,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
   mpsc_i_node* qn;
   bl_err err;
   while (1) {
-    err = mpsc_i_consume (&l->q, &qn, alloc_tag_bits);
+    err = mpsc_i_consume (&l->q, &qn, 0);
     if (err != bl_busy) {
       break;
     }
@@ -124,13 +118,18 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
   }
   if (likely (!err)) {
     qnode* n = to_type_containing (qn, hook, qnode);
-    if (n->type.qcmd != q_cmd_dealloc) {
+    if (n->data != q_cmd_dealloc) {
+      alloc_tag               tag;
+      tag = n->data & alloc_tag_mask;
+      /* unused warning
+      malc_const_entry const* ent;
+      ent = (malc_const_entry const*) (n->data & ~alloc_tag_mask);
+      */
       /* TODO, decode and send to all destinations */
-      alloc_tag tag = mpsc_i_node_get_tag (qn, alloc_tag_bits);
       memory_dealloc (&l->mem, (u8*) n, tag, ((u32) n->slots) + 1);
     }
     else {
-      bl_assert (n->type.qcmd == q_cmd_dealloc);
+      bl_assert (n->data == q_cmd_dealloc);
       bl_dealloc (l->alloc, n);
     }
     return bl_ok;
@@ -218,11 +217,13 @@ MALC_EXPORT bl_err malc_log(
       return err;
     }
   }
-  qnode* n      = (qnode*) mem;
-  n->slots      = 0;
-  n->type.entry = e;
-  mpsc_i_node_set (&n->hook, nullptr, tag, alloc_tag_bits);
-  mpsc_i_produce (&l->q, &n->hook, alloc_tag_bits);
+  qnode* n = (qnode*) mem;
+  n->slots = 0; /*TODO*/
+  n->data  = (uword) e;
+  bl_assert ((n->data & ~alloc_tag_mask) == n->data);
+  n->data |= tag & alloc_tag_mask;
+  mpsc_i_node_set (&n->hook, nullptr, 0, 0);
+  mpsc_i_produce_notag (&l->q, &n->hook);
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
