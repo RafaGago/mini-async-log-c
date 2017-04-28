@@ -243,8 +243,13 @@ static void interface_test_i32 (void **state)
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
   assert_true (v == m.types.val_i32);
+#ifdef MALC_NO_BUILTIN_COMPRESSION
+  assert_true (m.size == 4);
+  assert_true (m.entry->compressed_count == 0);
+#else
   assert_true (m.size == 1);
   assert_true (m.entry->compressed_count == 1);
+#endif
 }
 /*----------------------------------------------------------------------------*/
 static void interface_test_i64 (void **state)
@@ -261,8 +266,13 @@ static void interface_test_i64 (void **state)
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
   assert_true (v == m.types.val_i64);
+#ifdef MALC_NO_BUILTIN_COMPRESSION
+  assert_true (m.size == 8);
+  assert_true (m.entry->compressed_count == 0);
+#else
   assert_true (m.size == 1);
   assert_true (m.entry->compressed_count == 1);
+#endif
 }
 /*----------------------------------------------------------------------------*/
 static void interface_test_u8 (void **state)
@@ -305,8 +315,13 @@ static void interface_test_u32 (void **state)
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
   assert_true (v == m.types.val_u32);
+#ifdef MALC_NO_BUILTIN_COMPRESSION
+  assert_true (m.size == 4);
+  assert_true (m.entry->compressed_count == 0);
+#else
   assert_true (m.size == 1);
   assert_true (m.entry->compressed_count == 1);
+#endif
 }
 /*----------------------------------------------------------------------------*/
 static void interface_test_u64 (void **state)
@@ -323,8 +338,13 @@ static void interface_test_u64 (void **state)
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
   assert_true (v == m.types.val_u64);
+#ifdef MALC_NO_BUILTIN_COMPRESSION
+  assert_true (m.size == 8);
+  assert_true (m.entry->compressed_count == 0);
+#else
   assert_true (m.size == 1);
   assert_true (m.entry->compressed_count == 1);
+#endif
 }
 /*----------------------------------------------------------------------------*/
 static void interface_test_ptr (void **state)
