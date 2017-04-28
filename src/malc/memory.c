@@ -32,26 +32,6 @@ void memory_destroy (memory* m)
   bl_tss_destroy (m->tss_key);
 }
 /*----------------------------------------------------------------------------*/
-bl_err memory_tls_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
-{
-  bl_assert (m && mem && tag && slots);
-  if (unlikely (!malc_tls)) {
-    return bl_invalid;
-  }
-  tls_buffer* t = (tls_buffer*) malc_tls;
-  *tag          = alloc_tag_tls;
-  return tls_buffer_alloc (t, mem, slots);
-}
-/*----------------------------------------------------------------------------*/
-bl_err memory_tls_expand(
-  memory* m, u8** mem, u8* oldmem, u32 expand_slots
-  )
-{
-  bl_assert (malc_tls);
-  tls_buffer* t = (tls_buffer*) malc_tls;
-  return tls_buffer_expand (t, mem, oldmem, expand_slots);
-}
-/*----------------------------------------------------------------------------*/
 bl_err memory_tls_init(
   memory*          m,
   u32              bytes,
@@ -83,6 +63,13 @@ bl_err memory_tls_init(
 bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
 {
   bl_assert (m && mem && tag && slots);
+  if (likely (!malc_tls)) {
+    tls_buffer* t = (tls_buffer*) malc_tls;
+    if (likely (tls_buffer_alloc (t, mem, slots) == bl_ok)) {
+      *tag = alloc_tag_tls;
+      return bl_ok;
+    }
+  }
   if (m->cfg.heap_allocator) {
     *mem = bl_alloc (m->cfg.heap_allocator, slots * alloc_slot_size);
     *tag = alloc_tag_heap;

@@ -43,14 +43,6 @@ extern bl_err memory_tls_init(
   void*            destructor_context
   );
 /*----------------------------------------------------------------------------*/
-extern bl_err memory_tls_alloc(
-  memory* m, u8** mem, alloc_tag* tag, u32 slots
-  );
-/*----------------------------------------------------------------------------*/
-extern bl_err memory_tls_expand(
-  memory* m, u8** mem, u8* oldmem, u32 expand_slots
-  );
-/*----------------------------------------------------------------------------*/
 extern bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots);
 /*----------------------------------------------------------------------------*/
 extern void memory_dealloc (memory* m, u8* mem, alloc_tag tag, u32 slots);

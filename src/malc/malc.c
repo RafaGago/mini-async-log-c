@@ -1,3 +1,6 @@
+#include <string.h>
+#include <stdarg.h>
+
 #include <malc/malc.h>
 
 #include <bl/base/allocator.h>
@@ -168,6 +171,125 @@ MALC_EXPORT uword malc_get_min_severity (malc const* l)
   return malc_sev_debug;
 }
 /*----------------------------------------------------------------------------*/
+static void malc_encode (u8* mem, va_list vargs, malc_const_entry const* e)
+{
+  char const* partype = &e->info[1];
+
+  uword compressed_header_bytes = (e->compressed_count + 1) & ~u_lsb_set (1);
+  for (uword i = 0; i < compressed_header_bytes; ++i) {
+    mem[i] = 0;
+  }
+  uword compress_idx = 0;
+  u8* wptr = mem + compressed_header_bytes;
+  /* the compiler will remove the fixed-size memcpy calls*/
+  while (*partype) {
+    switch (*partype) {
+    case malc_type_i8:
+    case malc_type_u8: {
+      u8 v = malc_get_va_arg (vargs, v);
+      memcpy (wptr, &v, sizeof v);
+      wptr += sizeof v;
+      break;
+      }
+    case malc_type_i16:
+    case malc_type_u16: {
+      u16 v = malc_get_va_arg (vargs, v);
+      memcpy (wptr, &v, sizeof v);
+      wptr += sizeof v;
+      break;
+      }
+#ifdef MALC_NO_BUILTIN_COMPRESSION
+    case malc_type_i32:
+    case malc_type_u32: {
+      u32 v = malc_get_va_arg (vargs, v);
+      memcpy (wptr, &v, sizeof v);
+      wptr += sizeof v;
+      break;
+      }
+#else
+    case malc_type_i32:
+    case malc_type_u32: {
+      malc_compressed_32 v;
+      v = malc_get_va_arg (vargs, v);
+      uword size = (v.format_nibble & ((1 << 3) - 1)) + 1;
+      bl_assert (size <= sizeof (u32));
+      mem[compress_idx / 2] |= (u8) v.format_nibble << ((compress_idx & 1) * 4);
+      ++compress_idx;
+      for (uword i = 0; i < size; ++i) {
+        *wptr = (u8) (v.v >> (i * 8));
+        ++wptr;
+      }
+      break;
+      }
+#endif
+    case malc_type_float: {
+      float v = malc_get_va_arg (vargs, v);
+      memcpy (wptr, &v, sizeof v);
+      wptr += sizeof v;
+      break;
+      }
+#ifdef MALC_NO_BUILTIN_COMPRESSION
+    case malc_type_i64:
+    case malc_type_u64: {
+      u64 v = malc_get_va_arg (vargs, v);
+      memcpy (wptr, &v, sizeof v);
+      wptr += sizeof v;
+      break;
+      }
+#else
+    case malc_type_i64:
+    case malc_type_u64: {
+      malc_compressed_64 v;
+      v = malc_get_va_arg (vargs, v);
+      uword size = (v.format_nibble & ((1 << 3) - 1)) + 1;
+      bl_assert (size <= sizeof (u64));
+      mem[compress_idx / 2] |= (u8) v.format_nibble << ((compress_idx & 1) * 4);
+      ++compress_idx;
+      for (uword i = 0; i < size; ++i) {
+        *wptr = (u8) (v.v >> (i * 8));
+        ++wptr;
+      }
+      break;
+    }
+#endif
+    case malc_type_double: {
+      double v = malc_get_va_arg (vargs, v);
+      memcpy (wptr, &v, sizeof v);
+      wptr += sizeof v;
+      break;
+      }
+    case malc_type_ptr: {
+      void* v = malc_get_va_arg (vargs, v);
+      memcpy (wptr, &v, sizeof v);
+      wptr += sizeof v;
+      break;
+      }
+    case malc_type_lit: {
+      malc_lit v = malc_get_va_arg (vargs, v);
+      memcpy (wptr, &v.lit, sizeof v);
+      wptr += sizeof v;
+      break;
+      }
+    case malc_type_str:
+    case malc_type_bytes: {
+      malc_mem v = malc_get_va_arg (vargs, v);
+      if (unlikely (!v.mem)) {
+        v.size = 0;
+      }
+      memcpy (wptr, &v.size, sizeof v.size);
+      wptr += sizeof v.size;
+      memcpy (wptr, v.mem, v.size);
+      wptr += v.size;
+      break;
+      }
+    default: {
+      bl_assert (0 && "bug");
+      }
+    }
+    ++partype;
+  }
+}
+/*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_log(
   malc* l, malc_const_entry const* e, uword payload_size, ...
   )
@@ -191,22 +313,27 @@ MALC_EXPORT bl_err malc_log(
     e->info
     );
 #endif
-  /* TODO: this is very preliminary, */
   alloc_tag tag;
-  uword  size  = sizeof (qnode) + payload_size;
-  size        += (e->compressed_count + 1) & ~u_lsb_set (1);
-  u8*    mem   = nullptr;
-  uword  slots = div_ceil (size, alloc_slot_size);
-  bl_err err   = memory_tls_alloc (&l->mem, &mem, &tag, slots);
-  if (unlikely (err)) {
-    /* TODO: now just testing the TLS */
-    /* err = memory_alloc (&l->m, &mem, &tag, size); */
-    if (unlikely (err)) {
-      return err;
-    }
+  uword size  = sizeof (qnode) + payload_size;
+  size       += (e->compressed_count + 1) & ~u_lsb_set (1);
+  u8* mem     = nullptr;
+  uword slots = div_ceil (size, alloc_slot_size);
+  if (unlikely (slots) > (1 << (sizeof_member (qnode, slots) * 8))) {
+    /*entries are limited at 8KB*/
+    return bl_range;
   }
+  bl_err err = memory_alloc (&l->mem, &mem, &tag, slots);
+  if (unlikely (err)) {
+    return err;
+  }
+  va_list vargs;
+  va_start (vargs, payload_size);
+  /*malc_encode  is deliberately unsafe, if the log macros are used everything
+    will be correct. Checks have to be avoided on the fast-path*/
+  malc_encode (mem + sizeof (qnode), vargs, e);
+  va_end(vargs);
   qnode* n = (qnode*) mem;
-  n->slots = 0; /*TODO*/
+  n->slots = slots - 1;
   n->data  = (uword) e;
   bl_assert ((n->data & ~alloc_tag_mask) == n->data);
   n->data |= tag & alloc_tag_mask;

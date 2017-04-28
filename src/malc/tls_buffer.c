@@ -55,29 +55,21 @@ void bl_tss_dtor_callconv tls_buffer_destroy (void* opaque)
   }
 }
 /*----------------------------------------------------------------------------*/
-static bl_err tls_buffer_alloc_priv(
-  tls_buffer* t, u8** mem, u8* old, u32 expand, uword old_slots, bool realloc
-  )
+bl_err tls_buffer_alloc (tls_buffer* t, u8** mem, u32 slots)
 {
-  bl_assert (expand != 0 && mem && t);
-  bool copy_old = false;
-  uword slots   = old_slots + expand;
+  bl_assert (slots != 0 && mem && t);
   if (unlikely (slots > t->slot_count)) {
     return bl_would_overflow;
   }
-  u8* slot_start = old;
-  u8* slot_end   = old + (slots * t->slot_size);
-  u8* check_iter;
-  if (likely (slot_end <= t->mem_end)) {
-    check_iter = slot_start + (old_slots * t->slot_size);
-  }
-  else {
+  u8* slot_start = t->slot;
+  u8* slot_end   = t->slot + (slots * t->slot_size);
+
+  if (unlikely (slot_end > t->mem_end)) {
     /* memory region wrapping */
     slot_start = t->mem;
     slot_end   = t->mem + (slots * t->slot_size);
-    check_iter = slot_start;
-    copy_old   = realloc;
   }
+  u8* check_iter = slot_start;
   while (check_iter < slot_end) {
     uword first_word = atomic_uword_load_rlx ((atomic_uword*) check_iter);
     if (unlikely (first_word != TLS_BUFFER_FREE_UWORD)) {
@@ -87,25 +79,7 @@ static bl_err tls_buffer_alloc_priv(
   }
   t->slot = slot_end;
   *mem    = slot_start;
-  if (unlikely (copy_old)) {
-    memcpy (*mem, old, old_slots * t->slot_size);
-    tls_buffer_dealloc (old, old_slots, t->slot_size);
-  }
   return bl_ok;
-}
-/*----------------------------------------------------------------------------*/
-bl_err tls_buffer_alloc (tls_buffer* t, u8** mem, u32 slots)
-{
-  return tls_buffer_alloc_priv (t, mem, t->slot, slots, 0, false);
-}
-/*----------------------------------------------------------------------------*/
-bl_err tls_buffer_expand(
-  tls_buffer* t, u8** mem, u8* old, u32 expand_slots
-  )
-{
-  return tls_buffer_alloc_priv(
-    t, mem, old, expand_slots, ((uword) (t->slot - old)) / t->slot_size, true
-    );
 }
 /*----------------------------------------------------------------------------*/
 void tls_buffer_dealloc (void* mem, u32 slots, u32 slot_size)

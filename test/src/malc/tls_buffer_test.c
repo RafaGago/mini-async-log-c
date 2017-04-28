@@ -100,33 +100,6 @@ static void tls_double_alloc_too_big_test (void **state)
   assert_int_equal (err, bl_would_overflow);
 }
 /*----------------------------------------------------------------------------*/
-static void tls_full_expand_test (void **state)
-{
-  tls_context* c = (tls_context*) *state;
-  u8* mem;
-  bl_err err = tls_buffer_alloc (c->t, &mem, 1);
-  assert_int_equal (err, bl_ok);
-  assert_ptr_equal (mem, c->t->mem);
-  *((uword*) mem) = DUMMY_POINTER_VALUE;
-  u8* newmem;
-  err = tls_buffer_expand (c->t, &newmem, mem, tls_buff_slots - 1);
-  assert_int_equal (err, bl_ok);
-  assert_ptr_equal (mem, c->t->mem);
-}
-/*----------------------------------------------------------------------------*/
-static void tls_full_expand_too_big_test (void **state)
-{
-  tls_context* c = (tls_context*) *state;
-  u8* mem;
-  bl_err err = tls_buffer_alloc (c->t, &mem, 1);
-  assert_int_equal (err, bl_ok);
-  assert_ptr_equal (mem, c->t->mem);
-  *((uword*) mem) = DUMMY_POINTER_VALUE;
-  u8* newmem;
-  err = tls_buffer_expand (c->t, &newmem, mem, tls_buff_slots);
-  assert_int_equal (err, bl_would_overflow);
-}
-/*----------------------------------------------------------------------------*/
 static void tls_dealloc_test (void **state)
 {
   tls_context* c = (tls_context*) *state;
@@ -183,8 +156,6 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup (tls_double_alloc_test, tls_test_init_setup),
   cmocka_unit_test_setup (tls_single_alloc_too_big_test, tls_test_init_setup),
   cmocka_unit_test_setup (tls_double_alloc_too_big_test, tls_test_init_setup),
-  cmocka_unit_test_setup (tls_full_expand_test, tls_test_init_setup),
-  cmocka_unit_test_setup (tls_full_expand_too_big_test, tls_test_init_setup),
   cmocka_unit_test_setup (tls_dealloc_test, tls_test_init_setup),
   cmocka_unit_test_setup (tls_single_wrap_test, tls_test_init_setup),
   cmocka_unit_test_setup (tls_multiple_wrap_test, tls_test_init_setup),

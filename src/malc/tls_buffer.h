@@ -49,10 +49,6 @@ extern void bl_tss_dtor_callconv tls_buffer_destroy (void* opaque);
 /*----------------------------------------------------------------------------*/
 extern bl_err tls_buffer_alloc (tls_buffer* t, u8** mem, u32 slots);
 /*----------------------------------------------------------------------------*/
-extern bl_err tls_buffer_expand(
-  tls_buffer* t, u8** mem, u8* old, u32 expand_slots
-  );
-/*----------------------------------------------------------------------------*/
 extern void tls_buffer_dealloc (void* mem, u32 slots, u32 slot_size);
 /*----------------------------------------------------------------------------*/
 
