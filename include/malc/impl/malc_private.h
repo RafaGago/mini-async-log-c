@@ -117,12 +117,19 @@ extern MALC_EXPORT bl_err malc_log(
   struct malc* l, malc_const_entry const* e, uword size, ...
   );
 /*----------------------------------------------------------------------------*/
+extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
+/*----------------------------------------------------------------------------*/
 #define malc_is_compressed(x) \
   ((int) (malc_get_type_code ((x)) == malc_type_i32 || \
           malc_get_type_code ((x)) == malc_type_u32 || \
           malc_get_type_code ((x)) == malc_type_i64 || \
           malc_get_type_code ((x)) == malc_type_u64))
 /*----------------------------------------------------------------------------*/
+
+#ifdef __cplusplus
+}
+#endif
+
 #ifndef __cplusplus
 
 #define malc_tgen_cv_cases(type, expression)\
@@ -269,7 +276,7 @@ static inline malc_mem    malc_transform_malc_mem  (malc_mem v)    { return v; }
 #else
 
 template <typename T>
-static inline T malc_type_traits_base {
+struct malc_type_traits_base {
   static inline uword size      (T v) { return sizeof v; }
   static inline T     transform (T v) { return v; }
 };
@@ -370,7 +377,7 @@ template<> struct malc_type_traits<malc_lit> :
 template<> struct malc_type_traits<malc_str> {
   static const char code  = malc_type_str;
   static inline malc_str transform (malc_str v) { return v; }
-  static inline uword size (malc str v)
+  static inline uword size (malc_str v)
   {
     return sizeof_member (malc_str, len) + v.len;
   }
@@ -378,7 +385,7 @@ template<> struct malc_type_traits<malc_str> {
 template<> struct malc_type_traits<malc_mem> {
   static const char  code = malc_type_bytes;
   static inline malc_mem transform (malc_mem v) { return v; }
-  static inline uword size (malc_mem str v)
+  static inline uword size (malc_mem v)
   {
     return sizeof_member (malc_mem, size) + v.size;
   }
@@ -847,10 +854,6 @@ static inline bl_err malc_warning_silencer() { return bl_ok; }
 #define malc_critical_i(...)    malc_warning_silencer()
 #define malc_critical_i_if(...) malc_warning_silencer()
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif /*include guard*/
