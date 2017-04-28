@@ -30,7 +30,7 @@ typedef enum malc_encodings {
   malc_type_u32     = 'h',
   malc_type_i64     = 'i',
   malc_type_u64     = 'j',
-  malc_type_vptr    = 'k',
+  malc_type_ptr     = 'k',
   malc_type_lit     = 'l',
   malc_type_str     = 'm',
   malc_type_bytes   = 'n',
@@ -141,8 +141,8 @@ extern MALC_EXPORT bl_err malc_log(
     malc_tgen_cv_cases (u32,         (char) malc_type_u32),\
     malc_tgen_cv_cases (i64,         (char) malc_type_i64),\
     malc_tgen_cv_cases (u64,         (char) malc_type_u64),\
-    malc_tgen_cv_cases (void*,       (char) malc_type_vptr),\
-    malc_tgen_cv_cases (void* const, (char) malc_type_vptr),\
+    malc_tgen_cv_cases (void*,       (char) malc_type_ptr),\
+    malc_tgen_cv_cases (void* const, (char) malc_type_ptr),\
     malc_lit:                        (char) malc_type_lit,\
     malc_str:                        (char) malc_type_str,\
     malc_mem:                        (char) malc_type_bytes,\
@@ -338,7 +338,7 @@ template<> struct malc_type_traits<u16> : public malc_type_traits_base<u16> {
 #endif
 template<> struct malc_type_traits<void*> :
   public malc_type_traits_base<void*> {
-    static const char  code = malc_type_vptr;
+    static const char  code = malc_type_ptr;
 };
 template<> struct malc_type_traits<const void*> :
   public malc_type_traits<void*> {};

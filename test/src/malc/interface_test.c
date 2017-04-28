@@ -25,7 +25,7 @@ typedef struct alltypes {
   i16      val_i16;
   i64      val_i64;
   float    val_float;
-  void*    val_void_ptr;
+  void*    val_ptr;
   malc_str val_malc_str;
   malc_lit val_malc_lit;
   malc_mem val_malc_mem;
@@ -149,8 +149,8 @@ MALC_EXPORT bl_err malc_log_test(
       break;
       }
 #endif
-    case malc_type_vptr: {
-      l->types.val_void_ptr = malc_get_va_arg (vargs, l->types.val_void_ptr);
+    case malc_type_ptr: {
+      l->types.val_ptr = malc_get_va_arg (vargs, l->types.val_ptr);
       break;
       }
     case malc_type_lit: {
@@ -327,7 +327,7 @@ static void interface_test_u64 (void **state)
   assert_true (m.entry->compressed_count == 1);
 }
 /*----------------------------------------------------------------------------*/
-static void interface_test_void_ptr (void **state)
+static void interface_test_ptr (void **state)
 {
   malc m;
   memset (&m, 0, sizeof m);
@@ -335,7 +335,7 @@ static void interface_test_void_ptr (void **state)
   void* v = (void*) 0xaa00aa00;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_void_ptr);
+  assert_true (v == m.types.val_ptr);
   assert_true (m.size == sizeof (v));
   assert_true (m.entry->compressed_count == 0);
 }
@@ -399,7 +399,7 @@ static void interface_test_all (void **state)
     malc_type_i64,
     malc_type_float,
     malc_type_double,
-    malc_type_vptr,
+    malc_type_ptr,
     malc_type_str,
     malc_type_lit,
     malc_type_bytes,
@@ -416,7 +416,7 @@ static void interface_test_all (void **state)
   all.val_i64           = -5666666666566666666;
   all.val_float         = 195953.2342f;
   all.val_double        = 1231231123123123.234234444;
-  all.val_void_ptr      = (void*) 0xaa00aa00;
+  all.val_ptr           = (void*) 0xaa00aa00;
   all.val_malc_str.str  = (char const*) 0x123123;
   all.val_malc_str.len  = 12;
   all.val_malc_lit.lit  = (char const*) 0x16783123;
@@ -438,7 +438,7 @@ static void interface_test_all (void **state)
     all.val_i64,
     all.val_float,
     all.val_double,
-    all.val_void_ptr,
+    all.val_ptr,
     all.val_malc_str,
     all.val_malc_lit,
     all.val_malc_mem,
@@ -460,7 +460,7 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test (interface_test_u16),
   cmocka_unit_test (interface_test_u32),
   cmocka_unit_test (interface_test_u64),
-  cmocka_unit_test (interface_test_void_ptr),
+  cmocka_unit_test (interface_test_ptr),
   cmocka_unit_test (interface_test_lit),
   cmocka_unit_test (interface_test_str),
   cmocka_unit_test (interface_test_bytes),
