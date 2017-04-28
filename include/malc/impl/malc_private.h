@@ -87,7 +87,7 @@ static inline malc_compressed_32 malc_get_compressed_u32 (u32 v)
 {
   malc_compressed_32 r;
   r.v              = v;
-  r.format_nibble  = v ? log2_floor_u32 (v) / 8 : 0; /*TODO to unsafe version*/
+  r.format_nibble  = v ? log2_floor_unsafe_u32 (v) / 8 : 0;
   return r;
 }
 /*----------------------------------------------------------------------------*/
@@ -102,7 +102,7 @@ static inline malc_compressed_64 malc_get_compressed_u64 (u64 v)
 {
   malc_compressed_64 r;
   r.v              = v;
-  r.format_nibble  = v ? log2_floor_u64 (v) / 8 : 0; /*TODO to unsafe version*/
+  r.format_nibble  = v ? log2_floor_unsafe_u64 (v) / 8 : 0;
   return r;
 }
 /*----------------------------------------------------------------------------*/
@@ -118,8 +118,10 @@ extern MALC_EXPORT bl_err malc_log(
   );
 /*----------------------------------------------------------------------------*/
 #define malc_is_compressed(x) \
-  ((int) (malc_get_type_code ((x)) >= malc_type_i32 && \
-    malc_get_type_code ((x)) <= malc_type_u64))
+  ((int) (malc_get_type_code ((x)) == malc_type_i32 || \
+          malc_get_type_code ((x)) == malc_type_u32 || \
+          malc_get_type_code ((x)) == malc_type_i64 || \
+          malc_get_type_code ((x)) == malc_type_u64))
 /*----------------------------------------------------------------------------*/
 #ifndef __cplusplus
 
