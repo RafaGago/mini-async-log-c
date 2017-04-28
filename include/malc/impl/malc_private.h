@@ -7,6 +7,7 @@
 
 #include <bl/base/integer.h>
 #include <bl/base/integer_manipulation.h>
+#include <bl/base/integer_math.h>
 #include <bl/base/error.h>
 #include <bl/base/preprocessor.h>
 #include <bl/base/utility.h>
@@ -68,9 +69,49 @@ typedef struct malc_const_entry {
 }
 malc_const_entry;
 /*----------------------------------------------------------------------------*/
+typedef struct malc_compressed_32 {
+  u32 v;
+  u8  format_nibble; /*1 bit sign + 3 bit size (0-7)*/
+}
+malc_compressed_32;
+/*----------------------------------------------------------------------------*/
+typedef struct malc_compressed_64 {
+  u64 v;
+  u8  format_nibble; /*1 bit sign + 3 bit size (0-7)*/
+}
+malc_compressed_64;
+/*----------------------------------------------------------------------------*/
 struct malc;
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
+static inline malc_compressed_32 malc_get_compressed_u32 (u32 v)
+{
+  malc_compressed_32 r;
+  r.v              = v;
+  r.format_nibble  = v ? log2_floor_u32 (v) / 8 : 0; /*TODO to unsafe version*/
+  return r;
+}
+/*----------------------------------------------------------------------------*/
+static inline malc_compressed_32 malc_get_compressed_i32 (i32 v)
+{
+  malc_compressed_32 r = malc_get_compressed_u32 ((u32) (v < 0 ? ~v : v));
+  r.format_nibble     |= (v < 0) << 3;
+  return r;
+}
+/*----------------------------------------------------------------------------*/
+static inline malc_compressed_64 malc_get_compressed_u64 (u64 v)
+{
+  malc_compressed_64 r;
+  r.v              = v;
+  r.format_nibble  = v ? log2_floor_u64 (v) / 8 : 0; /*TODO to unsafe version*/
+  return r;
+}
+/*----------------------------------------------------------------------------*/
+static inline malc_compressed_64 malc_get_compressed_i64 (i64 v)
+{
+  malc_compressed_64 r = malc_get_compressed_u64 ((u64) (v < 0 ? ~v : v));
+  r.format_nibble     |= (v < 0) << 3;
+  return r;
+}
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_log(
   struct malc*            l,
@@ -155,67 +196,91 @@ extern MALC_EXPORT bl_err malc_log(
     default:                         (uword) 0\
     )
 
+static inline float       malc_transform_float     (float v)       { return v; }
+static inline double      malc_transform_double    (double v)      { return v; }
+static inline i8          malc_transform_i8        (i8 v)          { return v; }
+static inline u8          malc_transform_u8        (u8 v)          { return v; }
+static inline i16         malc_transform_i16       (i16 v)         { return v; }
+static inline u16         malc_transform_u16       (u16 v)         { return v; }
+static inline i32         malc_transform_i32       (i32 v)         { return v; }
+static inline u32         malc_transform_u32       (u32 v)         { return v; }
+static inline i64         malc_transform_i64       (i64 v)         { return v; }
+static inline u64         malc_transform_u64       (u64 v)         { return v; }
+static inline void*       malc_transform_ptr       (void* v)       { return v; }
+static inline void* const malc_transform_ptrc      (void* const v) { return v; }
+static inline malc_lit    malc_transform_malc_lit  (malc_lit v)    { return v; }
+static inline malc_str    malc_transform_malc_str  (malc_str v)    { return v; }
+static inline malc_mem    malc_transform_malc_mem  (malc_mem v)    { return v; }
+
+#define malc_type_transform(expression)\
+  _Generic ((expression),\
+    malc_tgen_cv_cases (float,       malc_transform_float),\
+    malc_tgen_cv_cases (double,      malc_transform_double),\
+    malc_tgen_cv_cases (i8,          malc_transform_i8),\
+    malc_tgen_cv_cases (u8,          malc_transform_u8),\
+    malc_tgen_cv_cases (i16,         malc_transform_i16),\
+    malc_tgen_cv_cases (u16,         malc_transform_u16),\
+    malc_tgen_cv_cases (i32,         malc_transform_i32),\
+    malc_tgen_cv_cases (u32,         malc_transform_u32),\
+    malc_tgen_cv_cases (i64,         malc_transform_i64),\
+    malc_tgen_cv_cases (u64,         malc_transform_u64),\
+    malc_tgen_cv_cases (void*,       malc_transform_ptr),\
+    malc_tgen_cv_cases (void* const, malc_transform_ptrc),\
+    malc_lit:                        malc_transform_malc_lit,\
+    malc_str:                        malc_transform_malc_str,\
+    malc_mem:                        malc_transform_malc_mem,\
+    default:                         malc_transform_ptr\
+    )\
+  (expression)
+
 #define malc_make_var_from_expression(expression, name)\
-  typeof (expression) name = expression;
+  typeof (malc_type_transform (expression)) name = \
+    malc_type_transform (expression);
+
 /*----------------------------------------------------------------------------*/
 #else
 
+template <typename T>
+static inline T malc_type_traits_base {
+  static const uword min = sizeof (T);
+  static const uword max = sizeof (T);
+  static inline T transform (T v) { return v; }
+};
 template<typename T> struct malc_type_traits {};
 
-template<> struct malc_type_traits<float> {
+template<> struct malc_type_traits<float> : public malc_type_traits_base<float>{
   static const char  code = malc_type_float;
-  static const uword min  = sizeof (float);
-  static const uword max  = min;
 };
-template<> struct malc_type_traits<double> {
-  static const char  code = malc_type_double;
-  static const uword min  = sizeof (double);
-  static const uword max  = min;
+template<> struct malc_type_traits<double> :
+  public malc_type_traits_base<double>{
+    static const char  code = malc_type_double;
 };
-template<> struct malc_type_traits<i8> {
+template<> struct malc_type_traits<i8> : public malc_type_traits_base<i8>{
   static const char  code = malc_type_i8;
-  static const uword min  = sizeof (i8);
-  static const uword max  = min;
 };
-template<> struct malc_type_traits<u8> {
+template<> struct malc_type_traits<u8> : public malc_type_traits_base<u8>{
   static const char  code = malc_type_u8;
-  static const uword min  = sizeof (u8);
-  static const uword max  = min;
 };
-template<> struct malc_type_traits<i16> {
+template<> struct malc_type_traits<i16> : public malc_type_traits_base<i16>{
   static const char  code = malc_type_i16;
-  static const uword min  = sizeof (i16);
-  static const uword max  = min;
 };
-template<> struct malc_type_traits<u16> {
+template<> struct malc_type_traits<u16> : public malc_type_traits_base<u16>{
   static const char  code = malc_type_u16;
-  static const uword min  = sizeof (u16);
-  static const uword max  = min;
 };
-template<> struct malc_type_traits<i32> {
+template<> struct malc_type_traits<i32> : public malc_type_traits_base<i32>{
   static const char  code = malc_type_i32;
-  static const uword min  = 1;
-  static const uword max  = sizeof (i32);
 };
-template<> struct malc_type_traits<u32> {
+template<> struct malc_type_traits<u32> : public malc_type_traits_base<u32>{
   static const char  code = malc_type_u32;
-  static const uword min  = 1;
-  static const uword max  = sizeof (u32);
 };
-template<> struct malc_type_traits<i64> {
+template<> struct malc_type_traits<i64> : public malc_type_traits_base<i64>{
   static const char  code = malc_type_i64;
-  static const uword min  = 1;
-  static const uword max  = sizeof (i64);
 };
-template<> struct malc_type_traits<u64> {
+template<> struct malc_type_traits<u64> : public malc_type_traits_base<u64>{
   static const char  code = malc_type_u64;
-  static const uword min  = 1;
-  static const uword max  = sizeof (u64);
 };
-template<> struct malc_type_traits<void*> {
+template<> struct malc_type_traits<void*> : public malc_type_traits_base<void*>{
   static const char  code = malc_type_vptr;
-  static const uword min  = sizeof (void*);
-  static const uword max  = min;
 };
 template<> struct malc_type_traits<const void*> :
   public malc_type_traits<void*> {};
@@ -238,20 +303,21 @@ template<> struct malc_type_traits<volatile void* const> :
 template<> struct malc_type_traits<const volatile void* const> :
   public malc_type_traits<void*> {};
 
-template<> struct malc_type_traits<malc_lit> {
-  static const char  code = malc_type_lit;
-  static const uword min  = sizeof (void*);
-  static const uword max  = min;
+template<> struct malc_type_traits<malc_lit> :
+  public malc_type_traits_base<malc_lit> {
+    static const char  code = malc_type_lit;
 };
 template<> struct malc_type_traits<malc_str> {
   static const char code  = malc_type_str;
   static const uword min  = sizeof (u16);
   static const uword max  = sizeof (u16) + utype_max (u16);
+  static inline malc_str transform (T malc_str) { return malc_str; }
 };
 template<> struct malc_type_traits<malc_mem> {
   static const char  code = malc_type_bytes;
   static const uword min  = sizeof (u16);
   static const uword max  = sizeof (u16) + utype_max (u16);
+  static inline malc_mem transform (T malc_mem) { return malc_mem; }
 };
 
 #include <type_traits>
@@ -284,7 +350,13 @@ template<> struct malc_type_traits<malc_mem> {
     >::max
 
 #define malc_make_var_from_expression(expression, name)\
-  decltype (expression) name = expression;
+  auto name = malc_type_traits< \
+    typename std::remove_cv< \
+      typename std::remove_reference< \
+        decltype (expression) \
+        >::type \
+      >::type \
+    >::transform (expression);
 
 #endif /* __cplusplus*/
 /*----------------------------------------------------------------------------*/

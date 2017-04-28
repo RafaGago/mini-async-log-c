@@ -134,6 +134,7 @@ end_process_loop:
   va_end (vargs);
   return err;
 }
+#if 0
 /*----------------------------------------------------------------------------*/
 static void interface_test_float (void **state)
 {
@@ -274,6 +275,7 @@ static void interface_test_u64 (void **state)
   assert_true (m.va_max_size == sizeof (v));
   assert_true (m.entry->compressed_count == 1);
 }
+#endif
 /*----------------------------------------------------------------------------*/
 static void interface_test_void_ptr (void **state)
 {
@@ -288,6 +290,7 @@ static void interface_test_void_ptr (void **state)
   assert_true (m.va_max_size == sizeof (v));
   assert_true (m.entry->compressed_count == 0);
 }
+#if 0
 /*----------------------------------------------------------------------------*/
 static void interface_test_lit (void **state)
 {
@@ -400,8 +403,10 @@ static void interface_test_all (void **state)
   assert_memory_equal (&all, &m.types, sizeof all);
   assert_string_equal (m.entry->info, expected_info_str);
 }
+#endif
 /*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
+#if 0
   cmocka_unit_test (interface_test_float),
   cmocka_unit_test (interface_test_double),
   cmocka_unit_test (interface_test_i8),
@@ -412,11 +417,14 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test (interface_test_u16),
   cmocka_unit_test (interface_test_u32),
   cmocka_unit_test (interface_test_u64),
+#endif
   cmocka_unit_test (interface_test_void_ptr),
+#if 0
   cmocka_unit_test (interface_test_lit),
   cmocka_unit_test (interface_test_str),
   cmocka_unit_test (interface_test_bytes),
   cmocka_unit_test (interface_test_all),
+#endif
 };
 /*----------------------------------------------------------------------------*/
 int interface_tests (void)
