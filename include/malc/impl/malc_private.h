@@ -154,6 +154,9 @@ extern MALC_EXPORT bl_err malc_log(
       u_bit (sizeof_member (malc_mem, size) * 8) - 1,\
     default:                         (uword) 0\
     )
+
+#define malc_make_var_from_expression(expression, name)\
+  typeof (expression) name = expression;
 /*----------------------------------------------------------------------------*/
 #else
 
@@ -280,6 +283,9 @@ template<> struct malc_type_traits<malc_mem> {
       >::type \
     >::max
 
+#define malc_make_var_from_expression(expression, name)\
+  decltype (expression) name = expression;
+
 #endif /* __cplusplus*/
 /*----------------------------------------------------------------------------*/
 /* used for testing, ignore */
@@ -317,6 +323,9 @@ template<> struct malc_type_traits<malc_mem> {
     )/* endif */\
   }
 /*----------------------------------------------------------------------------*/
+#define MALC_LOG_PASS_TMP_VARIABLES(...) \
+  pp_apply_wid (pp_vargs_second, pp_comma, __VA_ARGS__)
+/*----------------------------------------------------------------------------*/
 #define MALC_LOG_PRIVATE_IMPL(err, malc_ptr, sev, ...) \
   MALC_LOG_CREATE_CONST_ENTRY ((sev), __VA_ARGS__); \
   (err) = MALC_LOG_FNAME( \
@@ -343,15 +352,23 @@ template<> struct malc_type_traits<malc_mem> {
     /* vargs (conditional to skip the trailing comma when ther are no vargs */ \
     pp_if (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))( \
       pp_comma() \
-        pp_apply( \
-          pp_pass, pp_comma, pp_vargs_ignore_first (__VA_ARGS__) \
-          ) \
+      MALC_LOG_PASS_TMP_VARIABLES (pp_vargs_ignore_first (__VA_ARGS__))\
       ) /* endif */ \
     )
+/*----------------------------------------------------------------------------*/
+#define MALC_LOG_DECLARE_TMP_VARIABLES(...) \
+  pp_apply_wid (malc_make_var_from_expression, pp_empty, __VA_ARGS__)
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_IF_PRIVATE(condition, err, malc_ptr, sev, ...) \
   do { \
     if ((condition) && ((sev) >= MALC_GET_MIN_SEVERITY_FNAME ((malc_ptr)))) { \
+      pp_if (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))(\
+        /*A copy of the expressions is created, this is to avoid calling*/\
+        /*twice any functions/expressions and to do some data preprocessing.*/\
+        /*A register optimizer will see those that are unnecessary as*/\
+        /*trivial to remove*/\
+        MALC_LOG_DECLARE_TMP_VARIABLES (pp_vargs_ignore_first (__VA_ARGS__))\
+      )\
       MALC_LOG_PRIVATE_IMPL ((err), (malc_ptr), (sev), __VA_ARGS__); \
     } \
     else { \
