@@ -169,12 +169,7 @@ MALC_EXPORT uword malc_get_min_severity (malc const* l)
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_log(
-  malc*                   l,
-  malc_const_entry const* e,
-  uword                   va_min_size,
-  uword                   va_max_size,
-  int                     argc,
-  ...
+  malc* l, malc_const_entry const* e, uword payload_size, ...
   )
 {
 #ifdef MALC_SAFETY_CHECK
@@ -182,9 +177,7 @@ MALC_EXPORT bl_err malc_log(
     !l ||
     !e ||
     !e->format ||
-    !e->info ||
-    e->compressed_count > argc ||
-    va_min_size > va_max_size
+    !e->info
     )) {
   /* code triggering this "bl_invalid" is either not using the macros or
      malicious*/
@@ -195,21 +188,16 @@ MALC_EXPORT bl_err malc_log(
     l &&
     e &&
     e->format &&
-    e->info &&
-    e->compressed_count <= argc &&
-    va_min_size <= va_max_size
+    e->info
     );
 #endif
   /* TODO: this is very preliminary, */
   alloc_tag tag;
-  uword  size  = va_max_size += sizeof (*e);
+  uword  size  = sizeof (qnode) + payload_size;
+  size        += (e->compressed_count + 1) & ~u_lsb_set (1);
   u8*    mem   = nullptr;
   uword  slots = div_ceil (size, alloc_slot_size);
   bl_err err   = memory_tls_alloc (&l->mem, &mem, &tag, slots);
-  /* a failure here will do va_max_size - va_min_size, and if the difference is
-     just one alloc_slot it will just overallocate, the block count will be
-     saved on the first byte. (256 slots will be the maximum size)*/
-  /* reminder: when expand fails the tls has to be deallocated */
   if (unlikely (err)) {
     /* TODO: now just testing the TLS */
     /* err = memory_alloc (&l->m, &mem, &tag, size); */

@@ -71,13 +71,13 @@ malc_const_entry;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_compressed_32 {
   u32 v;
-  u8  format_nibble; /*1 bit sign + 3 bit size (0-7)*/
+  u32 format_nibble; /*1 bit sign + 3 bit size (0-7)*/
 }
 malc_compressed_32;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_compressed_64 {
-  u64 v;
-  u8  format_nibble; /*1 bit sign + 3 bit size (0-7)*/
+  u64   v;
+  uword format_nibble; /*1 bit sign + 3 bit size (0-7)*/
 }
 malc_compressed_64;
 /*----------------------------------------------------------------------------*/
@@ -114,12 +114,7 @@ static inline malc_compressed_64 malc_get_compressed_i64 (i64 v)
 }
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_log(
-  struct malc*            l,
-  malc_const_entry const* e,
-  uword                   va_min_size,
-  uword                   va_max_size,
-  int                     argc,
-  ...
+  struct malc* l, malc_const_entry const* e, uword size, ...
   );
 /*----------------------------------------------------------------------------*/
 #define malc_is_compressed(x) \
@@ -153,48 +148,60 @@ extern MALC_EXPORT bl_err malc_log(
     malc_mem:                        (char) malc_type_bytes,\
     default:                         (char) malc_type_error\
     )
-#define malc_get_type_min_size(value)\
-  _Generic ((value),\
-    malc_tgen_cv_cases (float,       (uword) sizeof (float)),\
-    malc_tgen_cv_cases (double,      (uword) sizeof (double)),\
-    malc_tgen_cv_cases (i8,          (uword) sizeof (i8)),\
-    malc_tgen_cv_cases (u8,          (uword) sizeof (u8)),\
-    malc_tgen_cv_cases (i16,         (uword) sizeof (i16)),\
-    malc_tgen_cv_cases (u16,         (uword) sizeof (u16)),\
-    malc_tgen_cv_cases (i32,         (uword) 1),\
-    malc_tgen_cv_cases (u32,         (uword) 1),\
-    malc_tgen_cv_cases (i64,         (uword) 1),\
-    malc_tgen_cv_cases (u64,         (uword) 1),\
-    malc_tgen_cv_cases (void*,       (uword) sizeof (void*)),\
-    malc_tgen_cv_cases (void* const, (uword) sizeof (void*)),\
-    malc_lit:                        (uword) sizeof_member (malc_lit, lit),\
-    malc_str:                        (uword) sizeof_member (malc_str, len),\
-    malc_mem:                        (uword) sizeof_member (malc_mem, size),\
-    default:                         (uword) 0\
-    )
-#define malc_get_type_max_size(value)\
-  _Generic ((value),\
-    malc_tgen_cv_cases (float,       (uword) sizeof (float)),\
-    malc_tgen_cv_cases (double,      (uword) sizeof (double)),\
-    malc_tgen_cv_cases (i8,          (uword) sizeof (i8)),\
-    malc_tgen_cv_cases (u8,          (uword) sizeof (u8)),\
-    malc_tgen_cv_cases (i16,         (uword) sizeof (i16)),\
-    malc_tgen_cv_cases (u16,         (uword) sizeof (u16)),\
-    malc_tgen_cv_cases (i32,         (uword) sizeof (i32)),\
-    malc_tgen_cv_cases (u32,         (uword) sizeof (u32)),\
-    malc_tgen_cv_cases (i64,         (uword) sizeof (i64)),\
-    malc_tgen_cv_cases (u64,         (uword) sizeof (u64)),\
-    malc_tgen_cv_cases (void*,       (uword) sizeof (void*)),\
-    malc_tgen_cv_cases (void* const, (uword) sizeof (void*)),\
-    malc_lit:                        (uword) sizeof_member (malc_lit, lit),\
-    malc_str:\
-      (uword) sizeof_member (malc_str, len) +\
-      u_bit (sizeof_member (malc_str, len) * 8) - 1,\
-    malc_mem:\
-      (uword) sizeof_member (malc_mem, size) +\
-      u_bit (sizeof_member (malc_mem, size) * 8) - 1,\
-    default:                         (uword) 0\
-    )
+
+static inline uword malc_size_float     (float v)       { return sizeof (v); }
+static inline uword malc_size_double    (double v)      { return sizeof (v); }
+static inline uword malc_size_i8        (i8 v)          { return sizeof (v); }
+static inline uword malc_size_u8        (u8 v)          { return sizeof (v); }
+static inline uword malc_size_i16       (i16 v)         { return sizeof (v); }
+static inline uword malc_size_u16       (u16 v)         { return sizeof (v); }
+static inline uword malc_size_i32       (i32 v)         { return sizeof (v); }
+static inline uword malc_size_u32       (u32 v)         { return sizeof (v); }
+static inline uword malc_size_i64       (i64 v)         { return sizeof (v); }
+static inline uword malc_size_u64       (u64 v)         { return sizeof (v); }
+static inline uword malc_size_ptr       (void* v)       { return sizeof (v); }
+static inline uword malc_size_ptrc      (void* const v) { return sizeof (v); }
+static inline uword malc_size_malc_lit  (malc_lit v)    { return sizeof (v); }
+
+static inline uword malc_size_malc_str (malc_str v)
+{
+  return sizeof_member (malc_str, len) + v.len;
+}
+static inline uword malc_size_malc_mem (malc_mem v)
+{
+  return sizeof_member (malc_mem, size) + v.size;
+}
+static inline uword malc_size_comp32 (malc_compressed_32 v)
+{
+  return (v.format_nibble & (u_bit (3) - 1)) + 1;
+}
+static inline uword malc_size_comp64 (malc_compressed_64 v)
+{
+  return (v.format_nibble & (u_bit (3) - 1)) + 1;
+}
+
+#define malc_type_size(expression)\
+  _Generic ((expression),\
+    malc_tgen_cv_cases (float,       malc_size_float),\
+    malc_tgen_cv_cases (double,      malc_size_double),\
+    malc_tgen_cv_cases (i8,          malc_size_i8),\
+    malc_tgen_cv_cases (u8,          malc_size_u8),\
+    malc_tgen_cv_cases (i16,         malc_size_i16),\
+    malc_tgen_cv_cases (u16,         malc_size_u16),\
+    malc_tgen_cv_cases (i32,         malc_size_i32),\
+    malc_tgen_cv_cases (u32,         malc_size_u32),\
+    malc_tgen_cv_cases (i64,         malc_size_i64),\
+    malc_tgen_cv_cases (u64,         malc_size_u64),\
+    malc_tgen_cv_cases (void*,       malc_size_ptr),\
+    malc_tgen_cv_cases (void* const, malc_size_ptrc),\
+    malc_compressed_32:              malc_size_comp32,\
+    malc_compressed_64:              malc_size_comp64,\
+    malc_lit:                        malc_size_malc_lit,\
+    malc_str:                        malc_size_malc_str,\
+    malc_mem:                        malc_size_malc_mem,\
+    default:                         malc_size_ptr\
+    )\
+  (expression)
 
 static inline float       malc_transform_float     (float v)       { return v; }
 static inline double      malc_transform_double    (double v)      { return v; }
@@ -202,10 +209,29 @@ static inline i8          malc_transform_i8        (i8 v)          { return v; }
 static inline u8          malc_transform_u8        (u8 v)          { return v; }
 static inline i16         malc_transform_i16       (i16 v)         { return v; }
 static inline u16         malc_transform_u16       (u16 v)         { return v; }
-static inline i32         malc_transform_i32       (i32 v)         { return v; }
-static inline u32         malc_transform_u32       (u32 v)         { return v; }
-static inline i64         malc_transform_i64       (i64 v)         { return v; }
-static inline u64         malc_transform_u64       (u64 v)         { return v; }
+#ifdef MALC_NO_BUILTIN_COMPRESSION
+  static inline i32       malc_transform_i32       (i32 v)         { return v; }
+  static inline u32       malc_transform_u32       (u32 v)         { return v; }
+  static inline i64       malc_transform_i64       (i64 v)         { return v; }
+  static inline u64       malc_transform_u64       (u64 v)         { return v; }
+#else
+  static inline malc_compressed_32 malc_transform_i32 (i32 v)
+  {
+    return malc_get_compressed_i32 (v);
+  }
+  static inline malc_compressed_32 malc_transform_u32 (u32 v)
+  {
+    return malc_get_compressed_u32 (v);
+  }
+  static inline malc_compressed_64 malc_transform_i64 (i64 v)
+  {
+    return malc_get_compressed_i64 (v);
+  }
+  static inline malc_compressed_64 malc_transform_u64 (u64 v)
+  {
+    return malc_get_compressed_u64 (v);
+  }
+#endif
 static inline void*       malc_transform_ptr       (void* v)       { return v; }
 static inline void* const malc_transform_ptrc      (void* const v) { return v; }
 static inline malc_lit    malc_transform_malc_lit  (malc_lit v)    { return v; }
@@ -242,45 +268,77 @@ static inline malc_mem    malc_transform_malc_mem  (malc_mem v)    { return v; }
 
 template <typename T>
 static inline T malc_type_traits_base {
-  static const uword min = sizeof (T);
-  static const uword max = sizeof (T);
-  static inline T transform (T v) { return v; }
+  static inline uword size      (T v) { return sizeof v; }
+  static inline T     transform (T v) { return v; }
 };
 template<typename T> struct malc_type_traits {};
 
-template<> struct malc_type_traits<float> : public malc_type_traits_base<float>{
-  static const char  code = malc_type_float;
+template<> struct malc_type_traits<float> :
+  public malc_type_traits_base<float> {
+    static const char  code = malc_type_float;
 };
 template<> struct malc_type_traits<double> :
-  public malc_type_traits_base<double>{
+  public malc_type_traits_base<double> {
     static const char  code = malc_type_double;
 };
-template<> struct malc_type_traits<i8> : public malc_type_traits_base<i8>{
+template<> struct malc_type_traits<i8> : public malc_type_traits_base<i8> {
   static const char  code = malc_type_i8;
 };
-template<> struct malc_type_traits<u8> : public malc_type_traits_base<u8>{
+template<> struct malc_type_traits<u8> : public malc_type_traits_base<u8> {
   static const char  code = malc_type_u8;
 };
-template<> struct malc_type_traits<i16> : public malc_type_traits_base<i16>{
+template<> struct malc_type_traits<i16> : public malc_type_traits_base<i16> {
   static const char  code = malc_type_i16;
 };
-template<> struct malc_type_traits<u16> : public malc_type_traits_base<u16>{
+template<> struct malc_type_traits<u16> : public malc_type_traits_base<u16> {
   static const char  code = malc_type_u16;
 };
-template<> struct malc_type_traits<i32> : public malc_type_traits_base<i32>{
-  static const char  code = malc_type_i32;
-};
-template<> struct malc_type_traits<u32> : public malc_type_traits_base<u32>{
-  static const char  code = malc_type_u32;
-};
-template<> struct malc_type_traits<i64> : public malc_type_traits_base<i64>{
-  static const char  code = malc_type_i64;
-};
-template<> struct malc_type_traits<u64> : public malc_type_traits_base<u64>{
-  static const char  code = malc_type_u64;
-};
-template<> struct malc_type_traits<void*> : public malc_type_traits_base<void*>{
-  static const char  code = malc_type_vptr;
+#ifdef MALC_NO_BUILTIN_COMPRESSION
+  template<> struct malc_type_traits<i32> : public malc_type_traits_base<i32> {
+    static const char  code = malc_type_i32;
+  };
+  template<> struct malc_type_traits<u32> : public malc_type_traits_base<u32> {
+    static const char  code = malc_type_u32;
+  };
+  template<> struct malc_type_traits<i64> : public malc_type_traits_base<i64> {
+    static const char  code = malc_type_i64;
+  };
+  template<> struct malc_type_traits<u64> : public malc_type_traits_base<u64> {
+    static const char  code = malc_type_u64;
+  };
+#else
+  template<> struct malc_type_traits<i32> {
+    static const char  code = malc_type_i32;
+    static inline malc_compressed_32 transform (i32 v)
+    {
+      return malc_get_compressed_i32 (v);
+    }
+  };
+  template<> struct malc_type_traits<u32> {
+    static const char  code = malc_type_u32;
+    static inline malc_compressed_32 transform (u32 v)
+    {
+      return malc_get_compressed_u32 (v);
+    }
+  };
+  template<> struct malc_type_traits<i64> {
+    static const char  code = malc_type_i64;
+    static inline malc_compressed_64 transform (i64 v)
+    {
+      return malc_get_compressed_i64 (v);
+    }
+  };
+  template<> struct malc_type_traits<u64> {
+    static const char  code = malc_type_u64;
+    static inline malc_compressed_64 transform (u64 v)
+    {
+      return malc_get_compressed_u64 (v);
+    }
+  };
+#endif
+template<> struct malc_type_traits<void*> :
+  public malc_type_traits_base<void*> {
+    static const char  code = malc_type_vptr;
 };
 template<> struct malc_type_traits<const void*> :
   public malc_type_traits<void*> {};
@@ -309,45 +367,53 @@ template<> struct malc_type_traits<malc_lit> :
 };
 template<> struct malc_type_traits<malc_str> {
   static const char code  = malc_type_str;
-  static const uword min  = sizeof (u16);
-  static const uword max  = sizeof (u16) + utype_max (u16);
-  static inline malc_str transform (T malc_str) { return malc_str; }
+  static inline malc_str transform (malc_str v) { return v; }
+  static inline uword size (malc str v)
+  {
+    return sizeof_member (malc_str, len) + v.len;
+  }
 };
 template<> struct malc_type_traits<malc_mem> {
   static const char  code = malc_type_bytes;
-  static const uword min  = sizeof (u16);
-  static const uword max  = sizeof (u16) + utype_max (u16);
-  static inline malc_mem transform (T malc_mem) { return malc_mem; }
+  static inline malc_mem transform (malc_mem v) { return v; }
+  static inline uword size (malc_mem str v)
+  {
+    return sizeof_member (malc_mem, size) + v.size;
+  }
+};
+
+template<> struct malc_type_traits<malc_compressed_32> {
+  static inline uword size (malc_compressed_32 v)
+  {
+    return (v.format_nibble & (u_bit (3) - 1)) + 1;
+  }
+};
+template<> struct malc_type_traits<malc_compressed_64> {
+  static inline uword size (malc_compressed_64 v)
+  {
+    return (v.format_nibble & (u_bit (3) - 1)) + 1;
+  }
 };
 
 #include <type_traits>
 
-#define malc_get_type_code(value)\
+#define malc_get_type_code(expression)\
   malc_type_traits< \
     typename std::remove_cv< \
       typename std::remove_reference< \
-        decltype (value) \
+        decltype (expression) \
         >::type \
       >::type \
     >::code
 
-#define malc_get_type_min_size(value)\
+#define malc_type_size(expression)\
   malc_type_traits< \
     typename std::remove_cv< \
       typename std::remove_reference< \
-        decltype (value) \
+        decltype (expression) \
         >::type \
       >::type \
-    >::min
-
-#define malc_get_type_max_size(value)\
-  malc_type_traits< \
-    typename std::remove_cv< \
-      typename std::remove_reference< \
-        decltype (value) \
-        >::type \
-      >::type \
-    >::max
+    >::size (expression)
 
 #define malc_make_var_from_expression(expression, name)\
   auto name = malc_type_traits< \
@@ -394,6 +460,7 @@ template<> struct malc_type_traits<malc_mem> {
       0 \
     )/* endif */\
   }
+#if 0
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_PASS_TMP_VARIABLES(...) \
   pp_apply_wid (pp_vargs_second, pp_comma, __VA_ARGS__)
@@ -427,6 +494,30 @@ template<> struct malc_type_traits<malc_mem> {
       MALC_LOG_PASS_TMP_VARIABLES (pp_vargs_ignore_first (__VA_ARGS__))\
       ) /* endif */ \
     )
+#else
+/*----------------------------------------------------------------------------*/
+#define MALC_LOG_PASS_TMP_VARIABLES(...) \
+  pp_apply_wid (pp_vargs_second, pp_comma, __VA_ARGS__)
+
+#define MALC_GET_TYPE_SIZE_VISITOR(expr, name)  malc_type_size (name)
+
+#define MALC_GET_TYPE_SIZE(...) \
+  pp_apply_wid (MALC_GET_TYPE_SIZE_VISITOR, pp_plus, __VA_ARGS__)
+/*----------------------------------------------------------------------------*/
+#define MALC_LOG_PRIVATE_IMPL(err, malc_ptr, sev, ...) \
+  MALC_LOG_CREATE_CONST_ENTRY ((sev), __VA_ARGS__); \
+  (err) = MALC_LOG_FNAME( \
+    (malc_ptr), \
+    &pp_tokconcat (malc_const_entry_, __LINE__), \
+    pp_if_else (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))( \
+      MALC_GET_TYPE_SIZE (pp_vargs_ignore_first (__VA_ARGS__))\
+      pp_comma() \
+      MALC_LOG_PASS_TMP_VARIABLES (pp_vargs_ignore_first (__VA_ARGS__))\
+    ,/*else*/\
+      0\
+    ) /* endif */ \
+  )
+#endif
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_DECLARE_TMP_VARIABLES(...) \
   pp_apply_wid (malc_make_var_from_expression, pp_empty, __VA_ARGS__)
