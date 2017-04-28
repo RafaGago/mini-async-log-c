@@ -9,8 +9,13 @@
 #include <bl/base/integer_manipulation.h>
 #include <bl/base/error.h>
 #include <bl/base/preprocessor.h>
-#include <malc/libexport.h>
+#include <bl/base/utility.h>
 
+#include <malc/libexport.h>
+/*----------------------------------------------------------------------------*/
+#ifdef __cplusplus
+  extern "C" {
+#endif
 /*----------------------------------------------------------------------------*/
 typedef enum malc_encodings {
   malc_end          = 0,
@@ -56,319 +61,6 @@ typedef struct malc_str {
 }
 malc_str;
 /*----------------------------------------------------------------------------*/
-#ifndef __cplusplus
-#define malc_get_type_code(value)\
-  _Generic ((value),\
-    float:                      (char) malc_type_float,\
-    double:                     (char) malc_type_double,\
-    i8:                         (char) malc_type_i8,\
-    u8:                         (char) malc_type_u8,\
-    i16:                        (char) malc_type_i16,\
-    u16:                        (char) malc_type_u16,\
-    i32:                        (char) malc_type_i32,\
-    u32:                        (char) malc_type_u32,\
-    i64:                        (char) malc_type_i64,\
-    u64:                        (char) malc_type_u64,\
-    const float:                (char) malc_type_float,\
-    const double:               (char) malc_type_double,\
-    const i8:                   (char) malc_type_i8,\
-    const u8:                   (char) malc_type_u8,\
-    const i16:                  (char) malc_type_i16,\
-    const u16:                  (char) malc_type_u16,\
-    const i32:                  (char) malc_type_i32,\
-    const u32:                  (char) malc_type_u32,\
-    const i64:                  (char) malc_type_i64,\
-    const u64:                  (char) malc_type_u64,\
-    volatile float:             (char) malc_type_float,\
-    volatile double:            (char) malc_type_double,\
-    volatile i8:                (char) malc_type_i8,\
-    volatile u8:                (char) malc_type_u8,\
-    volatile i16:               (char) malc_type_i16,\
-    volatile u16:               (char) malc_type_u16,\
-    volatile i32:               (char) malc_type_i32,\
-    volatile u32:               (char) malc_type_u32,\
-    volatile i64:               (char) malc_type_i64,\
-    volatile u64:               (char) malc_type_u64,\
-    const volatile float:       (char) malc_type_float,\
-    const volatile double:      (char) malc_type_double,\
-    const volatile i8:          (char) malc_type_i8,\
-    const volatile u8:          (char) malc_type_u8,\
-    const volatile i16:         (char) malc_type_i16,\
-    const volatile u16:         (char) malc_type_u16,\
-    const volatile i32:         (char) malc_type_i32,\
-    const volatile u32:         (char) malc_type_u32,\
-    const volatile i64:         (char) malc_type_i64,\
-    const volatile u64:         (char) malc_type_u64,\
-    void*:                      (char) malc_type_vptr,\
-    const void*:                (char) malc_type_vptr,\
-    volatile void*:             (char) malc_type_vptr,\
-    const volatile void*:       (char) malc_type_vptr,\
-    void* const:                (char) malc_type_vptr,\
-    const void* const:          (char) malc_type_vptr,\
-    volatile void* const:       (char) malc_type_vptr,\
-    const volatile void* const: (char) malc_type_vptr,\
-    malc_lit:                   (char) malc_type_lit,\
-    malc_str:                   (char) malc_type_str,\
-    malc_mem:                   (char) malc_type_bytes,\
-    default:                    (char) malc_type_error\
-    )
-
-#define malc_get_type_min_size(value)\
-  _Generic ((value),\
-    float:                      (uword) sizeof (float),\
-    double:                     (uword) sizeof (double),\
-    i8:                         (uword) sizeof (i8),\
-    u8:                         (uword) sizeof (u8),\
-    i16:                        (uword) sizeof (i16),\
-    u16:                        (uword) sizeof (u16),\
-    i32:                        (uword) 1,\
-    u32:                        (uword) 1,\
-    i64:                        (uword) 1,\
-    u64:                        (uword) 1,\
-    const float:                (uword) sizeof (float),\
-    const double:               (uword) sizeof (double),\
-    const i8:                   (uword) sizeof (i8),\
-    const u8:                   (uword) sizeof (u8),\
-    const i16:                  (uword) sizeof (i16),\
-    const u16:                  (uword) sizeof (u16),\
-    const i32:                  (uword) 1,\
-    const u32:                  (uword) 1,\
-    const i64:                  (uword) 1,\
-    const u64:                  (uword) 1,\
-    volatile float:             (uword) sizeof (float),\
-    volatile double:            (uword) sizeof (double),\
-    volatile i8:                (uword) sizeof (i8),\
-    volatile u8:                (uword) sizeof (u8),\
-    volatile i16:               (uword) sizeof (i16),\
-    volatile u16:               (uword) sizeof (u16),\
-    volatile i32:               (uword) 1,\
-    volatile u32:               (uword) 1,\
-    volatile i64:               (uword) 1,\
-    volatile u64:               (uword) 1,\
-    const volatile float:       (uword) sizeof (float),\
-    const volatile double:      (uword) sizeof (double),\
-    const volatile i8:          (uword) sizeof (i8),\
-    const volatile u8:          (uword) sizeof (u8),\
-    const volatile i16:         (uword) sizeof (i16),\
-    const volatile u16:         (uword) sizeof (u16),\
-    const volatile i32:         (uword) 1,\
-    const volatile u32:         (uword) 1,\
-    const volatile i64:         (uword) 1,\
-    const volatile u64:         (uword) 1,\
-    void*:                      (uword) sizeof (void*),\
-    const void*:                (uword) sizeof (void*),\
-    volatile void*:             (uword) sizeof (void*),\
-    const volatile void*:       (uword) sizeof (void*),\
-    void* const:                (uword) sizeof (void*),\
-    const void* const:          (uword) sizeof (void*),\
-    volatile void* const:       (uword) sizeof (void*),\
-    const volatile void* const: (uword) sizeof (void*),\
-    malc_lit:                   (uword) sizeof (char const*),\
-    malc_str:                   (uword) sizeof (u16),\
-    malc_mem:                   (uword) sizeof (u16),\
-    default:                    (uword) 0\
-    )
-
-#define malc_get_type_max_size(value)\
-  _Generic ((value),\
-    float:                      (uword) sizeof (float),\
-    double:                     (uword) sizeof (double),\
-    i8:                         (uword) sizeof (i8),\
-    u8:                         (uword) sizeof (u8),\
-    i16:                        (uword) sizeof (i16),\
-    u16:                        (uword) sizeof (u16),\
-    i32:                        (uword) sizeof (i32),\
-    u32:                        (uword) sizeof (u32),\
-    i64:                        (uword) sizeof (i64),\
-    u64:                        (uword) sizeof (u64),\
-    const float:                (uword) sizeof (float),\
-    const double:               (uword) sizeof (double),\
-    const i8:                   (uword) sizeof (i8),\
-    const u8:                   (uword) sizeof (u8),\
-    const i16:                  (uword) sizeof (i16),\
-    const u16:                  (uword) sizeof (u16),\
-    const i32:                  (uword) sizeof (i32),\
-    const u32:                  (uword) sizeof (u32),\
-    const i64:                  (uword) sizeof (i64),\
-    const u64:                  (uword) sizeof (u64),\
-    volatile float:             (uword) sizeof (float),\
-    volatile double:            (uword) sizeof (double),\
-    volatile i8:                (uword) sizeof (i8),\
-    volatile u8:                (uword) sizeof (u8),\
-    volatile i16:               (uword) sizeof (i16),\
-    volatile u16:               (uword) sizeof (u16),\
-    volatile i32:               (uword) sizeof (i32),\
-    volatile u32:               (uword) sizeof (u32),\
-    volatile i64:               (uword) sizeof (i64),\
-    volatile u64:               (uword) sizeof (u64),\
-    const volatile float:       (uword) sizeof (float),\
-    const volatile double:      (uword) sizeof (double),\
-    const volatile i8:          (uword) sizeof (i8),\
-    const volatile u8:          (uword) sizeof (u8),\
-    const volatile i16:         (uword) sizeof (i16),\
-    const volatile u16:         (uword) sizeof (u16),\
-    const volatile i32:         (uword) sizeof (i32),\
-    const volatile u32:         (uword) sizeof (u32),\
-    const volatile i64:         (uword) sizeof (i64),\
-    const volatile u64:         (uword) sizeof (u64),\
-    void*:                      (uword) sizeof (void*),\
-    const void*:                (uword) sizeof (void*),\
-    volatile void*:             (uword) sizeof (void*),\
-    const volatile void*:       (uword) sizeof (void*),\
-    void* const:                (uword) sizeof (void*),\
-    const void* const:          (uword) sizeof (void*),\
-    volatile void* const:       (uword) sizeof (void*),\
-    const volatile void* const: (uword) sizeof (void*),\
-    malc_lit:                   (uword) sizeof (char const*),\
-    malc_str:                   (uword) (sizeof (u16) + utype_max (u16)),\
-    malc_mem:                   (uword) (sizeof (u16) + utype_max (u16)),\
-    default:                    (uword) 0\
-    )
-/*----------------------------------------------------------------------------*/
-#else
-
-template<typename T> struct mal_type_traits {};
-
-template<> struct mal_type_traits<float> {
-  static const char  code = malc_type_float;
-  static const uword min  = sizeof (float);
-  static const uword max  = min;
-};
-
-template<> struct mal_type_traits<double> {
-  static const char  code = malc_type_double;
-  static const uword min  = sizeof (double);
-  static const uword max  = min;
-};
-
-template<> struct mal_type_traits<i8> {
-  static const char  code = malc_type_i8;
-  static const uword min  = sizeof (i8);
-  static const uword max  = min;
-};
-
-template<> struct mal_type_traits<u8> {
-  static const char  code = malc_type_u8;
-  static const uword min  = sizeof (u8);
-  static const uword max  = min;
-};
-
-template<> struct mal_type_traits<i16> {
-  static const char  code = malc_type_i16;
-  static const uword min  = sizeof (i16);
-  static const uword max  = min;
-};
-
-template<> struct mal_type_traits<u16> {
-  static const char  code = malc_type_u16;
-  static const uword min  = sizeof (u16);
-  static const uword max  = min;
-};
-
-template<> struct mal_type_traits<i32> {
-  static const char  code = malc_type_i32;
-  static const uword min  = 1;
-  static const uword max  = sizeof (i32);
-};
-
-template<> struct mal_type_traits<u32> {
-  static const char  code = malc_type_u32;
-  static const uword min  = 1;
-  static const uword max  = sizeof (u32);
-};
-
-template<> struct mal_type_traits<i64> {
-  static const char  code = malc_type_i64;
-  static const uword min  = 1;
-  static const uword max  = sizeof (i64);
-};
-
-template<> struct mal_type_traits<u64> {
-  static const char  code = malc_type_u64;
-  static const uword min  = 1;
-  static const uword max  = sizeof (u64);
-};
-
-template<> struct mal_type_traits<void*> {
-  static const char  code = malc_type_vptr;
-  static const uword min  = sizeof (void*);
-  static const uword max  = min;
-};
-
-template<> struct mal_type_traits<const void*> :
-  public mal_type_traits<void*> {};
-
-template<> struct mal_type_traits<volatile void*> :
-  public mal_type_traits<void*> {};
-
-template<> struct mal_type_traits<const volatile void*> :
-  public mal_type_traits<void*> {};
-
-template<> struct mal_type_traits<void* const> :
-  public mal_type_traits<void*> {};
-
-template<> struct mal_type_traits<const void* const> :
-  public mal_type_traits<void*> {};
-
-template<> struct mal_type_traits<volatile void* const> :
-  public mal_type_traits<void*> {};
-
-template<> struct mal_type_traits<const volatile void* const> :
-  public mal_type_traits<void*> {};
-
-template<> struct mal_type_traits<malc_lit> {
-  static const char  code = malc_type_lit;
-  static const uword min  = sizeof (void*);
-  static const uword max  = min;
-};
-
-template<> struct mal_type_traits<malc_str> {
-  static const char code  = malc_type_str;
-  static const uword min  = sizeof (u16);
-  static const uword max  = sizeof (u16) + utype_max (u16);
-};
-
-template<> struct mal_type_traits<malc_mem> {
-  static const char  code = malc_type_bytes;
-  static const uword min  = sizeof (u16);
-  static const uword max  = sizeof (u16) + utype_max (u16);
-};
-
-#include <type_traits>
-
-#define malc_get_type_code(value)\
-  mal_type_traits< \
-    typename std::remove_cv< \
-      typename std::remove_reference< \
-        decltype (value) \
-        >::type \
-      >::type \
-    >::code
-
-#define malc_get_type_min_size(value)\
-  mal_type_traits< \
-    typename std::remove_cv< \
-      typename std::remove_reference< \
-        decltype (value) \
-        >::type \
-      >::type \
-    >::min
-
-#define malc_get_type_max_size(value)\
-  mal_type_traits< \
-    typename std::remove_cv< \
-      typename std::remove_reference< \
-        decltype (value) \
-        >::type \
-      >::type \
-    >::max
-
-#endif /* __cplusplus*/
-/*----------------------------------------------------------------------------*/
-#define malc_is_compressed(x) \
-  ((int) (malc_get_type_code ((x)) >= malc_type_i32 && \
-    malc_get_type_code ((x)) <= malc_type_u64))
-/*----------------------------------------------------------------------------*/
 typedef struct malc_const_entry {
   char const* format;
   char const* info;
@@ -377,10 +69,6 @@ typedef struct malc_const_entry {
 malc_const_entry;
 /*----------------------------------------------------------------------------*/
 struct malc;
-/*----------------------------------------------------------------------------*/
-#ifdef __cplusplus
-  extern "C" {
-#endif
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
 /*----------------------------------------------------------------------------*/
@@ -393,9 +81,206 @@ extern MALC_EXPORT bl_err malc_log(
   ...
   );
 /*----------------------------------------------------------------------------*/
-#ifdef __cplusplus
-  } /* extern "C" { */
-#endif
+#define malc_is_compressed(x) \
+  ((int) (malc_get_type_code ((x)) >= malc_type_i32 && \
+    malc_get_type_code ((x)) <= malc_type_u64))
+/*----------------------------------------------------------------------------*/
+#ifndef __cplusplus
+
+#define malc_tgen_cv_cases(type, expression)\
+  type:                (expression),\
+  const type:          (expression),\
+  volatile type:       (expression),\
+  const volatile type: (expression)
+
+#define malc_get_type_code(expression)\
+  _Generic ((expression),\
+    malc_tgen_cv_cases (float,       (char) malc_type_float),\
+    malc_tgen_cv_cases (double,      (char) malc_type_double),\
+    malc_tgen_cv_cases (i8,          (char) malc_type_i8),\
+    malc_tgen_cv_cases (u8,          (char) malc_type_u8),\
+    malc_tgen_cv_cases (i16,         (char) malc_type_i16),\
+    malc_tgen_cv_cases (u16,         (char) malc_type_u16),\
+    malc_tgen_cv_cases (i32,         (char) malc_type_i32),\
+    malc_tgen_cv_cases (u32,         (char) malc_type_u32),\
+    malc_tgen_cv_cases (i64,         (char) malc_type_i64),\
+    malc_tgen_cv_cases (u64,         (char) malc_type_u64),\
+    malc_tgen_cv_cases (void*,       (char) malc_type_vptr),\
+    malc_tgen_cv_cases (void* const, (char) malc_type_vptr),\
+    malc_lit:                        (char) malc_type_lit,\
+    malc_str:                        (char) malc_type_str,\
+    malc_mem:                        (char) malc_type_bytes,\
+    default:                         (char) malc_type_error\
+    )
+#define malc_get_type_min_size(value)\
+  _Generic ((value),\
+    malc_tgen_cv_cases (float,       (uword) sizeof (float)),\
+    malc_tgen_cv_cases (double,      (uword) sizeof (double)),\
+    malc_tgen_cv_cases (i8,          (uword) sizeof (i8)),\
+    malc_tgen_cv_cases (u8,          (uword) sizeof (u8)),\
+    malc_tgen_cv_cases (i16,         (uword) sizeof (i16)),\
+    malc_tgen_cv_cases (u16,         (uword) sizeof (u16)),\
+    malc_tgen_cv_cases (i32,         (uword) 1),\
+    malc_tgen_cv_cases (u32,         (uword) 1),\
+    malc_tgen_cv_cases (i64,         (uword) 1),\
+    malc_tgen_cv_cases (u64,         (uword) 1),\
+    malc_tgen_cv_cases (void*,       (uword) sizeof (void*)),\
+    malc_tgen_cv_cases (void* const, (uword) sizeof (void*)),\
+    malc_lit:                        (uword) sizeof_member (malc_lit, lit),\
+    malc_str:                        (uword) sizeof_member (malc_str, len),\
+    malc_mem:                        (uword) sizeof_member (malc_mem, size),\
+    default:                         (uword) 0\
+    )
+#define malc_get_type_max_size(value)\
+  _Generic ((value),\
+    malc_tgen_cv_cases (float,       (uword) sizeof (float)),\
+    malc_tgen_cv_cases (double,      (uword) sizeof (double)),\
+    malc_tgen_cv_cases (i8,          (uword) sizeof (i8)),\
+    malc_tgen_cv_cases (u8,          (uword) sizeof (u8)),\
+    malc_tgen_cv_cases (i16,         (uword) sizeof (i16)),\
+    malc_tgen_cv_cases (u16,         (uword) sizeof (u16)),\
+    malc_tgen_cv_cases (i32,         (uword) sizeof (i32)),\
+    malc_tgen_cv_cases (u32,         (uword) sizeof (u32)),\
+    malc_tgen_cv_cases (i64,         (uword) sizeof (i64)),\
+    malc_tgen_cv_cases (u64,         (uword) sizeof (u64)),\
+    malc_tgen_cv_cases (void*,       (uword) sizeof (void*)),\
+    malc_tgen_cv_cases (void* const, (uword) sizeof (void*)),\
+    malc_lit:                        (uword) sizeof_member (malc_lit, lit),\
+    malc_str:\
+      (uword) sizeof_member (malc_str, len) +\
+      u_bit (sizeof_member (malc_str, len) * 8) - 1,\
+    malc_mem:\
+      (uword) sizeof_member (malc_mem, size) +\
+      u_bit (sizeof_member (malc_mem, size) * 8) - 1,\
+    default:                         (uword) 0\
+    )
+/*----------------------------------------------------------------------------*/
+#else
+
+template<typename T> struct malc_type_traits {};
+
+template<> struct malc_type_traits<float> {
+  static const char  code = malc_type_float;
+  static const uword min  = sizeof (float);
+  static const uword max  = min;
+};
+template<> struct malc_type_traits<double> {
+  static const char  code = malc_type_double;
+  static const uword min  = sizeof (double);
+  static const uword max  = min;
+};
+template<> struct malc_type_traits<i8> {
+  static const char  code = malc_type_i8;
+  static const uword min  = sizeof (i8);
+  static const uword max  = min;
+};
+template<> struct malc_type_traits<u8> {
+  static const char  code = malc_type_u8;
+  static const uword min  = sizeof (u8);
+  static const uword max  = min;
+};
+template<> struct malc_type_traits<i16> {
+  static const char  code = malc_type_i16;
+  static const uword min  = sizeof (i16);
+  static const uword max  = min;
+};
+template<> struct malc_type_traits<u16> {
+  static const char  code = malc_type_u16;
+  static const uword min  = sizeof (u16);
+  static const uword max  = min;
+};
+template<> struct malc_type_traits<i32> {
+  static const char  code = malc_type_i32;
+  static const uword min  = 1;
+  static const uword max  = sizeof (i32);
+};
+template<> struct malc_type_traits<u32> {
+  static const char  code = malc_type_u32;
+  static const uword min  = 1;
+  static const uword max  = sizeof (u32);
+};
+template<> struct malc_type_traits<i64> {
+  static const char  code = malc_type_i64;
+  static const uword min  = 1;
+  static const uword max  = sizeof (i64);
+};
+template<> struct malc_type_traits<u64> {
+  static const char  code = malc_type_u64;
+  static const uword min  = 1;
+  static const uword max  = sizeof (u64);
+};
+template<> struct malc_type_traits<void*> {
+  static const char  code = malc_type_vptr;
+  static const uword min  = sizeof (void*);
+  static const uword max  = min;
+};
+template<> struct malc_type_traits<const void*> :
+  public malc_type_traits<void*> {};
+
+template<> struct malc_type_traits<volatile void*> :
+  public malc_type_traits<void*> {};
+
+template<> struct malc_type_traits<const volatile void*> :
+  public malc_type_traits<void*> {};
+
+template<> struct malc_type_traits<void* const> :
+  public malc_type_traits<void*> {};
+
+template<> struct malc_type_traits<const void* const> :
+  public malc_type_traits<void*> {};
+
+template<> struct malc_type_traits<volatile void* const> :
+  public malc_type_traits<void*> {};
+
+template<> struct malc_type_traits<const volatile void* const> :
+  public malc_type_traits<void*> {};
+
+template<> struct malc_type_traits<malc_lit> {
+  static const char  code = malc_type_lit;
+  static const uword min  = sizeof (void*);
+  static const uword max  = min;
+};
+template<> struct malc_type_traits<malc_str> {
+  static const char code  = malc_type_str;
+  static const uword min  = sizeof (u16);
+  static const uword max  = sizeof (u16) + utype_max (u16);
+};
+template<> struct malc_type_traits<malc_mem> {
+  static const char  code = malc_type_bytes;
+  static const uword min  = sizeof (u16);
+  static const uword max  = sizeof (u16) + utype_max (u16);
+};
+
+#include <type_traits>
+
+#define malc_get_type_code(value)\
+  malc_type_traits< \
+    typename std::remove_cv< \
+      typename std::remove_reference< \
+        decltype (value) \
+        >::type \
+      >::type \
+    >::code
+
+#define malc_get_type_min_size(value)\
+  malc_type_traits< \
+    typename std::remove_cv< \
+      typename std::remove_reference< \
+        decltype (value) \
+        >::type \
+      >::type \
+    >::min
+
+#define malc_get_type_max_size(value)\
+  malc_type_traits< \
+    typename std::remove_cv< \
+      typename std::remove_reference< \
+        decltype (value) \
+        >::type \
+      >::type \
+    >::max
+
+#endif /* __cplusplus*/
 /*----------------------------------------------------------------------------*/
 /* used for testing, ignore */
 #ifndef MALC_GET_MIN_SEVERITY_FNAME
@@ -780,6 +665,10 @@ static inline bl_err malc_warning_silencer() { return bl_ok; }
 #define malc_critical_i(...)    malc_warning_silencer()
 #define malc_critical_i_if(...) malc_warning_silencer()
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /*include guard*/
