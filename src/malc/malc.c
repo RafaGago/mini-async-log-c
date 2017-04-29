@@ -8,7 +8,9 @@
 #include <bl/base/utility.h>
 #include <bl/base/to_type_containing.h>
 #include <bl/base/processor_pause.h>
+
 #include <bl/nonblock/mpsc_i.h>
+#include <bl/nonblock/backoff.h>
 
 #include <malc/cfg.h>
 #include <malc/stack_args.h>
@@ -28,6 +30,7 @@ struct malc {
 /*----------------------------------------------------------------------------*/
 enum queue_command {
   q_cmd_dealloc = 0,
+  q_cmd_flush,
   q_cmd_max,
 };
 /*----------------------------------------------------------------------------*/
@@ -97,6 +100,23 @@ MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg)
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
+MALC_EXPORT bl_err malc_flush (malc* l)
+{
+  qnode            n;
+  nonblock_backoff b;
+
+  n.slots = 0;
+  n.data  = q_cmd_flush;
+  mpsc_i_node_set (&n.hook, nullptr, 0, 0);
+  mpsc_i_produce_notag (&l->q, &n.hook);
+
+  nonblock_backoff_init (&b, 10, 15, 1, 4, 2, 100);
+  while (n.slots == 0) {
+    nonblock_backoff_run (&b);
+  }
+  return bl_ok;
+}
+/*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_terminate (malc* l)
 {
   return bl_ok;
@@ -121,7 +141,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
   }
   if (likely (!err)) {
     qnode* n = to_type_containing (qn, hook, qnode);
-    if (n->data != q_cmd_dealloc) {
+    if (n->data >= q_cmd_max) {
       alloc_tag               tag;
       tag = n->data & alloc_tag_mask;
       /* unused warning
@@ -132,8 +152,16 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
       memory_dealloc (&l->mem, (u8*) n, tag, ((u32) n->slots) + 1);
     }
     else {
-      bl_assert (n->data == q_cmd_dealloc);
-      bl_dealloc (l->alloc, n);
+      switch (n->data) {
+      case q_cmd_dealloc:
+        bl_dealloc (l->alloc, n);
+        break;
+      case q_cmd_flush:
+        ++n->slots;
+        break;
+      default:
+        bl_assert (0 && "bug or malicious code");
+      }
     }
     return bl_ok;
   }

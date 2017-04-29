@@ -34,12 +34,18 @@ extern MALC_EXPORT bl_err malc_destroy (malc* l);
 extern MALC_EXPORT bl_err malc_get_cfg (malc* l, malc_cfg* cfg);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg);
+/*------------------------------------------------------------------------------
+Sends a dummy message to the queue and waits until it is dequeued (Which means
+that all previous messages were processed too). If the consume task is not
+running it can block forever.
+------------------------------------------------------------------------------*/
+extern MALC_EXPORT bl_err malc_flush (malc* l);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_terminate (malc* l);
 /*------------------------------------------------------------------------------
 Each application controlled thread has to initialize its thread local storage
-buffer explicitly, as there is no way in C to unexplicitly initialize thread local
-resources from the logger when a thread is launched. The good thing is that
+buffer explicitly, as there is no way in C to unexplicitly initialize thread
+localresources from the logger when a thread is launched. The good thing is that
 each thread can have a different buffer size.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, u32 bytes);
