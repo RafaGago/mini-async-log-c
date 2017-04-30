@@ -11,8 +11,10 @@ project(
         'default_library=static'
         ]
     )
-
-base_library      = subproject ('base_library')
+base_library = subproject(
+    'base_library',
+    default_options : ['timestamp_64bit=true']
+    )
 base_lib          = base_library.get_variable ('base_lib')
 nonblock_lib      = base_library.get_variable ('nonblock_lib')
 libcmocka_path    = base_library.get_variable ('libcmocka_path')
