@@ -35,18 +35,41 @@ extern MALC_EXPORT bl_err malc_get_cfg (malc* l, malc_cfg* cfg);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg);
 /*------------------------------------------------------------------------------
-Sends a dummy message to the queue and waits until it is dequeued (Which means
-that all previous messages were processed too). If the consume task is not
-running it can block forever.
+Sends a message to the queue and waits until it is dequeued and all destinations
+have been flushed (Which means that all previous messages were processed too).
+If the consume task is not being called for some reason (bug in user code) it
+will block forever.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_flush (malc* l);
-/*----------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------------
+This can be use from any thread. After this is invoked the "consume_task" will
+start the necessary steps to cleanly shutdown the logger.
+------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_terminate (malc* l);
 /*------------------------------------------------------------------------------
-Each application controlled thread has to initialize its thread local storage
-buffer explicitly, as there is no way in C to unexplicitly initialize thread
-localresources from the logger when a thread is launched. The good thing is that
-each thread can have a different buffer size.
+Activates the thread local buffer for the caller thread. Using this buffer makes
+the logging threads wait-free and is the fastest. This logger was designed to
+use this buffer.
+
+Each thread has to initialize its thread local storage buffer manually, this is
+done for three reasons:
+
+1.When writing a library using this logger, it may be unnecessary and wasteful
+  to place thread local resources on threads that are not going to use it.
+
+2.Threads activating the thread local buffer can never outlive the data logger,
+  they have to be "join"ed before destroying the logger: when a thread goes out
+  of scope it sends the buffer back to the logger instance and it is deallocated
+  from the consume task. This is to ensure that the buffer isn't deallocated
+  before all the entries have been logged (would corrupt the MPSC queue linked
+  list).
+
+  It is very likely that the user that manually calls this function does it from
+  a thread for which he has full control and can comply with this requirement.
+
+3.There is no straightforward way to do it from C (which is a good thing, I
+  would't do it anyways for the two reasons above).
+
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, u32 bytes);
 /*------------------------------------------------------------------------------
@@ -57,14 +80,6 @@ returns bl_ok:            Consumer not in idle-state.
         bl_locked:        Terminated.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us);
-/*------------------------------------------------------------------------------
-force: forces running the idle task even if it wasn't its time.
-
-returns bl_ok:
-        bl_nothing_to_do: Consumer not on idle-state.
-        bl_locked:        Terminated.
-------------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_run_idle_task (malc* l, bool force);
 /*------------------------------------------------------------------------------
 log destination can only be added before initializing
 ------------------------------------------------------------------------------*/

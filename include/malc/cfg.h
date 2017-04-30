@@ -8,30 +8,28 @@
 idle_task_period_us:
   The IDLE task will be run with this periodicity. This means that calls to
   "malc_run_idle_task" won't do nothing until the period is expired.
+backoff_max_us:
+  Read the sources before setting this.
 start_own_thread:
-  When this is set the "malc" will launch and own a dedicated thread for the
+  When this is set "malc" will launch and own a dedicated thread for the
   consumer. If this is unset the logger is run from an user thread  by using
   "malc_run_consume_task" and "malc_run_idle_task".
 ------------------------------------------------------------------------------*/
-typedef struct malc_worker_cfg {
+typedef struct malc_consumer_cfg {
   u32  idle_task_period_us;
+  u32  backoff_max_us;
   bool start_own_thread;
 }
-malc_worker_cfg;
+malc_consumer_cfg;
 
 /*------------------------------------------------------------------------------
 timestamp:
   Timestamp at the producer side. It's slower but more precise. In general if
   you can't tolerate ~10ms jitter on the logging timestamp you should set this
   at the expense of performance.
-block_on_empty_tls_buffer:
-  When this is set and "can_use_heap" is not set the call will block until TLS
-  buffers are available. If both "can_use_heap" and "block_on_empty_tls_buffer"
-  are unset the logging call won't block and will return "bl_would_overflow".
 ------------------------------------------------------------------------------*/
 typedef struct malc_producer_cfg {
   bool timestamp;
-  bool block_on_empty_tls_buffer; /* will change: should be a severity too*/
 }
 malc_producer_cfg;
 /*------------------------------------------------------------------------------
@@ -81,7 +79,7 @@ typedef struct malc_security {
 malc_security;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_cfg {
-  malc_worker_cfg   worker;
+  malc_consumer_cfg consumer;
   malc_producer_cfg producer;
   malc_security     sec;
   malc_alloc_cfg    alloc;
