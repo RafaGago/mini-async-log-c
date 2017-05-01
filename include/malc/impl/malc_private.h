@@ -273,7 +273,7 @@ static inline malc_mem    malc_transform_malc_mem  (malc_mem v)    { return v; }
     malc_type_transform (expression);
 
 /*----------------------------------------------------------------------------*/
-#else
+#else /* __cplusplus */
 
 template <typename T>
 struct malc_type_traits_base {
@@ -641,14 +641,14 @@ static inline bl_err malc_warning_silencer() { return bl_ok; }
     (err), (malc_ptr), (condition), malc_sev_debug, __VA_ARGS__\
     )
 
-#else
+#else /* MALC_STRIP_LOG_DEBUG */
 
 #define malc_debug(...)      malc_warning_silencer()
 #define malc_debug_if(...)   malc_warning_silencer()
 #define malc_debug_i(...)    malc_warning_silencer()
 #define malc_debug_i_if(...) malc_warning_silencer()
 
-#endif
+#endif /* MALC_STRIP_LOG_DEBUG */
 
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_TRACE
@@ -675,14 +675,14 @@ static inline bl_err malc_warning_silencer() { return bl_ok; }
     (err), (malc_ptr), (condition), malc_sev_trace, __VA_ARGS__\
     )
 
-#else
+#else /* MALC_STRIP_LOG_TRACE */
 
 #define malc_trace(...)      malc_warning_silencer()
 #define malc_trace_if(...)   malc_warning_silencer()
 #define malc_trace_i(...)    malc_warning_silencer()
 #define malc_trace_i_if(...) malc_warning_silencer()
 
-#endif
+#endif /* MALC_STRIP_LOG_TRACE */
 
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_NOTICE
@@ -709,14 +709,14 @@ static inline bl_err malc_warning_silencer() { return bl_ok; }
     (err), (malc_ptr), (condition), malc_sev_notice, __VA_ARGS__\
     )
 
-#else
+#else /* MALC_STRIP_LOG_NOTICE */
 
 #define malc_notice(...)      malc_warning_silencer()
 #define malc_notice_if(...)   malc_warning_silencer()
 #define malc_notice_i(...)    malc_warning_silencer()
 #define malc_notice_i_if(...) malc_warning_silencer()
 
-#endif
+#endif /* MALC_STRIP_LOG_NOTICE */
 
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_WARNING
@@ -743,14 +743,14 @@ static inline bl_err malc_warning_silencer() { return bl_ok; }
     (err), (malc_ptr), (condition), malc_sev_warning, __VA_ARGS__\
     )
 
-#else
+#else /* MALC_STRIP_LOG_WARNING */
 
 #define malc_warning(...)      malc_warning_silencer()
 #define malc_warning_if(...)   malc_warning_silencer()
 #define malc_warning_i(...)    malc_warning_silencer()
 #define malc_warning_i_if(...) malc_warning_silencer()
 
-#endif
+#endif /* MALC_STRIP_LOG_WARNING */
 
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_ERROR
@@ -777,14 +777,14 @@ static inline bl_err malc_warning_silencer() { return bl_ok; }
     (err), (malc_ptr), (condition), malc_sev_error, __VA_ARGS__\
     )
 
-#else
+#else /* MALC_STRIP_LOG_ERROR */
 
 #define malc_error(...)      malc_warning_silencer()
 #define malc_error_if(...)   malc_warning_silencer()
 #define malc_error_i(...)    malc_warning_silencer()
 #define malc_error_i_if(...) malc_warning_silencer()
 
-#endif
+#endif /* MALC_STRIP_LOG_ERROR */
 
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_CRITICAL
@@ -811,13 +811,13 @@ static inline bl_err malc_warning_silencer() { return bl_ok; }
     (err), (malc_ptr), (condition), malc_sev_critical, __VA_ARGS__\
     )
 
-#else
+#else /*MALC_STRIP_LOG_CRITICAL*/
 
 #define malc_critical(...)      malc_warning_silencer()
 #define malc_critical_if(...)   malc_warning_silencer()
 #define malc_critical_i(...)    malc_warning_silencer()
 #define malc_critical_i_if(...) malc_warning_silencer()
 
-#endif
+#endif /*MALC_STRIP_LOG_CRITICAL*/
 
 #endif /*include guard*/
