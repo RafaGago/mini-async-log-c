@@ -469,41 +469,6 @@ template<> struct malc_type_traits<malc_compressed_64> {
       0 \
     )/* endif */\
   }
-#if 0
-/*----------------------------------------------------------------------------*/
-#define MALC_LOG_PASS_TMP_VARIABLES(...) \
-  pp_apply_wid (pp_vargs_second, pp_comma, __VA_ARGS__)
-/*----------------------------------------------------------------------------*/
-#define MALC_LOG_PRIVATE_IMPL(err, malc_ptr, sev, ...) \
-  MALC_LOG_CREATE_CONST_ENTRY ((sev), __VA_ARGS__); \
-  (err) = MALC_LOG_FNAME( \
-    (malc_ptr), \
-    &pp_tokconcat (malc_const_entry_, __LINE__), \
-    /* min_size (0 if no args) */ \
-    pp_if_else (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))( \
-      pp_apply( \
-        malc_get_type_min_size, pp_plus, pp_vargs_ignore_first (__VA_ARGS__) \
-        ) \
-    ,/* else */ \
-      0 \
-    ),/* endif */ \
-    /* max_size (0 if no args) */ \
-    pp_if_else (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))( \
-      pp_apply( \
-        malc_get_type_max_size, pp_plus, pp_vargs_ignore_first (__VA_ARGS__) \
-        ) \
-    ,/* else */ \
-      0 \
-    ),/* endif */ \
-    /* arg count */ \
-    pp_vargs_count (pp_vargs_ignore_first (__VA_ARGS__)) \
-    /* vargs (conditional to skip the trailing comma when ther are no vargs */ \
-    pp_if (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))( \
-      pp_comma() \
-      MALC_LOG_PASS_TMP_VARIABLES (pp_vargs_ignore_first (__VA_ARGS__))\
-      ) /* endif */ \
-    )
-#else
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_PASS_TMP_VARIABLES(...) \
   pp_apply_wid (pp_vargs_second, pp_comma, __VA_ARGS__)
@@ -526,7 +491,6 @@ template<> struct malc_type_traits<malc_compressed_64> {
       0\
     ) /* endif */ \
   )
-#endif
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_DECLARE_TMP_VARIABLES(...) \
   pp_apply_wid (malc_make_var_from_expression, pp_empty, __VA_ARGS__)
