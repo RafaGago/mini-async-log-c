@@ -499,10 +499,10 @@ template<> struct malc_type_traits<malc_compressed_64> {
   do { \
     if ((condition) && ((sev) >= MALC_GET_MIN_SEVERITY_FNAME ((malc_ptr)))) { \
       pp_if (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))(\
-        /*A copy of the expressions is created, this is to avoid calling*/\
-        /*twice any functions/expressions and to do some data preprocessing.*/\
-        /*A register optimizer will see those that are unnecessary as*/\
-        /*trivial to remove*/\
+        /*A copy of the passed expressions is created, this is to avoid */\
+        /*calling more than once any functions (expressions) and to do some.*/\
+        /*data preprocessing. A register optimizer will find plain builtin*/\
+        /*copies trivial to remove but will keep calls with side-effects.*/\
         MALC_LOG_DECLARE_TMP_VARIABLES (pp_vargs_ignore_first (__VA_ARGS__))\
       )\
       MALC_LOG_PRIVATE_IMPL ((err), (malc_ptr), (sev), __VA_ARGS__); \
