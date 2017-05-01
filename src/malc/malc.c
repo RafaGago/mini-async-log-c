@@ -236,7 +236,6 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
       }
       processor_pause();
     }
-    now = bl_get_tstamp();
     if (likely (!err)) {
       qnode* n = to_type_containing (qn, hook, qnode);
       bool has_tstamp = false;
@@ -273,7 +272,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
       if (l->idle_boundary_us >= next_sleep_us)  {
         do_backoff = !malc_try_run_idle_task (l, now);
       }
-      if (do_backoff) {
+      if (do_backoff && timeout_us) {
         nonblock_backoff_run (&l->cbackoff);
         now = bl_get_tstamp();
       }
