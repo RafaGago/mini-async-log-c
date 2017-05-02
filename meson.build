@@ -64,11 +64,13 @@ malc_srcs = [
     'src/malc/memory.c',
     'src/malc/malc.c',
     'src/malc/tls_buffer.c',
+    'src/malc/serialization.c',
 ]
 malc_test_srcs = [
     'test/src/malc/tests_main.c',
     'test/src/malc/tls_buffer_test.c',
     'test/src/malc/interface_test.c',
+    'test/src/malc/serialization_test.c',
 ]
 
 #cflags += [ '-E' ] #erase

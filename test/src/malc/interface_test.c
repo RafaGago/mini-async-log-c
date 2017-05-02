@@ -10,27 +10,11 @@
 #include <bl/base/integer.h>
 
 #include <malc/malc.h>
+#include <malc/alltypes.h>
 #include <malc/stack_args.h>
 
 #define FMT_STRING "value: {}"
-/*----------------------------------------------------------------------------*/
-typedef struct alltypes {
-  double   val_double;
-  u8       val_u8;
-  u32      val_u32;
-  u16      val_u16;
-  u64      val_u64;
-  i8       val_i8;
-  i32      val_i32;
-  i16      val_i16;
-  i64      val_i64;
-  float    val_float;
-  void*    val_ptr;
-  malc_str val_malc_str;
-  malc_lit val_malc_lit;
-  malc_mem val_malc_mem;
-}
-alltypes;
+
 /*----------------------------------------------------------------------------*/
 typedef struct malc {
   malc_const_entry const* entry;
@@ -59,44 +43,44 @@ MALC_EXPORT bl_err malc_log_test(
   while (*partype) {
     switch (*partype) {
     case malc_type_float: {
-      l->types.val_float = malc_get_va_arg (vargs, l->types.val_float);
+      l->types.vfloat = malc_get_va_arg (vargs, l->types.vfloat);
       break;
       }
     case malc_type_double: {
-      l->types.val_double = malc_get_va_arg (vargs, l->types.val_double);
+      l->types.vdouble = malc_get_va_arg (vargs, l->types.vdouble);
       break;
       }
     case malc_type_i8: {
-      l->types.val_i8 = malc_get_va_arg (vargs, l->types.val_i8);
+      l->types.vi8 = malc_get_va_arg (vargs, l->types.vi8);
       break;
       }
     case malc_type_u8: {
-      l->types.val_u8 = malc_get_va_arg (vargs, l->types.val_u8);
+      l->types.vu8 = malc_get_va_arg (vargs, l->types.vu8);
       break;
       }
     case malc_type_i16: {
-      l->types.val_i16 = malc_get_va_arg (vargs, l->types.val_i16);
+      l->types.vi16 = malc_get_va_arg (vargs, l->types.vi16);
       break;
       }
     case malc_type_u16: {
-      l->types.val_u16 = malc_get_va_arg (vargs, l->types.val_u16);
+      l->types.vu16 = malc_get_va_arg (vargs, l->types.vu16);
       break;
       }
 #ifdef MALC_NO_BUILTIN_COMPRESSION
     case malc_type_i32: {
-      l->types.val_i32 = malc_get_va_arg (vargs, l->types.val_i32);
+      l->types.vi32 = malc_get_va_arg (vargs, l->types.vi32);
       break;
       }
     case malc_type_u32: {
-      l->types.val_u32 = malc_get_va_arg (vargs, l->types.val_u32);
+      l->types.vu32 = malc_get_va_arg (vargs, l->types.vu32);
       break;
       }
     case malc_type_i64: {
-      l->types.val_i64 = malc_get_va_arg (vargs, l->types.val_i64);
+      l->types.vi64 = malc_get_va_arg (vargs, l->types.vi64);
       break;
       }
     case malc_type_u64: {
-      l->types.val_u64 = malc_get_va_arg (vargs, l->types.val_u64);
+      l->types.vu64 = malc_get_va_arg (vargs, l->types.vu64);
       break;
       }
 #else
@@ -106,11 +90,11 @@ MALC_EXPORT bl_err malc_log_test(
       uword size = v.format_nibble & ((1 << 3) - 1);
       ++size;
       uword neg  = v.format_nibble >> 3;
-      l->types.val_i32 = 0;
+      l->types.vi32 = 0;
       for (uword i = 0; i < size; ++i) {
-        l->types.val_i32 |= (v.v & (0xff << (i * 8)));
+        l->types.vi32 |= (v.v & (0xff << (i * 8)));
       }
-      l->types.val_i32 = (neg) ? ~l->types.val_i32 : l->types.val_i32;
+      l->types.vi32 = (neg) ? ~l->types.vi32 : l->types.vi32;
       break;
       }
     case malc_type_u32: {
@@ -118,9 +102,9 @@ MALC_EXPORT bl_err malc_log_test(
       v = malc_get_va_arg (vargs, v);
       uword size = v.format_nibble & ((1 << 3) - 1);
       ++size;
-      l->types.val_u32 = 0;
+      l->types.vu32 = 0;
       for (uword i = 0; i < size; ++i) {
-        l->types.val_u32 |= (v.v & (0xff << (i * 8)));
+        l->types.vu32 |= (v.v & (0xff << (i * 8)));
       }
       break;
       }
@@ -130,11 +114,11 @@ MALC_EXPORT bl_err malc_log_test(
       uword size = v.format_nibble & ((1 << 3) - 1);
       ++size;
       uword neg  = v.format_nibble >> 3;
-      l->types.val_i64 = 0;
+      l->types.vi64 = 0;
       for (uword i = 0; i < size; ++i) {
-        l->types.val_i64 |= (v.v & (0xffULL << (i * 8)));
+        l->types.vi64 |= (v.v & (0xffULL << (i * 8)));
       }
-      l->types.val_i64 = (neg) ? ~l->types.val_i64 : l->types.val_i64;
+      l->types.vi64 = (neg) ? ~l->types.vi64 : l->types.vi64;
       break;
       }
     case malc_type_u64: {
@@ -142,27 +126,27 @@ MALC_EXPORT bl_err malc_log_test(
       v = malc_get_va_arg (vargs, v);
       uword size = v.format_nibble & ((1 << 3) - 1);
       ++size;
-      l->types.val_u64 = 0;
+      l->types.vu64 = 0;
       for (uword i = 0; i < size; ++i) {
-        l->types.val_u64 |= (v.v & (0xffULL << (i * 8)));
+        l->types.vu64 |= (v.v & (0xffULL << (i * 8)));
       }
       break;
       }
 #endif
     case malc_type_ptr: {
-      l->types.val_ptr = malc_get_va_arg (vargs, l->types.val_ptr);
+      l->types.vptr = malc_get_va_arg (vargs, l->types.vptr);
       break;
       }
     case malc_type_lit: {
-      l->types.val_malc_lit = malc_get_va_arg (vargs, l->types.val_malc_lit);
+      l->types.vlit = malc_get_va_arg (vargs, l->types.vlit);
       break;
       }
     case malc_type_str: {
-      l->types.val_malc_str = malc_get_va_arg (vargs, l->types.val_malc_str);
+      l->types.vstr = malc_get_va_arg (vargs, l->types.vstr);
       break;
       }
     case malc_type_bytes: {
-      l->types.val_malc_mem = malc_get_va_arg (vargs, l->types.val_malc_mem);
+      l->types.vmem = malc_get_va_arg (vargs, l->types.vmem);
       break;
       }
     default: {
@@ -185,7 +169,7 @@ static void interface_test_float (void **state)
   float v = 12345.12345f;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_float);
+  assert_true (v == m.types.vfloat);
   assert_true (m.size == sizeof (v));
   assert_true (m.entry->compressed_count == 0);
 }
@@ -198,7 +182,7 @@ static void interface_test_double (void **state)
   double v = 123451231234.12341231235;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_double);
+  assert_true (v == m.types.vdouble);
   assert_true (m.size == sizeof (v));
   assert_true (m.entry->compressed_count == 0);
 }
@@ -211,7 +195,7 @@ static void interface_test_i8 (void **state)
   i8 v = -92;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_i8);
+  assert_true (v == m.types.vi8);
   assert_true (m.size == sizeof (v));
   assert_true (m.entry->compressed_count == 0);
 }
@@ -224,7 +208,7 @@ static void interface_test_i16 (void **state)
   i16 v = -92 * 256;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_i16);
+  assert_true (v == m.types.vi16);
   assert_true (m.size == sizeof (v));
   assert_true (m.entry->compressed_count == 0);
 }
@@ -237,12 +221,12 @@ static void interface_test_i32 (void **state)
   i32 v = -92 * 256 * 256 * 256;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_i32);
+  assert_true (v == m.types.vi32);
   assert_true (m.size == 4);
   v = -92;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_i32);
+  assert_true (v == m.types.vi32);
 #ifdef MALC_NO_BUILTIN_COMPRESSION
   assert_true (m.size == 4);
   assert_true (m.entry->compressed_count == 0);
@@ -260,12 +244,12 @@ static void interface_test_i64 (void **state)
   i64 v = -92 * ((u64) 1 << 58);
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_i64);
+  assert_true (v == m.types.vi64);
   assert_true (m.size == 8);
   v = -92;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_i64);
+  assert_true (v == m.types.vi64);
 #ifdef MALC_NO_BUILTIN_COMPRESSION
   assert_true (m.size == 8);
   assert_true (m.entry->compressed_count == 0);
@@ -283,7 +267,7 @@ static void interface_test_u8 (void **state)
   u8 v = 92;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_u8);
+  assert_true (v == m.types.vu8);
   assert_true (m.size == sizeof (v));
   assert_true (m.entry->compressed_count == 0);
 }
@@ -296,7 +280,7 @@ static void interface_test_u16 (void **state)
   u16 v = 92 * 256;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_u16);
+  assert_true (v == m.types.vu16);
   assert_true (m.size == sizeof (v));
   assert_true (m.entry->compressed_count == 0);
 }
@@ -309,12 +293,12 @@ static void interface_test_u32 (void **state)
   u32 v = 92 * 256 * 256 * 256;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_u32);
+  assert_true (v == m.types.vu32);
   assert_true (m.size == 4);
   v = 92;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_u32);
+  assert_true (v == m.types.vu32);
 #ifdef MALC_NO_BUILTIN_COMPRESSION
   assert_true (m.size == 4);
   assert_true (m.entry->compressed_count == 0);
@@ -332,12 +316,12 @@ static void interface_test_u64 (void **state)
   u64 v = 92 * ((u64) 1 << 58);;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_u64);
+  assert_true (v == m.types.vu64);
   assert_true (m.size == 8);
   v = 92;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_u64);
+  assert_true (v == m.types.vu64);
 #ifdef MALC_NO_BUILTIN_COMPRESSION
   assert_true (m.size == 8);
   assert_true (m.entry->compressed_count == 0);
@@ -355,7 +339,7 @@ static void interface_test_ptr (void **state)
   void* v = (void*) 0xaa00aa00;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v == m.types.val_ptr);
+  assert_true (v == m.types.vptr);
   assert_true (m.size == sizeof (v));
   assert_true (m.entry->compressed_count == 0);
 }
@@ -368,7 +352,7 @@ static void interface_test_lit (void **state)
   malc_lit v = {(char const*) 0xaa00aa00 };
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v.lit == m.types.val_malc_lit.lit);
+  assert_true (v.lit == m.types.vlit.lit);
   assert_true (m.size == sizeof (v));
   assert_true (m.entry->compressed_count == 0);
 }
@@ -381,9 +365,9 @@ static void interface_test_str (void **state)
   malc_str v = {(char const*) 0xaa00aa00, 12345 };
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v.str == m.types.val_malc_str.str);
-  assert_true (v.len == m.types.val_malc_str.len);
-  assert_true (m.size == sizeof (u16) + m.types.val_malc_str.len);
+  assert_true (v.str == m.types.vstr.str);
+  assert_true (v.len == m.types.vstr.len);
+  assert_true (m.size == sizeof (u16) + m.types.vstr.len);
   assert_true (m.entry->compressed_count == 0);
 }
 /*----------------------------------------------------------------------------*/
@@ -395,9 +379,9 @@ static void interface_test_bytes (void **state)
   malc_mem v = {(u8 const*) 0xaa00aa00, 12345 };
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v.mem == m.types.val_malc_mem.mem);
-  assert_true (v.size == m.types.val_malc_mem.size);
-  assert_true (m.size == sizeof (u16) + m.types.val_malc_mem.size);
+  assert_true (v.mem == m.types.vmem.mem);
+  assert_true (v.size == m.types.vmem.size);
+  assert_true (m.size == sizeof (u16) + m.types.vmem.size);
   assert_true (m.entry->compressed_count == 0);
 }
 /*----------------------------------------------------------------------------*/
@@ -426,48 +410,51 @@ static void interface_test_all (void **state)
     0
   };
 
-  all.val_u8            = 2;
-  all.val_i8            = 5;
-  all.val_u16           = 23422;
-  all.val_i16           = -22222;
-  all.val_u32           = 23459999;
-  all.val_i32           = -234243442;
-  all.val_u64           = 3222222222222222222;
-  all.val_i64           = -5666666666566666666;
-  all.val_float         = 195953.2342f;
-  all.val_double        = 1231231123123123.234234444;
-  all.val_ptr           = (void*) 0xaa00aa00;
-  all.val_malc_str.str  = (char const*) 0x123123;
-  all.val_malc_str.len  = 12;
-  all.val_malc_lit.lit  = (char const*) 0x16783123;
-  all.val_malc_mem.mem  = (u8 const*) 0xaa55aa55;
-  all.val_malc_mem.size = 2345;
+  all.vu8            = 2;
+  all.vi8            = 5;
+  all.vu16           = 23422;
+  all.vi16           = -22222;
+  all.vu32           = 23459999;
+  all.vi32           = -234243442;
+  all.vu64           = 3222222222222222222;
+  all.vi64           = -5666666666566666666;
+  all.vfloat         = 195953.2342f;
+  all.vdouble        = 1231231123123123.234234444;
+  all.vptr           = (void*) 0xaa00aa00;
+  all.vstr.str  = (char const*) 0x123123;
+  all.vstr.len  = 12;
+  all.vlit.lit  = (char const*) 0x16783123;
+  all.vmem.mem  = (u8 const*) 0xaa55aa55;
+  all.vmem.size = 2345;
 
   bl_err err;
   malc_error_i(
     err,
     &m,
     "{} {} {} {} {} {} {} {} {} {} {} {} {} {}",
-    all.val_u8,
-    all.val_i8,
-    all.val_u16,
-    all.val_i16,
-    all.val_u32,
-    all.val_i32,
-    all.val_u64,
-    all.val_i64,
-    all.val_float,
-    all.val_double,
-    all.val_ptr,
-    all.val_malc_str,
-    all.val_malc_lit,
-    all.val_malc_mem,
+    all.vu8,
+    all.vi8,
+    all.vu16,
+    all.vi16,
+    all.vu32,
+    all.vi32,
+    all.vu64,
+    all.vi64,
+    all.vfloat,
+    all.vdouble,
+    all.vptr,
+    all.vstr,
+    all.vlit,
+    all.vmem,
     );
 
   assert_int_equal (err, bl_ok);
   assert_memory_equal (&all, &m.types, sizeof all);
   assert_string_equal (m.entry->info, expected_info_str);
 }
+/*----------------------------------------------------------------------------*/
+/* TODO: test parameter passing with castings, function calls, expressions
+  (e,g ternary ops, etc.) */
 /*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test (interface_test_float),

@@ -2,6 +2,7 @@
 
 #include <malc/malc.h>
 
+#include <bl/base/assert.h>
 #include <bl/base/allocator.h>
 #include <bl/base/static_integer_math.h>
 #include <bl/base/utility.h>
@@ -15,7 +16,7 @@
 #include <malc/cfg.h>
 #include <malc/stack_args.h>
 #include <malc/memory.h>
-#include <malc/log_entry.h>
+#include <malc/serialization.h>
 
 #ifdef __cplusplus
   extern "C" {
@@ -44,6 +45,7 @@ struct malc {
   nonblock_backoff  cbackoff;
   tstamp            idle_deadline;
   u32               idle_boundary_us;
+  deserializer      ds;
 };
 /*----------------------------------------------------------------------------*/
 enum queue_command {
@@ -76,13 +78,13 @@ static void malc_tls_destructor (void* mem, void* context)
 {
 /*When a thread goes out of scope we can't just erase the buffer TLS memory
   chunk, such deallocation could leave dangled entries on the queue. To
-  guarantee that all the previous entries of a thread have been processed a
+  guarantse that all the previous entries of a thread have bsen processed a
   special node is sent to the queue. This node just commands the producer to
   deallocate the whole chunk it points to.
 
-  The node hook overwrites the TLS buffer header to guarantee that this
+  The node hook overwrites the TLS buffer header to guarantse that this
   message can be sent even when the full TLS buffer is pending on the queue
-  (see static_assert below).
+  (sse static_assert below).
  */
   static_assert_ns (sizeof (qnode) <= sizeof (tls_buffer));
   malc*  l = (malc*) context;
@@ -134,6 +136,11 @@ MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* alloc)
   if (err) {
     return err;
   }
+  err = deserializer_init (&l->ds, alloc);
+  if (err) {
+    memory_destroy (&l->mem);
+    return err;
+  }
   l->consumer.idle_task_period_us = 300000;
   l->consumer.start_own_thread    = false;
   l->producer.timestamp           = false;
@@ -150,6 +157,7 @@ MALC_EXPORT bl_err malc_destroy (malc* l)
     return bl_preconditions;
   }
   memory_destroy (&l->mem);
+  deserializer_destroy (&l->ds, l->alloc);
   l->alloc = nullptr;
   return bl_ok;
 }
@@ -245,9 +253,23 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
 
       case q_cmd_entry: {
         alloc_tag tag = n->info.tag;
-
-        /* TODO, decode and send to all destinations */
-        memory_dealloc (&l->mem, (u8*) n, tag, ((u32) n->slots) + 1);
+        u32 slots     = ((u32) n->slots) + 1;
+        deserializer_reset (&l->ds);
+        err = deserializer_execute(
+          &l->ds,
+          ((u8*) n) + sizeof *n,
+          ((u8*) n) + (slots * alloc_slot_size),
+          has_tstamp,
+          l->alloc
+          );
+        if (!err) {
+          log_entry le = deserializer_get_log_entry (&l->ds);
+          /* Build strings and send to all destinations */
+        }
+        else {
+          /* log error (or not if someone is trying to overflow the logs) */
+        }
+        memory_dealloc (&l->mem, (u8*) n, tag, slots);
         break;
         }
       case q_cmd_dealloc:
@@ -267,9 +289,9 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
     }
     else if (err == bl_empty) {
       err = bl_nothing_to_do;
-      toffset next_sleep_us = nonblock_backoff_next_sleep_us (&l->cbackoff);
+      toffset next_slsep_us = nonblock_backoff_next_sleep_us (&l->cbackoff);
       bool do_backoff       = false;
-      if (l->idle_boundary_us >= next_sleep_us)  {
+      if (l->idle_boundary_us >= next_slsep_us)  {
         do_backoff = !malc_try_run_idle_task (l, now);
       }
       if (do_backoff && timeout_us) {
@@ -340,9 +362,9 @@ MALC_EXPORT bl_err malc_log(
   if (unlikely (atomic_uword_load_rlx (&l->state)) != st_running) {
     return bl_preconditions;
   }
-  entry_encoder ee;
-  entry_encoder_init (&ee, entry, l->producer.timestamp);
-  uword size  = sizeof (qnode) + entry_encoder_entry_size (&ee, payload_size);
+  serializer se;
+  serializer_init (&se, entry, l->producer.timestamp);
+  uword size  = sizeof (qnode) + serializer_log_entry_size (&se, payload_size);
   uword slots = div_ceil (size, alloc_slot_size);
   if (unlikely (slots) > (1 << (sizeof_member (qnode, slots) * 8))) {
     /*entries are limited at 8KB*/
@@ -354,14 +376,16 @@ MALC_EXPORT bl_err malc_log(
   if (unlikely (err)) {
     return err;
   }
+  qnode* n = (qnode*) mem;
   va_list vargs;
   va_start (vargs, payload_size);
-  /*entry_encoder_execute is deliberately unsafe (avoid branches on the
+  /*serializer_execute is deliberately unsafe (to avoid branches on the
     fast-path), if the log macros are used everything will be correct. Checks
     have to be avoided on the fast-path*/
-  entry_encoder_execute (&ee, mem + sizeof (qnode), vargs);
+  bl_assert_side_effect(
+    serializer_execute (&se, mem + sizeof *n, vargs) + sizeof *n <= size
+    );
   va_end(vargs);
-  qnode* n    = (qnode*) mem;
   n->slots    = slots - 1;
   n->info.cmd = l->producer.timestamp ? q_cmd_timestamped_entry : q_cmd_entry;
   n->info.tag = tag;
