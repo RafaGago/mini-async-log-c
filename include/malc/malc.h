@@ -156,41 +156,41 @@ static inline malc_mem logmem (u8 const* mem, u16 size)
 #define log_critical_i(err, malc_ptr, ...)\
   malc_critical_i ((err), (malc_ptr), __VA_ARGS__)
 
-#define log_debug_if(err, condition, ...)\
-  malc_debug_if    ((err), (condition), __VA_ARGS__)
+#define log_debug_if(condition, err, ...)\
+  malc_debug_if    ((condition), (err), __VA_ARGS__)
 
-#define log_trace_if(err, condition, ...)\
-  malc_trace_if    ((err), (condition), __VA_ARGS__)
+#define log_trace_if(condition, err, ...)\
+  malc_trace_if    ((condition), (err), __VA_ARGS__)
 
-#define log_notice_if(err, condition, ...)\
-  malc_notice_if   ((err), (condition), __VA_ARGS__)
+#define log_notice_if(condition, err, ...)\
+  malc_notice_if   ((condition), (err), __VA_ARGS__)
 
-#define log_warning_if(err, condition, ...)\
-  malc_warning_if  ((err), (condition), __VA_ARGS__)
+#define log_warning_if(condition, err, ...)\
+  malc_warning_if  ((condition), (err), __VA_ARGS__)
 
-#define log_error_if(err, condition, ...)\
-  malc_error_if    ((err), (condition), __VA_ARGS__)
+#define log_error_if(condition, err, ...)\
+  malc_error_if    ((condition), (err), __VA_ARGS__)
 
-#define log_critical_if(err, condition, ...)\
-  malc_critical_if ((err), (condition), __VA_ARGS__)
+#define log_critical_if(condition, err, ...)\
+  malc_critical_if ((condition), (err), __VA_ARGS__)
 
-#define log_debug_i_if(err, malc_ptr, condition, ...)\
-  malc_debug_i_if    ((err), (malc_ptr), (condition), __VA_ARGS__)
+#define log_debug_i_if(condition, err, malc_ptr, ...)\
+  malc_debug_i_if    ((condition), (err), (malc_ptr), __VA_ARGS__)
 
-#define log_trace_i_if(err, malc_ptr, condition, ...)\
-  malc_trace_i_if    ((err), (malc_ptr), (condition), __VA_ARGS__)
+#define log_trace_i_if(condition, err, malc_ptr, ...)\
+  malc_trace_i_if    ((condition), (err), (malc_ptr), __VA_ARGS__)
 
-#define log_notice_i_if(err, malc_ptr, condition, ...)\
-  malc_notice_i_if   ((err), (malc_ptr), (condition), __VA_ARGS__)
+#define log_notice_i_if(condition, err, malc_ptr, ...)\
+  malc_notice_i_if   ((condition), (err), (malc_ptr), __VA_ARGS__)
 
-#define log_warning_i_if(err, malc_ptr, condition, ...)\
-  malc_warning_i_if  ((err), (malc_ptr), (condition), __VA_ARGS__)
+#define log_warning_i_if(condition, err, malc_ptr, ...)\
+  malc_warning_i_if  ((condition), (err), (malc_ptr), __VA_ARGS__)
 
-#define log_error_i_if(err, malc_ptr, condition, ...)\
-  malc_error_i_if    ((err), (malc_ptr), (condition), __VA_ARGS__)
+#define log_error_i_if(condition, err, malc_ptr, ...)\
+  malc_error_i_if    ((condition), (err), (malc_ptr), __VA_ARGS__)
 
-#define log_critical_i_if(err, malc_ptr, condition, ...)\
-  malc_critical_i_if ((err), (malc_ptr), (condition), __VA_ARGS__)
+#define log_critical_i_if(condition, err, malc_ptr, ...)\
+  malc_critical_i_if ((condition), (err), (malc_ptr), __VA_ARGS__)
 
 #define log_fileline malc_fileline
 
