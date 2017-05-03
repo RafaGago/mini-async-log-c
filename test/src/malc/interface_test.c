@@ -453,8 +453,48 @@ static void interface_test_all (void **state)
   assert_string_equal (m.entry->info, expected_info_str);
 }
 /*----------------------------------------------------------------------------*/
-/* TODO: test parameter passing with castings, function calls, expressions
-  (e,g ternary ops, etc.) */
+/* this is to test the compiler's preprocessor (verify that it compiles) */
+static void interface_test_casting (void **state)
+{
+  malc m;
+  memset (&m, 0, sizeof m);
+  bl_err err;
+  i16 v = -92 * 256;
+  malc_error_i (err, &m, FMT_STRING, (u16) v);
+  assert_int_equal (err, bl_ok);
+  assert_true ((u16) v == m.types.vu16);
+  assert_true (m.size == sizeof (v));
+  assert_true (m.entry->compressed_count == 0);
+}
+/*----------------------------------------------------------------------------*/
+static u8 a_function (i16 v) { return (u8) v; }
+/*----------------------------------------------------------------------------*/
+/* this is to test the compiler's preprocessor (verify that  it compiles) */
+static void interface_test_func_call_with_casting (void **state)
+{
+  malc m;
+  memset (&m, 0, sizeof m);
+  bl_err err;
+  i16 v = -92 * 256;
+  malc_error_i (err, &m, FMT_STRING, (u16) a_function (v));
+  assert_int_equal (err, bl_ok);
+  assert_true ((u16) a_function (v) == m.types.vu16);
+  assert_true (m.size == sizeof (v));
+  assert_true (m.entry->compressed_count == 0);
+}
+/*----------------------------------------------------------------------------*/
+/* this is to test the compiler's preprocessor (verify that  it compiles) */
+static void interface_test_ternary (void **state)
+{
+  malc m;
+  memset (&m, 0, sizeof m);
+  bl_err err;
+  uword choice = (((uword) &err) > 4) & 1;
+  malc_error_i (err, &m, FMT_STRING, (u16) (choice ? (u16) 1 : (u16) 2));
+  assert_int_equal (err, bl_ok);
+  assert_true ((u16) (choice ? 1 : 2) == m.types.vu16);
+  assert_true (m.entry->compressed_count == 0);
+}
 /*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test (interface_test_float),
@@ -472,6 +512,9 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test (interface_test_str),
   cmocka_unit_test (interface_test_bytes),
   cmocka_unit_test (interface_test_all),
+  cmocka_unit_test (interface_test_casting),
+  cmocka_unit_test (interface_test_func_call_with_casting),
+  cmocka_unit_test (interface_test_ternary),
 };
 /*----------------------------------------------------------------------------*/
 int interface_tests (void)
