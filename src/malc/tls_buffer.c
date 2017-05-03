@@ -48,10 +48,15 @@ bl_err tls_buffer_init(
 /*----------------------------------------------------------------------------*/
 void bl_tss_dtor_callconv tls_buffer_destroy (void* opaque)
 {
-  malc_tls      = nullptr;
-  tls_buffer* t = (tls_buffer*) opaque;
-  if (t && t->destructor_fn) {
-    t->destructor_fn (opaque, t->destructor_context);
+  if (malc_tls && (void*) malc_tls == opaque) {
+    malc_tls      = nullptr;
+    tls_buffer* t = (tls_buffer*) opaque;
+    if (t && t->destructor_fn) {
+      t->destructor_fn (opaque, t->destructor_context);
+    }
+  }
+  else if (malc_tls && (void*) malc_tls != opaque) {
+    bl_assert (0 && "bad destruction (logger wrongly reinitialized)");
   }
 }
 /*----------------------------------------------------------------------------*/

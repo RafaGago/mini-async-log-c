@@ -49,7 +49,7 @@ extern MALC_EXPORT bl_err malc_terminate (malc* l);
 /*------------------------------------------------------------------------------
 Activates the thread local buffer for the caller thread. Using this buffer makes
 the logging threads wait-free and is the fastest. This logger was designed to
-use this buffer.
+be used with this buffer enabled.
 
 Each thread has to initialize its thread local storage buffer manually, this is
 done for three reasons:
@@ -58,14 +58,18 @@ done for three reasons:
   to place thread local resources on threads that are not going to use it.
 
 2.Threads activating the thread local buffer can never outlive the data logger,
-  they have to be "join"ed before destroying the logger: when a thread goes out
-  of scope it sends the buffer back to the logger instance and it is deallocated
-  from the consume task. This is to ensure that the buffer isn't deallocated
-  before all the entries have been logged (would corrupt the MPSC queue linked
-  list).
+  they have to be "join"ed before calling "malc_terminate"(*): when a thread goes
+  out of scope it sends the buffer back to the logger instance and it is
+  deallocated from the consume task. This is to ensure that the buffer isn't
+  deallocated before all the entries have been logged (would corrupt the logger
+  queue linked list and cause segmentation faults).
 
   It is very likely that the user that manually calls this function does it from
   a thread for which he has full control and can comply with this requirement.
+
+  (*) Note that the thread that runs the "malc_terminate" function doesn't
+  obviously need to be joined. The "malc_terminate" function deallocates the
+  thread local storage buffer.
 
 3.There is no straightforward way to do it from C (which is a good thing, I
   would't do it anyways for the two reasons above).

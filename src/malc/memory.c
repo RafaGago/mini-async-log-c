@@ -60,6 +60,11 @@ bl_err memory_tls_init(
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
+void memory_tls_destroy_explicit (memory* m)
+{
+  tls_buffer_destroy (malc_tls);
+}
+/*----------------------------------------------------------------------------*/
 bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
 {
   bl_assert (m && mem && tag && slots);

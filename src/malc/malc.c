@@ -196,6 +196,7 @@ MALC_EXPORT bl_err malc_terminate (malc* l)
   if (atomic_uword_strong_cas_rlx (&l->state, &expected, st_terminating)) {
     return bl_preconditions;
   }
+  memory_tls_destroy_explicit (&l->mem);
   malc_send_blocking_flush (l);
   nonblock_backoff b;
   nonblock_backoff_init_default (&b, 1000);
