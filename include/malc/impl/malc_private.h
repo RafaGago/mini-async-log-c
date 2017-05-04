@@ -90,8 +90,6 @@ typedef struct malc_compressed_64 {
 }
 malc_compressed_64;
 /*----------------------------------------------------------------------------*/
-struct malc;
-/*----------------------------------------------------------------------------*/
 static inline malc_compressed_32 malc_get_compressed_u32 (u32 v)
 {
   malc_compressed_32 r;
@@ -121,6 +119,24 @@ static inline malc_compressed_64 malc_get_compressed_i64 (i64 v)
   r.format_nibble     |= (v < 0) << 3;
   return r;
 }
+/*----------------------------------------------------------------------------*/
+#if BL_WORDSIZE == 64
+  typedef malc_compressed_64 malc_compressed_ptr;
+  static inline malc_compressed_ptr malc_get_compressed_ptr (void* v)
+  {
+    return malc_get_compressed_u64 ((u64) v);
+  }
+#elif BL_WORDSIZE == 32
+  typedef malc_compressed_32 malc_compressed_ptr;
+  static inline malc_compressed_ptr malc_get_compressed_ptr (void* v)
+  {
+    return malc_get_compressed_u32 ((u32) v);
+  }
+#else
+  #error "Unsupported word size or bad compiler detection"
+#endif
+/*----------------------------------------------------------------------------*/
+struct malc;
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_log(
   struct malc* l, malc_const_entry const* e, uword size, ...
@@ -269,34 +285,19 @@ static inline u16         malc_transform_u16       (u16 v)         { return v; }
   static inline void*       malc_transform_ptr  (void* v)       { return v; }
   static inline void* const malc_transform_ptrc (void* const v) { return v; }
   static inline malc_lit    malc_transform_lit  (malc_lit v)    { return v; }
-#elif BL_WORDSIZE == 64
-  static inline malc_compressed_64 malc_transform_ptr (void* v)
-  {
-    return malc_get_compressed_u64 ((u64) v);
-  }
-  static inline malc_compressed_64 malc_transform_ptrc (void* const v)
-  {
-    return malc_get_compressed_u64 ((u64) v);
-  }
-  static inline malc_compressed_64 malc_transform_lit  (malc_lit v)
-  {
-    return malc_get_compressed_u64 ((u64) v.lit);
-  }
-#elif BL_WORDSIZE == 32
-  static inline malc_compressed_32 malc_transform_ptr (void* v)
-  {
-    return malc_get_compressed_u32 ((u32) v);
-  }
-  static inline malc_compressed_32 malc_transform_ptrc (void* const v)
-  {
-    return malc_get_compressed_u32 ((u32) v);
-  }
-  static inline malc_compressed_32 malc_transform_lit  (malc_lit v)
-  {
-    return malc_get_compressed_u32 ((u32) v.lit);
-  }
 #else
-  #error "unknown or unsupported word size"
+  static inline malc_compressed_ptr malc_transform_ptr (void* v)
+  {
+    return malc_get_compressed_ptr (v);
+  }
+  static inline malc_compressed_ptr malc_transform_ptrc (void* const v)
+  {
+    return malc_get_compressed_ptr ((void*) v);
+  }
+  static inline malc_compressed_ptr malc_transform_lit  (malc_lit v)
+  {
+    return malc_get_compressed_ptr ((void*) v.lit);
+  }
 #endif
 static inline malc_strcp  malc_transform_str  (malc_strcp v)  { return v; }
 static inline malc_memcp  malc_transform_mem  (malc_memcp v)  { return v; }
@@ -408,38 +409,21 @@ template<> struct malc_type_traits<u16> : public malc_type_traits_base<u16> {
     public malc_type_traits_base<malc_lit> {
       static const char  code = malc_type_lit;
   };
-#elif BL_WORDSIZE == 64
+#else
   template<> struct malc_type_traits<void*> {
     static const char code = malc_type_ptr;
-    static inline malc_compressed_64 transform (T v)
+    static inline malc_compressed_ptr transform (T v)
     {
-      return malc_get_compressed_u64 ((u64) v);
-    }
-  };
-  template<> struct malc_type_traits<malc_lit> {
-    static const char  code = malc_type_lit;
-    static inline malc_compressed_64 transform (malc_lit v)
-    {
-      return malc_get_compressed_u64 ((u64) v.lit);
-    }
-  };
-#elif BL_WORDSIZE == 32
-  template<> struct malc_type_traits<void*> {
-    static const char code = malc_type_ptr;
-    static inline malc_compressed_32 transform (T v)
-    {
-      return malc_get_compressed_u32 ((u32) v);
+      return malc_get_compressed_ptr ((void*) v);
     }
   };
   template<> struct malc_type_traits<malc_lit> {
     static const char code = malc_type_lit;
     static inline malc_compressed_32 transform (malc_lit v)
     {
-      return malc_get_compressed_u32 ((u32) v.lit);
+      return malc_get_compressed_ptr ((void*) v.lit);
     }
   };
-#else
-  #error "unknown or unsupported word size"
 #endif
 
 template<> struct malc_type_traits<const void*> :

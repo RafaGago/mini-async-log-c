@@ -480,10 +480,8 @@ uword serializer_execute (serializer* se, u8* mem, va_list vargs)
     case malc_type_ptr: {
 #ifdef MALC_NO_PTR_COMPRESSION
       void* v = malc_get_va_arg (vargs, v);
-#elif BL_WORDSIZE == 64
-      malc_compressed_64 v = malc_get_va_arg (vargs, v);
 #else
-      malc_compressed_32 v = malc_get_va_arg (vargs, v);
+      malc_compressed_ptr v = malc_get_va_arg (vargs, v);
 #endif
       wptr = encode (se->ch, wptr, v);
       break;
@@ -491,10 +489,8 @@ uword serializer_execute (serializer* se, u8* mem, va_list vargs)
     case malc_type_lit: {
 #ifdef MALC_NO_PTR_COMPRESSION
       malc_lit v = malc_get_va_arg (vargs, v);
-#elif BL_WORDSIZE == 64
-      malc_compressed_64 v = malc_get_va_arg (vargs, v);
 #else
-      malc_compressed_32 v = malc_get_va_arg (vargs, v);
+      malc_compressed_ptr v = malc_get_va_arg (vargs, v);
 #endif
       wptr = encode (se->ch, wptr, v);
       break;
