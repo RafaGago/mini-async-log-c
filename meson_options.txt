@@ -10,3 +10,9 @@ option(
      value       : false,
      description : 'compile as shared libraries'
      )
+option(
+    'no_compressed_builtins',
+     type        : 'boolean',
+     value       : false,
+     description : 'builtin types are never trailing-zero compressed'
+     )

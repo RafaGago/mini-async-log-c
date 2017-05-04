@@ -11,6 +11,11 @@ project(
         'default_library=static'
         ]
     )
+version_minor = '0'
+version_major = '0'
+version_rev   = '1'
+version       = version_minor + '.' + version_major + '.' + version_rev
+
 base_library = subproject(
     'base_library',
     default_options : ['timestamp_64bit=true']
@@ -57,6 +62,27 @@ if host_system == 'windows'
 endif
 
 threads = dependency ('threads')
+
+cdata = configuration_data()
+if get_option ('no_compressed_builtins')
+    cflags += [ '-DMALC_NO_BUILTIN_COMPRESSION' ]
+    cdata.set(
+        'no_compressed_builtins_placeholder',
+        '#define MALC_NO_BUILTIN_COMPRESSION'
+        )
+endif
+
+cdata.set ('version', version)
+cdata.set ('version_major', version_major)
+cdata.set ('version_minor', version_minor)
+cdata.set ('version_rev', version_rev)
+
+configure_file(
+    input:         'config.h.in',
+    output:        'config.h',
+    configuration: cdata,
+    install_dir:   'include/malc'
+    )
 
 #- malc ------------------------------------------------------------------------
 
