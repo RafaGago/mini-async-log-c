@@ -25,8 +25,8 @@
         void* const, (void* const) va_arg  (va_list_var, void*)\
         ),\
     malc_lit: (malc_lit) va_arg (va_list_var, malc_lit),\
-    malc_str: (malc_str) va_arg (va_list_var, malc_str),\
-    malc_mem: (malc_mem) va_arg (va_list_var, malc_mem),\
+    malc_strcp: (malc_strcp) va_arg (va_list_var, malc_strcp),\
+    malc_memcp: (malc_memcp) va_arg (va_list_var, malc_memcp),\
     malc_compressed_32:\
       (malc_compressed_32) va_arg (va_list_var, malc_compressed_32),\
     malc_compressed_64:\
@@ -53,8 +53,8 @@
         void* const, (void* const) va_arg  (va_list_var, void*)\
         ),\
     malc_lit: (malc_lit) va_arg (va_list_var, malc_lit),\
-    malc_str: (malc_str) va_arg (va_list_var, malc_str),\
-    malc_mem: (malc_mem) va_arg (va_list_var, malc_mem),\
+    malc_strcp: (malc_strcp) va_arg (va_list_var, malc_strcp),\
+    malc_memcp: (malc_memcp) va_arg (va_list_var, malc_memcp),\
     malc_compressed_32:\
       (malc_compressed_32) va_arg (va_list_var, malc_compressed_32),\
     malc_compressed_64:\

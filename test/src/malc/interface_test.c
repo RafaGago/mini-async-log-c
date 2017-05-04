@@ -141,12 +141,12 @@ MALC_EXPORT bl_err malc_log_test(
       l->types.vlit = malc_get_va_arg (vargs, l->types.vlit);
       break;
       }
-    case malc_type_str: {
-      l->types.vstr = malc_get_va_arg (vargs, l->types.vstr);
+    case malc_type_strcp: {
+      l->types.vstrcp = malc_get_va_arg (vargs, l->types.vstrcp);
       break;
       }
-    case malc_type_bytes: {
-      l->types.vmem = malc_get_va_arg (vargs, l->types.vmem);
+    case malc_type_memcp: {
+      l->types.vmemcp = malc_get_va_arg (vargs, l->types.vmemcp);
       break;
       }
     default: {
@@ -362,12 +362,12 @@ static void interface_test_str (void **state)
   malc m;
   memset (&m, 0, sizeof m);
   bl_err err;
-  malc_str v = {(char const*) 0xaa00aa00, 12345 };
+  malc_strcp v = {(char const*) 0xaa00aa00, 12345 };
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v.str == m.types.vstr.str);
-  assert_true (v.len == m.types.vstr.len);
-  assert_true (m.size == sizeof (u16) + m.types.vstr.len);
+  assert_true (v.str == m.types.vstrcp.str);
+  assert_true (v.len == m.types.vstrcp.len);
+  assert_true (m.size == sizeof (u16) + m.types.vstrcp.len);
   assert_true (m.entry->compressed_count == 0);
 }
 /*----------------------------------------------------------------------------*/
@@ -376,12 +376,12 @@ static void interface_test_bytes (void **state)
   malc m;
   memset (&m, 0, sizeof m);
   bl_err err;
-  malc_mem v = {(u8 const*) 0xaa00aa00, 12345 };
+  malc_memcp v = {(u8 const*) 0xaa00aa00, 12345 };
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
-  assert_true (v.mem == m.types.vmem.mem);
-  assert_true (v.size == m.types.vmem.size);
-  assert_true (m.size == sizeof (u16) + m.types.vmem.size);
+  assert_true (v.mem == m.types.vmemcp.mem);
+  assert_true (v.size == m.types.vmemcp.size);
+  assert_true (m.size == sizeof (u16) + m.types.vmemcp.size);
   assert_true (m.entry->compressed_count == 0);
 }
 /*----------------------------------------------------------------------------*/
@@ -404,28 +404,28 @@ static void interface_test_all (void **state)
     malc_type_float,
     malc_type_double,
     malc_type_ptr,
-    malc_type_str,
+    malc_type_strcp,
     malc_type_lit,
-    malc_type_bytes,
+    malc_type_memcp,
     0
   };
 
-  all.vu8            = 2;
-  all.vi8            = 5;
-  all.vu16           = 23422;
-  all.vi16           = -22222;
-  all.vu32           = 23459999;
-  all.vi32           = -234243442;
-  all.vu64           = 3222222222222222222;
-  all.vi64           = -5666666666566666666;
-  all.vfloat         = 195953.2342f;
-  all.vdouble        = 1231231123123123.234234444;
-  all.vptr           = (void*) 0xaa00aa00;
-  all.vstr.str  = (char const*) 0x123123;
-  all.vstr.len  = 12;
-  all.vlit.lit  = (char const*) 0x16783123;
-  all.vmem.mem  = (u8 const*) 0xaa55aa55;
-  all.vmem.size = 2345;
+  all.vu8         = 2;
+  all.vi8         = 5;
+  all.vu16        = 23422;
+  all.vi16        = -22222;
+  all.vu32        = 23459999;
+  all.vi32        = -234243442;
+  all.vu64        = 3222222222222222222;
+  all.vi64        = -5666666666566666666;
+  all.vfloat      = 195953.2342f;
+  all.vdouble     = 1231231123123123.234234444;
+  all.vptr        = (void*) 0xaa00aa00;
+  all.vstrcp.str  = (char const*) 0x123123;
+  all.vstrcp.len  = 12;
+  all.vlit.lit    = (char const*) 0x16783123;
+  all.vmemcp.mem  = (u8 const*) 0xaa55aa55;
+  all.vmemcp.size = 2345;
 
   bl_err err;
   malc_error_i(
@@ -443,9 +443,9 @@ static void interface_test_all (void **state)
     all.vfloat,
     all.vdouble,
     all.vptr,
-    all.vstr,
+    all.vstrcp,
     all.vlit,
-    all.vmem,
+    all.vmemcp,
     );
 
   assert_int_equal (err, bl_ok);

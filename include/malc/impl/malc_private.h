@@ -32,8 +32,8 @@ typedef enum malc_encodings {
   malc_type_double  = 'j',
   malc_type_ptr     = 'k',
   malc_type_lit     = 'l',
-  malc_type_str     = 'm',
-  malc_type_bytes   = 'n',
+  malc_type_strcp   = 'm',
+  malc_type_memcp   = 'n',
   malc_type_error   = 'o',
   malc_sev_debug    = '3',
   malc_sev_trace    = '4',
@@ -50,17 +50,17 @@ typedef struct malc_lit {
 }
 malc_lit;
 /*----------------------------------------------------------------------------*/
-typedef struct malc_mem {
+typedef struct malc_memcp {
   u8 const* mem;
   u16       size;
 }
-malc_mem;
+malc_memcp;
 /*----------------------------------------------------------------------------*/
-typedef struct malc_str {
+typedef struct malc_strcp {
   char const* str;
   u16         len;
 }
-malc_str;
+malc_strcp;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_const_entry {
   char const* format;
@@ -153,8 +153,8 @@ extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
     malc_tgen_cv_cases (void*,       (char) malc_type_ptr),\
     malc_tgen_cv_cases (void* const, (char) malc_type_ptr),\
     malc_lit:                        (char) malc_type_lit,\
-    malc_str:                        (char) malc_type_str,\
-    malc_mem:                        (char) malc_type_bytes,\
+    malc_strcp:                      (char) malc_type_strcp,\
+    malc_memcp:                      (char) malc_type_memcp,\
     default:                         (char) malc_type_error\
     )
 
@@ -172,13 +172,13 @@ static inline uword malc_size_ptr       (void* v)       { return sizeof (v); }
 static inline uword malc_size_ptrc      (void* const v) { return sizeof (v); }
 static inline uword malc_size_malc_lit  (malc_lit v)    { return sizeof (v); }
 
-static inline uword malc_size_malc_str (malc_str v)
+static inline uword malc_size_malc_str (malc_strcp v)
 {
-  return sizeof_member (malc_str, len) + v.len;
+  return sizeof_member (malc_strcp, len) + v.len;
 }
-static inline uword malc_size_malc_mem (malc_mem v)
+static inline uword malc_size_malc_mem (malc_memcp v)
 {
-  return sizeof_member (malc_mem, size) + v.size;
+  return sizeof_member (malc_memcp, size) + v.size;
 }
 static inline uword malc_size_comp32 (malc_compressed_32 v)
 {
@@ -206,8 +206,8 @@ static inline uword malc_size_comp64 (malc_compressed_64 v)
     malc_compressed_32:              malc_size_comp32,\
     malc_compressed_64:              malc_size_comp64,\
     malc_lit:                        malc_size_malc_lit,\
-    malc_str:                        malc_size_malc_str,\
-    malc_mem:                        malc_size_malc_mem,\
+    malc_strcp:                      malc_size_malc_str,\
+    malc_memcp:                      malc_size_malc_mem,\
     default:                         malc_size_ptr\
     )\
   (expression)
@@ -244,8 +244,8 @@ static inline u16         malc_transform_u16       (u16 v)         { return v; }
 static inline void*       malc_transform_ptr       (void* v)       { return v; }
 static inline void* const malc_transform_ptrc      (void* const v) { return v; }
 static inline malc_lit    malc_transform_malc_lit  (malc_lit v)    { return v; }
-static inline malc_str    malc_transform_malc_str  (malc_str v)    { return v; }
-static inline malc_mem    malc_transform_malc_mem  (malc_mem v)    { return v; }
+static inline malc_strcp  malc_transform_malc_str  (malc_strcp v)  { return v; }
+static inline malc_memcp  malc_transform_malc_mem  (malc_memcp v)  { return v; }
 
 #define malc_type_transform(expression)\
   _Generic ((expression),\
@@ -262,8 +262,8 @@ static inline malc_mem    malc_transform_malc_mem  (malc_mem v)    { return v; }
     malc_tgen_cv_cases (void*,       malc_transform_ptr),\
     malc_tgen_cv_cases (void* const, malc_transform_ptrc),\
     malc_lit:                        malc_transform_malc_lit,\
-    malc_str:                        malc_transform_malc_str,\
-    malc_mem:                        malc_transform_malc_mem,\
+    malc_strcp:                      malc_transform_malc_str,\
+    malc_memcp:                      malc_transform_malc_mem,\
     default:                         malc_transform_ptr\
     )\
   (expression)
@@ -374,20 +374,20 @@ template<> struct malc_type_traits<malc_lit> :
   public malc_type_traits_base<malc_lit> {
     static const char  code = malc_type_lit;
 };
-template<> struct malc_type_traits<malc_str> {
-  static const char code  = malc_type_str;
-  static inline malc_str transform (malc_str v) { return v; }
-  static inline uword size (malc_str v)
+template<> struct malc_type_traits<malc_strcp> {
+  static const char code  = malc_type_strcp;
+  static inline malc_strcp transform (malc_strcp v) { return v; }
+  static inline uword size (malc_strcp v)
   {
-    return sizeof_member (malc_str, len) + v.len;
+    return sizeof_member (malc_strcp, len) + v.len;
   }
 };
-template<> struct malc_type_traits<malc_mem> {
-  static const char  code = malc_type_bytes;
-  static inline malc_mem transform (malc_mem v) { return v; }
-  static inline uword size (malc_mem v)
+template<> struct malc_type_traits<malc_memcp> {
+  static const char  code = malc_type_memcp;
+  static inline malc_memcp transform (malc_memcp v) { return v; }
+  static inline uword size (malc_memcp v)
   {
-    return sizeof_member (malc_mem, size) + v.size;
+    return sizeof_member (malc_memcp, size) + v.size;
   }
 };
 

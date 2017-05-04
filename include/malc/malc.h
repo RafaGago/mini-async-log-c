@@ -113,22 +113,38 @@ static inline malc_lit loglit (char const* literal)
 /*------------------------------------------------------------------------------
 Passes a string by value (deep copy) to mal log.
 ------------------------------------------------------------------------------*/
-static inline malc_str logstr (char const* str, u16 len)
+static inline malc_strcp logstrcpy (char const* str, u16 len)
 {
   bl_assert ((str && len) || len == 0);
-  malc_str s = { str, len };
+  malc_strcp s = { str, len };
   return s;
 }
 /*------------------------------------------------------------------------------
 Passes a memory area by value (deep copy) to mal log. It will be printed as hex.
 ------------------------------------------------------------------------------*/
-static inline malc_mem logmem (u8 const* mem, u16 size)
+static inline malc_memcp logmemcpy (u8 const* mem, u16 size)
 {
   bl_assert ((mem && size) || size == 0);
-  malc_mem b = { mem, size };
+  malc_memcp b = { mem, size };
   return b;
 }
 /*----------------------------------------------------------------------------*/
+#if 0
+/*TODO: This will need malc_sync_token*/
+/*------------------------------------------------------------------------------
+Passes a string by reference to mal log. The string must be alive until it's
+consumed (logged) by the producer. The string can be determined as consumed or
+not by getting a "malc_sync_token" after having logged the entry.
+------------------------------------------------------------------------------*/
+static inline malc_strref logstrref (char const* str, u16 len);
+/*------------------------------------------------------------------------------
+Passes a memory area by reference to mal log. The string must be alive until
+it's consumed (logged) by the producer. The string can be determined as consumed
+or not by getting a "malc_sync_token" after having logged the entry.
+------------------------------------------------------------------------------*/
+static inline malc_memref logmemref (u8 const* mem, u16 size)
+#endif
+
 #if !defined (MALC_NO_SHORT_LOG_MACROS)
 
 #define log_debug(err, ...)    malc_debug    ((err), __VA_ARGS__)

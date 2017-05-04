@@ -20,9 +20,9 @@ typedef union log_argument {
   i64      vi64;
   double   vdouble;
   void*    vptr;
-  malc_str vstr;
+  malc_strcp vstrcp;
   malc_lit vlit;
-  malc_mem vmem;
+  malc_memcp vmemcp;
 }
 log_argument;
 /*----------------------------------------------------------------------------*/

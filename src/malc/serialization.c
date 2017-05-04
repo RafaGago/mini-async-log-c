@@ -102,8 +102,8 @@ static inline u8* ENCODE_NAME_BUILD(_lit)(
   return ENCODE_NAME_BUILD(_ptr) (ch, mem, (void*) v.lit);
 }
 /*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_str)(
-  compressed_header* ch, u8* mem, malc_str v
+static inline u8* ENCODE_NAME_BUILD(_strcp)(
+  compressed_header* ch, u8* mem, malc_strcp v
   )
 {
   mem = ENCODE_NAME_BUILD(_16) (ch, mem, v.len);
@@ -111,8 +111,8 @@ static inline u8* ENCODE_NAME_BUILD(_str)(
   return mem + v.len;
 }
 /*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_mem)(
-  compressed_header* ch, u8* mem, malc_mem v
+static inline u8* ENCODE_NAME_BUILD(_memcp)(
+  compressed_header* ch, u8* mem, malc_memcp v
   )
 {
   mem = ENCODE_NAME_BUILD(_16) (ch, mem, v.size);
@@ -133,8 +133,8 @@ static inline u8* ENCODE_NAME_BUILD(_mem)(
     malc_compressed_32: encode_comp32,\
     malc_compressed_64: encode_comp64,\
     malc_lit:           encode_lit,\
-    malc_str:           encode_str,\
-    malc_mem:           encode_mem,\
+    malc_strcp:         encode_strcp,\
+    malc_memcp:         encode_memcp,\
     default:            wrong\
     )\
   ((ch), (mem), (val))
@@ -276,8 +276,8 @@ static inline bl_err DECODE_NAME_BUILD(_lit)(
   return DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->lit);
 }
 /*----------------------------------------------------------------------------*/
-static inline bl_err DECODE_NAME_BUILD(_str)(
-  compressed_header* ch, u8** mem, u8* mem_end, malc_str* v
+static inline bl_err DECODE_NAME_BUILD(_strcp)(
+  compressed_header* ch, u8** mem, u8* mem_end, malc_strcp* v
   )
 {
   bl_err err = DECODE_NAME_BUILD(_16) (ch, mem, mem_end, &v->len);
@@ -292,8 +292,8 @@ static inline bl_err DECODE_NAME_BUILD(_str)(
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-static inline bl_err DECODE_NAME_BUILD(_mem)(
-  compressed_header* ch, u8** mem, u8* mem_end, malc_mem* v
+static inline bl_err DECODE_NAME_BUILD(_memcp)(
+  compressed_header* ch, u8** mem, u8* mem_end, malc_memcp* v
   )
 {
   bl_err err = DECODE_NAME_BUILD(_16) (ch, mem, mem_end, &v->size);
@@ -311,17 +311,17 @@ static inline bl_err DECODE_NAME_BUILD(_mem)(
 #ifndef __cplusplus
 #define decode(ch, mem, mem_end, val)\
   _Generic ((val),\
-    u8*:       decode_8,\
-    u16*:      decode_16,\
-    u32*:      decode_32,\
-    u64*:      decode_64,\
-    double*:   decode_double,\
-    float*:    decode_float,\
-    void**:    decode_ptr,\
-    malc_lit*: decode_lit,\
-    malc_str*: decode_str,\
-    malc_mem*: decode_mem,\
-    default:   wrong\
+    u8*:         decode_8,\
+    u16*:        decode_16,\
+    u32*:        decode_32,\
+    u64*:        decode_64,\
+    double*:     decode_double,\
+    float*:      decode_float,\
+    void**:      decode_ptr,\
+    malc_lit*:   decode_lit,\
+    malc_strcp*: decode_strcp,\
+    malc_memcp*: decode_memcp,\
+    default:     wrong\
     )\
   ((ch), (mem), (mem_end), (val))
 #else
@@ -446,9 +446,9 @@ uword serializer_execute (serializer* se, u8* mem, va_list vargs)
       wptr = encode (se->ch, wptr, v);
       break;
       }
-    case malc_type_str:
-    case malc_type_bytes: {
-      malc_mem v = malc_get_va_arg (vargs, v);
+    case malc_type_strcp:
+    case malc_type_memcp: {
+      malc_memcp v = malc_get_va_arg (vargs, v);
       if (unlikely (!v.mem)) {
         v.size = 0;
       }
@@ -562,9 +562,9 @@ bl_err deserializer_execute(
     case malc_type_lit:
       err = decode (ds->ch, &mem, mem_end, &larg.vlit);
       break;
-    case malc_type_str:
-    case malc_type_bytes:
-      err = decode (ds->ch, &mem, mem_end, &larg.vstr);
+    case malc_type_strcp:
+    case malc_type_memcp:
+      err = decode (ds->ch, &mem, mem_end, &larg.vstrcp);
       break;
     default:
       bl_assert (0 && "bug");

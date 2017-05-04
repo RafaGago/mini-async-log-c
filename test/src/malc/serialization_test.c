@@ -275,7 +275,7 @@ static void serialization_test_str (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
   char str[] = "eaaaa!";
-  malc_str v = { str, lit_len (str) };
+  malc_strcp v = { str, lit_len (str) };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   serialize_to_buffer (c, entry, v);
@@ -288,16 +288,16 @@ static void serialization_test_str (void **state)
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, log_args_size (le.args));
   assert_memory_equal(
-    log_args_at (le.args, 0)->vstr.str, str, lit_len (str)
+    log_args_at (le.args, 0)->vstrcp.str, str, lit_len (str)
     );
-  assert_int_equal (log_args_at (le.args, 0)->vstr.len, lit_len (str));
+  assert_int_equal (log_args_at (le.args, 0)->vstrcp.len, lit_len (str));
 }
 /*----------------------------------------------------------------------------*/
 static void serialization_test_bytes (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
   char str[] = "eaaaeaa!";
-  malc_mem v = { (u8*) str, sizeof str };
+  malc_memcp v = { (u8*) str, sizeof str };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   serialize_to_buffer (c, entry, v);
@@ -309,8 +309,8 @@ static void serialization_test_bytes (void **state)
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, log_args_size (le.args));
-  assert_string_equal ((char const*) log_args_at (le.args, 0)->vmem.mem, str);
-  assert_int_equal (log_args_at (le.args, 0)->vmem.size, sizeof str);
+  assert_string_equal ((char const*) log_args_at (le.args, 0)->vmemcp.mem, str);
+  assert_int_equal (log_args_at (le.args, 0)->vmemcp.size, sizeof str);
 }
 /*----------------------------------------------------------------------------*/
 static void serialization_test_all (void **state)
@@ -329,10 +329,10 @@ static void serialization_test_all (void **state)
   all.vdouble   = 1231231123123123.234234444;
   all.vptr      = (void*) 0xaaaaaaaa;
   all.vlit.lit  = (char const*) 0xbbbbbbbb;
-  all.vstr.str  = "str";
-  all.vstr.len  = sizeof "str";
-  all.vmem.mem  = (u8 const*) "mem";
-  all.vmem.size = sizeof "mem";
+  all.vstrcp.str  = "str";
+  all.vstrcp.len  = sizeof "str";
+  all.vmemcp.mem  = (u8 const*) "mem";
+  all.vmemcp.size = sizeof "mem";
 
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY(
@@ -349,8 +349,8 @@ static void serialization_test_all (void **state)
     all.vdouble,
     all.vptr,
     all.vlit,
-    all.vstr,
-    all.vmem,
+    all.vstrcp,
+    all.vmemcp,
     );
   MALC_LOG_DECLARE_TMP_VARIABLES(
     all.vu8,
@@ -365,8 +365,8 @@ static void serialization_test_all (void **state)
     all.vdouble,
     all.vptr,
     all.vlit,
-    all.vstr,
-    all.vmem,
+    all.vstrcp,
+    all.vmemcp,
     );
   serialize_to_buffer(
     c,
@@ -419,13 +419,13 @@ static void serialization_test_all (void **state)
   ++idx;
   assert_true (log_args_at (le.args, idx)->vlit.lit == all.vlit.lit);
   ++idx;
-  assert_string_equal (log_args_at (le.args, idx)->vstr.str, all.vstr.str);
-  assert_int_equal (log_args_at (le.args, idx)->vstr.len, all.vstr.len);
+  assert_string_equal (log_args_at (le.args, idx)->vstrcp.str, all.vstrcp.str);
+  assert_int_equal (log_args_at (le.args, idx)->vstrcp.len, all.vstrcp.len);
   ++idx;
   assert_string_equal(
-    (char const*) log_args_at (le.args, idx)->vmem.mem, all.vmem.mem
+    (char const*) log_args_at (le.args, idx)->vmemcp.mem, all.vmemcp.mem
     );
-  assert_int_equal (log_args_at (le.args, idx)->vmem.size, all.vmem.size);
+  assert_int_equal (log_args_at (le.args, idx)->vmemcp.size, all.vmemcp.size);
   ++idx;
   assert_int_equal (idx, log_args_size (le.args));
 }
