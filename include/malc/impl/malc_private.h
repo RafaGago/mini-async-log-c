@@ -119,11 +119,15 @@ extern MALC_EXPORT bl_err malc_log(
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
 /*----------------------------------------------------------------------------*/
-#define malc_is_compressed(x) \
-  ((int) (malc_get_type_code ((x)) == malc_type_i32 || \
-          malc_get_type_code ((x)) == malc_type_u32 || \
-          malc_get_type_code ((x)) == malc_type_i64 || \
-          malc_get_type_code ((x)) == malc_type_u64))
+#ifdef MALC_NO_BUILTIN_COMPRESSION
+  #define malc_is_compressed(x) 0
+#else
+  #define malc_is_compressed(x) \
+    ((int) (malc_get_type_code ((x)) == malc_type_i32 || \
+            malc_get_type_code ((x)) == malc_type_u32 || \
+            malc_get_type_code ((x)) == malc_type_i64 || \
+            malc_get_type_code ((x)) == malc_type_u64))
+#endif
 /*----------------------------------------------------------------------------*/
 
 #ifdef __cplusplus

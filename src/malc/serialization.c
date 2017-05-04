@@ -336,8 +336,7 @@ void serializer_init(
 {
   se->entry      = entry;
   se->has_tstamp = has_tstamp;
-  se->extra_size = sizeof se->entry + has_tstamp ? sizeof e->t : 0;
-  se->hdr_size   = 0;
+  se->extra_size = sizeof se->entry + has_tstamp ? sizeof se->t : 0;
   se->ch         = nullptr;
   if (has_tstamp) {
     se->t = bl_get_tstamp();
