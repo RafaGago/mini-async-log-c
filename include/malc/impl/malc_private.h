@@ -13,6 +13,15 @@
 #include <bl/base/utility.h>
 
 #include <malc/libexport.h>
+
+/*----------------------------------------------------------------------------*/
+#if defined (MALC_NO_BUILTIN_COMPRESSION) && defined (MALC_NO_PTR_COMPRESSION)
+  #define MALC_NO_COMPRESSION
+#endif
+#if defined (MALC_NO_COMPRESSION) &&\
+  (!defined (MALC_NO_BUILTIN_COMPRESSION) || !defined (MALC_NO_PTR_COMPRESSION))
+  #error "contradictory compression setup"
+#endif
 /*----------------------------------------------------------------------------*/
 #ifdef __cplusplus
   extern "C" {
@@ -119,15 +128,26 @@ extern MALC_EXPORT bl_err malc_log(
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
 /*----------------------------------------------------------------------------*/
-#ifdef MALC_NO_BUILTIN_COMPRESSION
-  #define malc_is_compressed(x) 0
+#ifdef MALC_NO_PTR_COMPRESSION
+  #define malc_ptr_is_compressed(x) 0
 #else
-  #define malc_is_compressed(x) \
+  #define malc_ptr_is_compressed(x)\
+    ((int) (malc_get_type_code ((x)) == malc_type_ptr || \
+            malc_get_type_code ((x)) == malc_type_lit))
+#endif
+
+#ifdef MALC_NO_BUILTIN_COMPRESSION
+  #define malc_builtin_is_compressed(x) 0
+#else
+  #define malc_builtin_is_compressed(x)\
     ((int) (malc_get_type_code ((x)) == malc_type_i32 || \
             malc_get_type_code ((x)) == malc_type_u32 || \
             malc_get_type_code ((x)) == malc_type_i64 || \
             malc_get_type_code ((x)) == malc_type_u64))
 #endif
+
+#define malc_is_compressed(x)\
+  (malc_builtin_is_compressed (x) || malc_ptr_is_compressed (x))
 /*----------------------------------------------------------------------------*/
 
 #ifdef __cplusplus
@@ -162,25 +182,25 @@ extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
     default:                         (char) malc_type_error\
     )
 
-static inline uword malc_size_float     (float v)       { return sizeof (v); }
-static inline uword malc_size_double    (double v)      { return sizeof (v); }
-static inline uword malc_size_i8        (i8 v)          { return sizeof (v); }
-static inline uword malc_size_u8        (u8 v)          { return sizeof (v); }
-static inline uword malc_size_i16       (i16 v)         { return sizeof (v); }
-static inline uword malc_size_u16       (u16 v)         { return sizeof (v); }
-static inline uword malc_size_i32       (i32 v)         { return sizeof (v); }
-static inline uword malc_size_u32       (u32 v)         { return sizeof (v); }
-static inline uword malc_size_i64       (i64 v)         { return sizeof (v); }
-static inline uword malc_size_u64       (u64 v)         { return sizeof (v); }
-static inline uword malc_size_ptr       (void* v)       { return sizeof (v); }
-static inline uword malc_size_ptrc      (void* const v) { return sizeof (v); }
-static inline uword malc_size_malc_lit  (malc_lit v)    { return sizeof (v); }
+static inline uword malc_size_float  (float v)       { return sizeof (v); }
+static inline uword malc_size_double (double v)      { return sizeof (v); }
+static inline uword malc_size_i8     (i8 v)          { return sizeof (v); }
+static inline uword malc_size_u8     (u8 v)          { return sizeof (v); }
+static inline uword malc_size_i16    (i16 v)         { return sizeof (v); }
+static inline uword malc_size_u16    (u16 v)         { return sizeof (v); }
+static inline uword malc_size_i32    (i32 v)         { return sizeof (v); }
+static inline uword malc_size_u32    (u32 v)         { return sizeof (v); }
+static inline uword malc_size_i64    (i64 v)         { return sizeof (v); }
+static inline uword malc_size_u64    (u64 v)         { return sizeof (v); }
+static inline uword malc_size_ptr    (void* v)       { return sizeof (v); }
+static inline uword malc_size_ptrc   (void* const v) { return sizeof (v); }
+static inline uword malc_size_lit    (malc_lit v)    { return sizeof (v); }
 
-static inline uword malc_size_malc_str (malc_strcp v)
+static inline uword malc_size_strcp (malc_strcp v)
 {
   return sizeof_member (malc_strcp, len) + v.len;
 }
-static inline uword malc_size_malc_mem (malc_memcp v)
+static inline uword malc_size_memcp (malc_memcp v)
 {
   return sizeof_member (malc_memcp, size) + v.size;
 }
@@ -209,9 +229,9 @@ static inline uword malc_size_comp64 (malc_compressed_64 v)
     malc_tgen_cv_cases (void* const, malc_size_ptrc),\
     malc_compressed_32:              malc_size_comp32,\
     malc_compressed_64:              malc_size_comp64,\
-    malc_lit:                        malc_size_malc_lit,\
-    malc_strcp:                      malc_size_malc_str,\
-    malc_memcp:                      malc_size_malc_mem,\
+    malc_lit:                        malc_size_lit,\
+    malc_strcp:                      malc_size_strcp,\
+    malc_memcp:                      malc_size_memcp,\
     default:                         malc_size_ptr\
     )\
   (expression)
@@ -245,11 +265,41 @@ static inline u16         malc_transform_u16       (u16 v)         { return v; }
     return malc_get_compressed_u64 (v);
   }
 #endif
-static inline void*       malc_transform_ptr       (void* v)       { return v; }
-static inline void* const malc_transform_ptrc      (void* const v) { return v; }
-static inline malc_lit    malc_transform_malc_lit  (malc_lit v)    { return v; }
-static inline malc_strcp  malc_transform_malc_str  (malc_strcp v)  { return v; }
-static inline malc_memcp  malc_transform_malc_mem  (malc_memcp v)  { return v; }
+#ifdef MALC_NO_PTR_COMPRESSION
+  static inline void*       malc_transform_ptr  (void* v)       { return v; }
+  static inline void* const malc_transform_ptrc (void* const v) { return v; }
+  static inline malc_lit    malc_transform_lit  (malc_lit v)    { return v; }
+#elif BL_WORDSIZE == 64
+  static inline malc_compressed_64 malc_transform_ptr (void* v)
+  {
+    return malc_get_compressed_u64 ((u64) v);
+  }
+  static inline malc_compressed_64 malc_transform_ptrc (void* const v)
+  {
+    return malc_get_compressed_u64 ((u64) v);
+  }
+  static inline malc_compressed_64 malc_transform_lit  (malc_lit v)
+  {
+    return malc_get_compressed_u64 ((u64) v.lit);
+  }
+#elif BL_WORDSIZE == 32
+  static inline malc_compressed_32 malc_transform_ptr (void* v)
+  {
+    return malc_get_compressed_u32 ((u32) v);
+  }
+  static inline malc_compressed_32 malc_transform_ptrc (void* const v)
+  {
+    return malc_get_compressed_u32 ((u32) v);
+  }
+  static inline malc_compressed_32 malc_transform_lit  (malc_lit v)
+  {
+    return malc_get_compressed_u32 ((u32) v.lit);
+  }
+#else
+  #error "unknown or unsupported word size"
+#endif
+static inline malc_strcp  malc_transform_str  (malc_strcp v)  { return v; }
+static inline malc_memcp  malc_transform_mem  (malc_memcp v)  { return v; }
 
 #define malc_type_transform(expression)\
   _Generic ((expression),\
@@ -265,9 +315,9 @@ static inline malc_memcp  malc_transform_malc_mem  (malc_memcp v)  { return v; }
     malc_tgen_cv_cases (u64,         malc_transform_u64),\
     malc_tgen_cv_cases (void*,       malc_transform_ptr),\
     malc_tgen_cv_cases (void* const, malc_transform_ptrc),\
-    malc_lit:                        malc_transform_malc_lit,\
-    malc_strcp:                      malc_transform_malc_str,\
-    malc_memcp:                      malc_transform_malc_mem,\
+    malc_lit:                        malc_transform_lit,\
+    malc_strcp:                      malc_transform_str,\
+    malc_memcp:                      malc_transform_mem,\
     default:                         malc_transform_ptr\
     )\
   (expression)
@@ -349,10 +399,49 @@ template<> struct malc_type_traits<u16> : public malc_type_traits_base<u16> {
     }
   };
 #endif
-template<> struct malc_type_traits<void*> :
-  public malc_type_traits_base<void*> {
-    static const char  code = malc_type_ptr;
-};
+#ifdef MALC_NO_PTR_COMPRESSION
+  template<> struct malc_type_traits<void*> :
+    public malc_type_traits_base<void*> {
+      static const char code = malc_type_ptr;
+  };
+  template<> struct malc_type_traits<malc_lit> :
+    public malc_type_traits_base<malc_lit> {
+      static const char  code = malc_type_lit;
+  };
+#elif BL_WORDSIZE == 64
+  template<> struct malc_type_traits<void*> {
+    static const char code = malc_type_ptr;
+    static inline malc_compressed_64 transform (T v)
+    {
+      return malc_get_compressed_u64 ((u64) v);
+    }
+  };
+  template<> struct malc_type_traits<malc_lit> {
+    static const char  code = malc_type_lit;
+    static inline malc_compressed_64 transform (malc_lit v)
+    {
+      return malc_get_compressed_u64 ((u64) v.lit);
+    }
+  };
+#elif BL_WORDSIZE == 32
+  template<> struct malc_type_traits<void*> {
+    static const char code = malc_type_ptr;
+    static inline malc_compressed_32 transform (T v)
+    {
+      return malc_get_compressed_u32 ((u32) v);
+    }
+  };
+  template<> struct malc_type_traits<malc_lit> {
+    static const char code = malc_type_lit;
+    static inline malc_compressed_32 transform (malc_lit v)
+    {
+      return malc_get_compressed_u32 ((u32) v.lit);
+    }
+  };
+#else
+  #error "unknown or unsupported word size"
+#endif
+
 template<> struct malc_type_traits<const void*> :
   public malc_type_traits<void*> {};
 
@@ -374,10 +463,6 @@ template<> struct malc_type_traits<volatile void* const> :
 template<> struct malc_type_traits<const volatile void* const> :
   public malc_type_traits<void*> {};
 
-template<> struct malc_type_traits<malc_lit> :
-  public malc_type_traits_base<malc_lit> {
-    static const char  code = malc_type_lit;
-};
 template<> struct malc_type_traits<malc_strcp> {
   static const char code  = malc_type_strcp;
   static inline malc_strcp transform (malc_strcp v) { return v; }

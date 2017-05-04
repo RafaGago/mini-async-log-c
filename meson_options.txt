@@ -14,5 +14,11 @@ option(
     'no_compressed_builtins',
      type        : 'boolean',
      value       : false,
-     description : 'builtin types are never trailing-zero compressed'
+     description : 'builtin types (32 and 64 bit) are never trailing-zero compressed'
+     )
+option(
+    'no_compressed_ptrs',
+     type        : 'boolean',
+     value       : false,
+     description : 'pointers are never trailing zero compressed (recommended on 32 bit systems)'
      )

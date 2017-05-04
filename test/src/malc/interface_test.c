@@ -133,6 +133,7 @@ MALC_EXPORT bl_err malc_log_test(
       break;
       }
 #endif
+#ifdef MALC_NO_PTR_COMPRESSION
     case malc_type_ptr: {
       l->types.vptr = malc_get_va_arg (vargs, l->types.vptr);
       break;
@@ -141,6 +142,57 @@ MALC_EXPORT bl_err malc_log_test(
       l->types.vlit = malc_get_va_arg (vargs, l->types.vlit);
       break;
       }
+#elif BL_WORDSIZE == 64
+    case malc_type_ptr: {
+      malc_compressed_64 v;
+      v = malc_get_va_arg (vargs, v);
+      uword size = v.format_nibble & ((1 << 3) - 1);
+      ++size;
+      u64 res = 0;
+      for (uword i = 0; i < size; ++i) {
+        res |= (v.v & (0xffULL << (i * 8)));
+      }
+      l->types.vptr = (void*) res;
+      break;
+      }
+    case malc_type_lit: {
+      malc_compressed_64 v;
+      v = malc_get_va_arg (vargs, v);
+      uword size = v.format_nibble & ((1 << 3) - 1);
+      ++size;
+      u64 res = 0;
+      for (uword i = 0; i < size; ++i) {
+        res |= (v.v & (0xffULL << (i * 8)));
+      }
+      l->types.vlit.lit = (char const*) res;
+      break;
+      }
+#else
+    case malc_type_ptr: {
+      malc_compressed_32 v;
+      v = malc_get_va_arg (vargs, v);
+      uword size = v.format_nibble & ((1 << 3) - 1);
+      ++size;
+      u32 res = 0;
+      for (uword i = 0; i < size; ++i) {
+        res |= (v.v & (0xffULL << (i * 8)));
+      }
+      l->types.vptr = (void*) res;
+      break;
+      }
+    case malc_type_lit: {
+      malc_compressed_64 v;
+      v = malc_get_va_arg (vargs, v);
+      uword size = v.format_nibble & ((1 << 3) - 1);
+      ++size;
+      u32 res = 0;
+      for (uword i = 0; i < size; ++i) {
+        res |= (v.v & (0xffULL << (i * 8)));
+      }
+      l->types.vlit.lit = (char const*) res;
+      break;
+      }
+#endif
     case malc_type_strcp: {
       l->types.vstrcp = malc_get_va_arg (vargs, l->types.vstrcp);
       break;
@@ -336,12 +388,17 @@ static void interface_test_ptr (void **state)
   malc m;
   memset (&m, 0, sizeof m);
   bl_err err;
-  void* v = (void*) 0xaa00aa00;
+  void* v = (void*) 0xaa00;
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
   assert_true (v == m.types.vptr);
+#ifdef MALC_NO_PTR_COMPRESSION
   assert_true (m.size == sizeof (v));
   assert_true (m.entry->compressed_count == 0);
+#else
+  assert_true (m.size == 2);
+  assert_true (m.entry->compressed_count == 1);
+#endif
 }
 /*----------------------------------------------------------------------------*/
 static void interface_test_lit (void **state)
@@ -349,15 +406,20 @@ static void interface_test_lit (void **state)
   malc m;
   memset (&m, 0, sizeof m);
   bl_err err;
-  malc_lit v = {(char const*) 0xaa00aa00 };
+  malc_lit v = {(char const*) 0xaa00 };
   malc_error_i (err, &m, FMT_STRING, v);
   assert_int_equal (err, bl_ok);
   assert_true (v.lit == m.types.vlit.lit);
+#ifdef MALC_NO_PTR_COMPRESSION
   assert_true (m.size == sizeof (v));
   assert_true (m.entry->compressed_count == 0);
+#else
+  assert_true (m.size == 2);
+  assert_true (m.entry->compressed_count == 1);
+#endif
 }
 /*----------------------------------------------------------------------------*/
-static void interface_test_str (void **state)
+static void interface_test_strcp (void **state)
 {
   malc m;
   memset (&m, 0, sizeof m);
@@ -371,7 +433,7 @@ static void interface_test_str (void **state)
   assert_true (m.entry->compressed_count == 0);
 }
 /*----------------------------------------------------------------------------*/
-static void interface_test_bytes (void **state)
+static void interface_test_memcp (void **state)
 {
   malc m;
   memset (&m, 0, sizeof m);
@@ -509,8 +571,8 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test (interface_test_u64),
   cmocka_unit_test (interface_test_ptr),
   cmocka_unit_test (interface_test_lit),
-  cmocka_unit_test (interface_test_str),
-  cmocka_unit_test (interface_test_bytes),
+  cmocka_unit_test (interface_test_strcp),
+  cmocka_unit_test (interface_test_memcp),
   cmocka_unit_test (interface_test_all),
   cmocka_unit_test (interface_test_casting),
   cmocka_unit_test (interface_test_func_call_with_casting),

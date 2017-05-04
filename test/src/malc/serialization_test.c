@@ -241,7 +241,8 @@ static void serialization_test_ptr (void **state)
   void* v = (void*) 0xaa00aa00;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  serialize_to_buffer (c, entry, v);
+  MALC_LOG_DECLARE_TMP_VARIABLES (v);
+  serialize_to_buffer (c, entry, I);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -259,7 +260,8 @@ static void serialization_test_lit (void **state)
   malc_lit v = {(char const*) 0xaa00aa00 };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  serialize_to_buffer (c, entry, v);
+  MALC_LOG_DECLARE_TMP_VARIABLES (v);
+  serialize_to_buffer (c, entry, I);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc

@@ -72,6 +72,13 @@ if get_option ('no_compressed_builtins')
         )
 endif
 
+if get_option ('no_compressed_ptrs')
+    cflags += [ '-DMALC_NO_PTR_COMPRESSION' ]
+    cdata.set(
+        'no_compressed_ptrs_placeholder', '#define MALC_NO_PTR_COMPRESSION'
+        )
+endif
+
 cdata.set ('version', version)
 cdata.set ('version_major', version_major)
 cdata.set ('version_minor', version_minor)

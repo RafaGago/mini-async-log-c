@@ -17,7 +17,7 @@ typedef struct compressed_header {
 }
 compressed_header;
 /*----------------------------------------------------------------------------*/
-#ifdef MALC_NO_BUILTIN_COMPRESSION
+#ifdef MALC_NO_COMPRESSION
 /*----------------------------------------------------------------------------*/
 typedef struct serializer {
   malc_const_entry const* entry;
@@ -33,7 +33,7 @@ static inline uword serializer_hdr_size (serializer const* se)
   return 0;
 }
 /*----------------------------------------------------------------------------*/
-#else /* MALC_NO_BUILTIN_COMPRESSION */
+#else /* MALC_NO_COMPRESSION */
 /*----------------------------------------------------------------------------*/
 typedef struct serializer {
   malc_const_entry const* entry;
@@ -58,7 +58,7 @@ static inline uword serializer_hdr_size (serializer const* se)
   return se->hdr_size;
 }
 /*----------------------------------------------------------------------------*/
-#endif /* MALC_NO_BUILTIN_COMPRESSION */
+#endif /* MALC_NO_COMPRESSION */
 /*----------------------------------------------------------------------------*/
 extern void serializer_init(
   serializer* se, malc_const_entry const* entry, bool has_tstamp
@@ -78,7 +78,7 @@ typedef struct deserializer {
   malc_const_entry const* entry;
   tstamp                  t;
   compressed_header*      ch;
-#ifndef MALC_NO_BUILTIN_COMPRESSION
+#ifndef MALC_NO_COMPRESSION
   compressed_header       chval;
 #endif
 }

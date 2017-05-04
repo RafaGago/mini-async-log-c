@@ -19,4 +19,5 @@
   MALC_VERSION_GET(MALC_VERSION_MAJOR, MALC_VERSION_MINOR, MALC_VERSION_REV)
 
 @no_compressed_builtins_placeholder@
+@no_compressed_ptrs_placeholder@
 #endif

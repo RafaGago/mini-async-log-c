@@ -140,6 +140,52 @@ static inline u8* ENCODE_NAME_BUILD(_memcp)(
   ((ch), (mem), (val))
 #endif
 /*----------------------------------------------------------------------------*/
+#if !defined (MALC_NO_BUILTIN_COMPRESSION) || \
+    !defined (MALC_NO_PTR_COMPRESSION) && BL_WORDSIZE == 32
+static bl_err decode_compressed_32(
+  compressed_header* ch, u8** mem, u8* mem_end, u32* v
+  )
+{
+  u8 fmt     = (ch->hdr[ch->idx / 2] >> ((ch->idx & 1) * 4)) & 15;
+  uword size = (fmt & 7) + 1;
+  uword inv  = fmt >> 3;
+  if (unlikely (*mem + size > mem_end || size > sizeof *v)) {
+    return bl_invalid;
+  }
+  *v = 0;
+  for (uword i = 0; i < size; ++i) {
+    *v |= ((u32) **mem) << (i * 8);
+    ++(*mem);
+  }
+  *v = inv ? ~*v : *v;
+  ++ch->idx;
+  return bl_ok;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#if !defined (MALC_NO_BUILTIN_COMPRESSION) || \
+    !defined (MALC_NO_PTR_COMPRESSION) && BL_WORDSIZE == 64
+static bl_err decode_compressed_64(
+  compressed_header* ch, u8** mem, u8* mem_end, u64* v
+  )
+{
+  u8 fmt     = (ch->hdr[ch->idx / 2] >> ((ch->idx & 1) * 4)) & 15;
+  uword size = (fmt & 7) + 1;
+  uword inv  = fmt >> 3;
+  if (unlikely (*mem + size > mem_end)) {
+    return bl_invalid;
+  }
+  *v = 0;
+  for (uword i = 0; i < size; ++i) {
+    *v |= ((u64) **mem) << (i * 8);
+    ++(*mem);
+  }
+  *v = inv ? ~*v : *v;
+  ++ch->idx;
+  return bl_ok;
+}
+#endif
+/*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_8) (
   compressed_header* ch, u8** mem, u8* mem_end, u8* v
   )
@@ -195,40 +241,14 @@ static inline bl_err DECODE_NAME_BUILD(_32)(
   compressed_header* ch, u8** mem, u8* mem_end, u32* v
   )
 {
-  u8 fmt     = (ch->hdr[ch->idx / 2] >> ((ch->idx & 1) * 4)) & 15;
-  uword size = (fmt & 7) + 1;
-  uword inv  = fmt >> 3;
-  if (unlikely (*mem + size > mem_end || size > sizeof *v)) {
-    return bl_invalid;
-  }
-  *v = 0;
-  for (uword i = 0; i < size; ++i) {
-    *v |= ((u32) **mem) << (i * 8);
-    ++(*mem);
-  }
-  *v = inv ? ~*v : *v;
-  ++ch->idx;
-  return bl_ok;
+  return decode_compressed_32 (ch, mem, mem_end, v);
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_64)(
   compressed_header* ch, u8** mem, u8* mem_end, u64* v
   )
 {
-  u8 fmt     = (ch->hdr[ch->idx / 2] >> ((ch->idx & 1) * 4)) & 15;
-  uword size = (fmt & 7) + 1;
-  uword inv  = fmt >> 3;
-  if (unlikely (*mem + size > mem_end)) {
-    return bl_invalid;
-  }
-  *v = 0;
-  for (uword i = 0; i < size; ++i) {
-    *v |= ((u64) **mem) << (i * 8);
-    ++(*mem);
-  }
-  *v = inv ? ~*v : *v;
-  ++ch->idx;
-  return bl_ok;
+  return decode_compressed_64 (ch, mem, mem_end, v);
 }
 /*----------------------------------------------------------------------------*/
 #endif /* MALC_NO_BUILTIN_COMPRESSION */
@@ -257,6 +277,8 @@ static inline bl_err DECODE_NAME_BUILD(_double)(
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
+#ifdef MALC_NO_PTR_COMPRESSION
+/*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_ptr)(
   compressed_header* ch, u8** mem, u8* mem_end, void** v
   )
@@ -268,6 +290,26 @@ static inline bl_err DECODE_NAME_BUILD(_ptr)(
   *mem += sizeof *v;
   return bl_ok;
 }
+/*----------------------------------------------------------------------------*/
+#elif BL_WORDSIZE == 64
+/*----------------------------------------------------------------------------*/
+static inline bl_err DECODE_NAME_BUILD(_ptr)(
+  compressed_header* ch, u8** mem, u8* mem_end, void** v
+  )
+{
+  return decode_compressed_64 (ch, mem, mem_end, (u64*) v);
+}
+/*----------------------------------------------------------------------------*/
+#else
+/*----------------------------------------------------------------------------*/
+static inline bl_err DECODE_NAME_BUILD(_ptr)(
+  compressed_header* ch, u8** mem, u8* mem_end, void** v
+  )
+{
+  return decode_compressed_32 (ch, mem, mem_end, (u32*) v);
+}
+/*----------------------------------------------------------------------------*/
+#endif
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_lit)(
   compressed_header* ch, u8** mem, u8* mem_end, malc_lit* v
@@ -328,7 +370,7 @@ static inline bl_err DECODE_NAME_BUILD(_memcp)(
 
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef MALC_NO_BUILTIN_COMPRESSION
+#ifdef MALC_NO_COMPRESSION
 /*----------------------------------------------------------------------------*/
 void serializer_init(
   serializer* se, malc_const_entry const* entry, bool has_tstamp
@@ -343,7 +385,7 @@ void serializer_init(
   }
 }
 /*----------------------------------------------------------------------------*/
-#else /* MALC_NO_BUILTIN_COMPRESSION */
+#else /* MALC_NO_COMPRESSION */
 /*----------------------------------------------------------------------------*/
 void serializer_init(
   serializer* se, malc_const_entry const* entry, bool has_tstamp
@@ -368,16 +410,16 @@ void serializer_init(
   se->ch        = &se->chval;
 }
 /*----------------------------------------------------------------------------*/
-#endif /* MALC_NO_BUILTIN_COMPRESSION */
+#endif /* MALC_NO_COMPRESSION */
 /*----------------------------------------------------------------------------*/
 uword serializer_execute (serializer* se, u8* mem, va_list vargs)
 {
   char const* partype = &se->entry->info[1];
 
   u8* wptr = mem;
-#ifdef MALC_NO_BUILTIN_COMPRESSION
+#ifdef MALC_NO_COMPRESSION
   wptr = encode (se->ch, wptr, (void*) se->entry);
-#else /* MALC_NO_BUILTIN_COMPRESSION */
+#else /* MALC_NO_COMPRESSION */
   *wptr       = 0;
   se->ch->hdr = wptr;
   se->ch->idx = 0;
@@ -386,7 +428,7 @@ uword serializer_execute (serializer* se, u8* mem, va_list vargs)
   se->ch->hdr = wptr;
   memset (wptr, 0, serializer_hdr_size (se));
   wptr += serializer_hdr_size (se);
-#endif /* MALC_NO_BUILTIN_COMPRESSION */
+#endif /* MALC_NO_COMPRESSION */
   if (se->has_tstamp) {
     wptr = encode (se->ch, wptr, se->t);
   }
@@ -436,12 +478,24 @@ uword serializer_execute (serializer* se, u8* mem, va_list vargs)
       break;
       }
     case malc_type_ptr: {
+#ifdef MALC_NO_PTR_COMPRESSION
       void* v = malc_get_va_arg (vargs, v);
+#elif BL_WORDSIZE == 64
+      malc_compressed_64 v = malc_get_va_arg (vargs, v);
+#else
+      malc_compressed_32 v = malc_get_va_arg (vargs, v);
+#endif
       wptr = encode (se->ch, wptr, v);
       break;
       }
     case malc_type_lit: {
+#ifdef MALC_NO_PTR_COMPRESSION
       malc_lit v = malc_get_va_arg (vargs, v);
+#elif BL_WORDSIZE == 64
+      malc_compressed_64 v = malc_get_va_arg (vargs, v);
+#else
+      malc_compressed_32 v = malc_get_va_arg (vargs, v);
+#endif
       wptr = encode (se->ch, wptr, v);
       break;
       }
@@ -466,7 +520,7 @@ uword serializer_execute (serializer* se, u8* mem, va_list vargs)
 bl_err deserializer_init (deserializer* ds, alloc_tbl const* alloc)
 {
   memset (ds, 0, sizeof *ds);
-#ifdef MALC_NO_BUILTIN_COMPRESSION
+#ifdef MALC_NO_COMPRESSION
   ds->ch = nullptr;
 #else
   ds->ch = &ds->chval;
@@ -483,7 +537,7 @@ void deserializer_reset (deserializer* ds)
 {
   log_args_drop_tail_n (&ds->args, log_args_size (&ds->args));
   ds->entry   = nullptr;
-#ifndef MALC_NO_BUILTIN_COMPRESSION
+#ifndef MALC_NO_COMPRESSION
   ds->ch->idx = 0;
   ds->ch->hdr = nullptr;
 #endif
@@ -497,7 +551,7 @@ bl_err deserializer_execute(
   alloc_tbl const* alloc
   )
 {
-#ifdef MALC_NO_BUILTIN_COMPRESSION
+#ifdef MALC_NO_COMPRESSION
   bl_err err = decode (ds->ch, &mem, mem_end, (void**) &ds->entry);
   if (unlikely (err)) {
     return err;
@@ -507,9 +561,9 @@ bl_err deserializer_execute(
   ds->ch->hdr = mem;
   ++mem;
 #if BL_WORDSIZE == 64
-  bl_err err = decode (ds->ch, &mem, mem_end, (u64*) &ds->entry);
+  bl_err err = decode_compressed_64 (ds->ch, &mem, mem_end, (u64*) &ds->entry);
 #else
-  bl_err err = decode (ds->ch, &mem, mem_end, (u32*) &ds->entry);
+  bl_err err = decode_compressed_32 (ds->ch, &mem, mem_end, (u32*) &ds->entry);
 #endif
   if (unlikely (err)) {
     return err;
