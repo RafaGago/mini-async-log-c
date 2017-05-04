@@ -49,7 +49,6 @@ struct malc {
 };
 /*----------------------------------------------------------------------------*/
 enum queue_command {
-  q_cmd_timestamped_entry = 0,
   q_cmd_entry,
   q_cmd_dealloc,
   q_cmd_flush,
@@ -57,8 +56,9 @@ enum queue_command {
 };
 /*----------------------------------------------------------------------------*/
 typedef struct info_byte {
-  u8 cmd : 8 - alloc_tag_bits;
-  u8 tag : alloc_tag_bits;
+  u8 has_timestamp : 1;
+  u8 cmd           : 8 - 1 - alloc_tag_bits;
+  u8 tag           : alloc_tag_bits;
 }
 info_byte;
 /*----------------------------------------------------------------------------*/
@@ -247,11 +247,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
     }
     if (likely (!err)) {
       qnode* n = to_type_containing (qn, hook, qnode);
-      bool has_tstamp = false;
       switch (n->info.cmd) {
-      case q_cmd_timestamped_entry:
-        has_tstamp = true; /* deliberate fall-through*/
-
       case q_cmd_entry: {
         alloc_tag tag = n->info.tag;
         u32 slots     = ((u32) n->slots) + 1;
@@ -260,7 +256,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
           &l->ds,
           ((u8*) n) + sizeof *n,
           ((u8*) n) + (slots * alloc_slot_size),
-          has_tstamp,
+          n->info.has_timestamp,
           l->alloc
           );
         if (!err) {
@@ -388,8 +384,9 @@ MALC_EXPORT bl_err malc_log(
     );
   va_end(vargs);
   n->slots    = slots - 1;
-  n->info.cmd = l->producer.timestamp ? q_cmd_timestamped_entry : q_cmd_entry;
+  n->info.cmd =  q_cmd_entry;
   n->info.tag = tag;
+  n->info.has_timestamp = l->producer.timestamp;
   mpsc_i_node_set (&n->hook, nullptr, 0, 0);
   mpsc_i_produce_notag (&l->q, &n->hook);
   return bl_ok;
