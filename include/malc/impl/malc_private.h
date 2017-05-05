@@ -9,6 +9,7 @@
 #include <bl/base/integer_manipulation.h>
 #include <bl/base/integer_math.h>
 #include <bl/base/error.h>
+#include <bl/base/static_assert.h>
 #include <bl/base/preprocessor.h>
 #include <bl/base/utility.h>
 
@@ -43,7 +44,10 @@ typedef enum malc_encodings {
   malc_type_lit     = 'l',
   malc_type_strcp   = 'm',
   malc_type_memcp   = 'n',
-  malc_type_error   = 'o',
+  malc_type_strref  = 'o',
+  malc_type_memref  = 'p',
+  malc_type_refdtor = 'q',
+  malc_type_error   = 'r',
   malc_sev_debug    = '3',
   malc_sev_trace    = '4',
   malc_sev_note     = '5',
@@ -65,11 +69,39 @@ typedef struct malc_memcp {
 }
 malc_memcp;
 /*----------------------------------------------------------------------------*/
+typedef struct malc_memref {
+  u8 const* mem;
+  u16       size;
+}
+malc_memref;
+/*----------------------------------------------------------------------------*/
 typedef struct malc_strcp {
   char const* str;
   u16         len;
 }
 malc_strcp;
+/*----------------------------------------------------------------------------*/
+typedef struct malc_strref {
+  char const* str;
+  u16         len;
+}
+malc_strref;
+/*----------------------------------------------------------------------------*/
+typedef struct malc_ref {
+  void const* ref;
+  u16         size;
+}
+malc_ref;
+/*----------------------------------------------------------------------------*/
+typedef void (*malc_refdtor_fn)(
+  void* context, malc_ref const* refs, uword refs_count
+  );
+/*----------------------------------------------------------------------------*/
+typedef struct malc_refdtor {
+  malc_refdtor_fn func;
+  void*           context;
+}
+malc_refdtor;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_const_entry {
   char const* format;
@@ -89,6 +121,16 @@ typedef struct malc_compressed_64 {
   uword format_nibble; /*1 bit sign + 3 bit size (0-7)*/
 }
 malc_compressed_64;
+/*----------------------------------------------------------------------------*/
+static inline uword malc_compressed_get_size (uword nibble)
+{
+  return (nibble & (u_bit (3) - 1)) + 1;
+}
+/*----------------------------------------------------------------------------*/
+static inline bool malc_compressed_is_negative (uword nibble)
+{
+  return (nibble >> 3) & 1;
+}
 /*----------------------------------------------------------------------------*/
 static inline malc_compressed_32 malc_get_compressed_u32 (u32 v)
 {
@@ -121,20 +163,38 @@ static inline malc_compressed_64 malc_get_compressed_i64 (i64 v)
 }
 /*----------------------------------------------------------------------------*/
 #if BL_WORDSIZE == 64
+/*----------------------------------------------------------------------------*/
   typedef malc_compressed_64 malc_compressed_ptr;
+
   static inline malc_compressed_ptr malc_get_compressed_ptr (void* v)
   {
     return malc_get_compressed_u64 ((u64) v);
   }
+/*----------------------------------------------------------------------------*/
 #elif BL_WORDSIZE == 32
+/*----------------------------------------------------------------------------*/
   typedef malc_compressed_32 malc_compressed_ptr;
+
   static inline malc_compressed_ptr malc_get_compressed_ptr (void* v)
   {
     return malc_get_compressed_u32 ((u32) v);
   }
+/*----------------------------------------------------------------------------*/
 #else
   #error "Unsupported word size or bad compiler detection"
 #endif
+/*----------------------------------------------------------------------------*/
+typedef struct malc_compressed_ref {
+  malc_compressed_ptr ref;
+  u16                 size;
+}
+malc_compressed_ref;
+/*----------------------------------------------------------------------------*/
+typedef struct malc_compressed_refdtor {
+  malc_compressed_ptr func;
+  malc_compressed_ptr context;
+}
+malc_compressed_refdtor;
 /*----------------------------------------------------------------------------*/
 struct malc;
 /*----------------------------------------------------------------------------*/
@@ -145,25 +205,30 @@ extern MALC_EXPORT bl_err malc_log(
 extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
 /*----------------------------------------------------------------------------*/
 #ifdef MALC_NO_PTR_COMPRESSION
-  #define malc_ptr_is_compressed(x) 0
+  #define malc_ptr_compress_count(x) 0
 #else
-  #define malc_ptr_is_compressed(x)\
-    ((int) (malc_get_type_code ((x)) == malc_type_ptr || \
-            malc_get_type_code ((x)) == malc_type_lit))
+  #define malc_ptr_compress_count(x)\
+    (((int) malc_get_type_code ((x)) == malc_type_ptr) + \
+     ((int) malc_get_type_code ((x)) == malc_type_lit) + \
+     ((int) malc_get_type_code ((x)) == malc_type_strref) + \
+     ((int) malc_get_type_code ((x)) == malc_type_memref) + \
+     (((int) malc_get_type_code ((x)) == malc_type_refdtor) * 2) \
+    )
 #endif
 
 #ifdef MALC_NO_BUILTIN_COMPRESSION
-  #define malc_builtin_is_compressed(x) 0
+  #define malc_builtin_compress_count(x) 0
 #else
-  #define malc_builtin_is_compressed(x)\
-    ((int) (malc_get_type_code ((x)) == malc_type_i32 || \
-            malc_get_type_code ((x)) == malc_type_u32 || \
-            malc_get_type_code ((x)) == malc_type_i64 || \
-            malc_get_type_code ((x)) == malc_type_u64))
+  #define malc_builtin_compress_count(x)\
+    (((int) malc_get_type_code ((x)) == malc_type_i32) + \
+     ((int) malc_get_type_code ((x)) == malc_type_u32) + \
+     ((int) malc_get_type_code ((x)) == malc_type_i64) + \
+     ((int) malc_get_type_code ((x)) == malc_type_u64) \
+    )
 #endif
 
-#define malc_is_compressed(x)\
-  (malc_builtin_is_compressed (x) || malc_ptr_is_compressed (x))
+#define malc_compress_count(x)\
+  (malc_builtin_compress_count (x) + malc_ptr_compress_count (x))
 /*----------------------------------------------------------------------------*/
 
 #ifdef __cplusplus
@@ -195,6 +260,9 @@ extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
     malc_lit:                        (char) malc_type_lit,\
     malc_strcp:                      (char) malc_type_strcp,\
     malc_memcp:                      (char) malc_type_memcp,\
+    malc_strref:                     (char) malc_type_strref,\
+    malc_memref:                     (char) malc_type_memref,\
+    malc_refdtor:                    (char) malc_type_refdtor,\
     default:                         (char) malc_type_error\
     )
 
@@ -216,17 +284,44 @@ static inline uword malc_size_strcp (malc_strcp v)
 {
   return sizeof_member (malc_strcp, len) + v.len;
 }
+static inline uword malc_size_strref (malc_strref v)
+{
+  return sizeof_member (malc_strref, str) +
+         sizeof_member (malc_strref, len);
+}
 static inline uword malc_size_memcp (malc_memcp v)
 {
   return sizeof_member (malc_memcp, size) + v.size;
 }
+static inline uword malc_size_memref (malc_memref v)
+{
+  return sizeof_member (malc_memref, mem) +
+         sizeof_member (malc_memref, size);
+}
+static inline uword malc_size_refdtor (malc_refdtor v)
+{
+  return sizeof_member (malc_refdtor, func) +
+         sizeof_member (malc_refdtor, context);
+}
 static inline uword malc_size_comp32 (malc_compressed_32 v)
 {
-  return (v.format_nibble & (u_bit (3) - 1)) + 1;
+  return malc_compressed_get_size (v.format_nibble);
 }
 static inline uword malc_size_comp64 (malc_compressed_64 v)
 {
-  return (v.format_nibble & (u_bit (3) - 1)) + 1;
+  return malc_compressed_get_size (v.format_nibble);
+}
+
+static inline uword malc_size_compressed_ref (malc_compressed_ref v)
+{
+  return sizeof_member (malc_compressed_ref, size) +
+         malc_compressed_get_size (v.ref.format_nibble);
+}
+
+static inline uword malc_size_compressed_refdtor (malc_compressed_refdtor v)
+{
+  return malc_compressed_get_size (v.func.format_nibble) +
+         malc_compressed_get_size (v.context.format_nibble);
 }
 
 #define malc_type_size(expression)\
@@ -243,26 +338,34 @@ static inline uword malc_size_comp64 (malc_compressed_64 v)
     malc_tgen_cv_cases (u64,         malc_size_u64),\
     malc_tgen_cv_cases (void*,       malc_size_ptr),\
     malc_tgen_cv_cases (void* const, malc_size_ptrc),\
-    malc_compressed_32:              malc_size_comp32,\
-    malc_compressed_64:              malc_size_comp64,\
     malc_lit:                        malc_size_lit,\
     malc_strcp:                      malc_size_strcp,\
+    malc_strref:                     malc_size_strref,\
     malc_memcp:                      malc_size_memcp,\
+    malc_memref:                     malc_size_memref,\
+    malc_refdtor:                    malc_size_refdtor,\
+    malc_compressed_32:              malc_size_comp32,\
+    malc_compressed_64:              malc_size_comp64,\
+    malc_compressed_ref:             malc_size_compressed_ref,\
+    malc_compressed_refdtor:         malc_size_compressed_refdtor,\
     default:                         malc_size_ptr\
     )\
   (expression)
 
-static inline float       malc_transform_float     (float v)       { return v; }
-static inline double      malc_transform_double    (double v)      { return v; }
-static inline i8          malc_transform_i8        (i8 v)          { return v; }
-static inline u8          malc_transform_u8        (u8 v)          { return v; }
-static inline i16         malc_transform_i16       (i16 v)         { return v; }
-static inline u16         malc_transform_u16       (u16 v)         { return v; }
+static inline float      malc_transform_float  (float v)      { return v; }
+static inline double     malc_transform_double (double v)     { return v; }
+static inline i8         malc_transform_i8     (i8 v)         { return v; }
+static inline u8         malc_transform_u8     (u8 v)         { return v; }
+static inline i16        malc_transform_i16    (i16 v)        { return v; }
+static inline u16        malc_transform_u16    (u16 v)        { return v; }
+static inline malc_strcp malc_transform_strcp  (malc_strcp v) { return v; }
+static inline malc_memcp malc_transform_memcp  (malc_memcp v) { return v; }
+
 #ifdef MALC_NO_BUILTIN_COMPRESSION
-  static inline i32       malc_transform_i32       (i32 v)         { return v; }
-  static inline u32       malc_transform_u32       (u32 v)         { return v; }
-  static inline i64       malc_transform_i64       (i64 v)         { return v; }
-  static inline u64       malc_transform_u64       (u64 v)         { return v; }
+  static inline i32 malc_transform_i32 (i32 v) { return v; }
+  static inline u32 malc_transform_u32 (u32 v) { return v; }
+  static inline i64 malc_transform_i64 (i64 v) { return v; }
+  static inline u64 malc_transform_u64 (u64 v) { return v; }
 #else
   static inline malc_compressed_32 malc_transform_i32 (i32 v)
   {
@@ -281,10 +384,17 @@ static inline u16         malc_transform_u16       (u16 v)         { return v; }
     return malc_get_compressed_u64 (v);
   }
 #endif
+
 #ifdef MALC_NO_PTR_COMPRESSION
-  static inline void*       malc_transform_ptr  (void* v)       { return v; }
-  static inline void* const malc_transform_ptrc (void* const v) { return v; }
-  static inline malc_lit    malc_transform_lit  (malc_lit v)    { return v; }
+  static inline void*       malc_transform_ptr    (void* v)       { return v; }
+  static inline void* const malc_transform_ptrc   (void* const v) { return v; }
+  static inline malc_lit    malc_transform_lit    (malc_lit v)    { return v; }
+  static inline malc_strref malc_transform_strref (malc_strref v) { return v; }
+  static inline malc_memref malc_transform_memref (malc_memref v) { return v; }
+  static inline malc_refdtor malc_transform_refdtor (malc_refdtor v)
+  {
+    return v;
+  }
 #else
   static inline malc_compressed_ptr malc_transform_ptr (void* v)
   {
@@ -298,9 +408,29 @@ static inline u16         malc_transform_u16       (u16 v)         { return v; }
   {
     return malc_get_compressed_ptr ((void*) v.lit);
   }
+  static inline malc_compressed_ref malc_transform_strref (malc_strref v)
+  {
+    malc_compressed_ref r;
+    r.ref  = malc_get_compressed_ptr ((void*) v.str);
+    r.size = v.len;
+    return r;
+  }
+  static inline malc_compressed_ref malc_transform_memref (malc_memref v)
+  {
+    malc_compressed_ref r;
+    r.ref  = malc_get_compressed_ptr ((void*) v.mem);
+    r.size = v.size;
+    return r;
+  }
+  static inline
+    malc_compressed_refdtor malc_transform_refdtor (malc_refdtor v)
+  {
+    malc_compressed_refdtor r;
+    r.func    = malc_get_compressed_ptr ((void*) v.func);
+    r.context = malc_get_compressed_ptr ((void*) v.context);
+    return r;
+  }
 #endif
-static inline malc_strcp  malc_transform_str  (malc_strcp v)  { return v; }
-static inline malc_memcp  malc_transform_mem  (malc_memcp v)  { return v; }
 
 #define malc_type_transform(expression)\
   _Generic ((expression),\
@@ -317,8 +447,11 @@ static inline malc_memcp  malc_transform_mem  (malc_memcp v)  { return v; }
     malc_tgen_cv_cases (void*,       malc_transform_ptr),\
     malc_tgen_cv_cases (void* const, malc_transform_ptrc),\
     malc_lit:                        malc_transform_lit,\
-    malc_strcp:                      malc_transform_str,\
-    malc_memcp:                      malc_transform_mem,\
+    malc_strcp:                      malc_transform_strcp,\
+    malc_memcp:                      malc_transform_memcp,\
+    malc_strref:                     malc_transform_strref,\
+    malc_memref:                     malc_transform_memref,\
+    malc_refdtor:                    malc_transform_refdtor,\
     default:                         malc_transform_ptr\
     )\
   (expression)
@@ -407,7 +540,34 @@ template<> struct malc_type_traits<u16> : public malc_type_traits_base<u16> {
   };
   template<> struct malc_type_traits<malc_lit> :
     public malc_type_traits_base<malc_lit> {
-      static const char  code = malc_type_lit;
+      static const char code = malc_type_lit;
+  };
+  template<> struct malc_type_traits<malc_strref> {
+    static const char code = malc_type_strref;
+    static inline malc_strref transform (malc_strref v) { return v; }
+    static inline uword size (malc_strref v)
+    {
+      return sizeof_member (malc_strref, str) +
+             sizeof_member (malc_strref, len);
+    }
+  };
+  template<> struct malc_type_traits<malc_memref> {
+    static const char code = malc_type_memref;
+    static inline malc_memref transform (malc_memref v) { return v; }
+    static inline uword size (malc_memref v)
+    {
+      return sizeof_member (malc_memref, mem) +
+             sizeof_member (malc_memref, size);
+    }
+  };
+  template<> struct malc_type_traits<malc_refdtor> {
+    static const char code = malc_type_refdtor;
+    static inline malc_refdtor transform (malc_refdtor v) { return v; }
+    static inline uword size (malc_refdtor v)
+    {
+      return sizeof_member (malc_refdtor, func) +
+             sizeof_member (malc_refdtor, context);
+    }
   };
 #else
   template<> struct malc_type_traits<void*> {
@@ -422,6 +582,36 @@ template<> struct malc_type_traits<u16> : public malc_type_traits_base<u16> {
     static inline malc_compressed_32 transform (malc_lit v)
     {
       return malc_get_compressed_ptr ((void*) v.lit);
+    }
+  };
+  template<> struct malc_type_traits<malc_strref> {
+    static const char code = malc_type_strref;
+    static inline malc_compressed_ref transform (malc_strref v)
+    {
+      malc_compressed_ref r;
+      r.ref  = malc_get_compressed_ptr ((void*) v.str);
+      r.size = v.len;
+      return r;
+    }
+  };
+  template<> struct malc_type_traits<malc_memref> {
+    static const char code = malc_type_memref;
+    static inline malc_compressed_ref transform (malc_memref v)
+    {
+      malc_compressed_ref r;
+      r.ref  = malc_get_compressed_ptr ((void*) v.mem);
+      r.size = v.size;
+      return r;
+    }
+  };
+  template<> struct malc_type_traits<malc_refdtor> {
+    static const char code = malc_type_refdtor;
+    static inline malc_refdtor transform (malc_refdtor v)
+    {
+      malc_compressed_refdtor r;
+      r.func    = malc_get_compressed_ptr ((void*) v.func);
+      r.context = malc_get_compressed_ptr ((void*) v.context);
+      return r;
     }
   };
 #endif
@@ -463,17 +653,30 @@ template<> struct malc_type_traits<malc_memcp> {
     return sizeof_member (malc_memcp, size) + v.size;
   }
 };
-
 template<> struct malc_type_traits<malc_compressed_32> {
   static inline uword size (malc_compressed_32 v)
   {
-    return (v.format_nibble & (u_bit (3) - 1)) + 1;
+    return malc_compressed_get_size (v.format_nibble);
   }
 };
 template<> struct malc_type_traits<malc_compressed_64> {
   static inline uword size (malc_compressed_64 v)
   {
-    return (v.format_nibble & (u_bit (3) - 1)) + 1;
+    return malc_compressed_get_size (v.format_nibble);
+  }
+};
+template<> struct malc_type_traits<malc_compressed_ref> {
+  static inline uword size (malc_compressed_ref v)
+  {
+    return sizeof_member (malc_compressed_ref, size) +
+           malc_compressed_get_size (v.ref.format_nibble);
+  }
+};
+template<> struct malc_type_traits<malc_compressed_refdtor> {
+  static inline uword size (malc_compressed_refdtor v)
+  {
+    return malc_compressed_get_size (v.func.format_nibble) +
+           malc_compressed_get_size (v.context.format_nibble);
   }
 };
 
@@ -532,11 +735,11 @@ template<> struct malc_type_traits<malc_compressed_64> {
   static const malc_const_entry pp_tokconcat(malc_const_entry_, __LINE__) = { \
     /* "" is prefixed to forbid compilation of non-literal format strings*/ \
     "" pp_vargs_first (__VA_ARGS__), \
-    pp_tokconcat(malc_const_info_, __LINE__), \
+    pp_tokconcat (malc_const_info_, __LINE__), \
     /* this block builds the compressed field count (0 if no vargs) */ \
     pp_if_else (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))( \
       pp_apply( \
-        malc_is_compressed, pp_plus, pp_vargs_ignore_first (__VA_ARGS__) \
+        malc_compress_count, pp_plus, pp_vargs_ignore_first (__VA_ARGS__) \
         ) \
     ,/* else */ \
       0 \
@@ -552,7 +755,6 @@ template<> struct malc_type_traits<malc_compressed_64> {
   pp_apply_wid (MALC_GET_TYPE_SIZE_VISITOR, pp_plus, __VA_ARGS__)
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_PRIVATE_IMPL(err, malc_ptr, sev, ...) \
-  MALC_LOG_CREATE_CONST_ENTRY ((sev), __VA_ARGS__); \
   (err) = MALC_LOG_FNAME( \
     (malc_ptr), \
     &pp_tokconcat (malc_const_entry_, __LINE__), \
@@ -568,15 +770,48 @@ template<> struct malc_type_traits<malc_compressed_64> {
 #define MALC_LOG_DECLARE_TMP_VARIABLES(...) \
   pp_apply_wid (malc_make_var_from_expression, pp_empty, __VA_ARGS__)
 /*----------------------------------------------------------------------------*/
+#define MALC_IS_CLEANUP(x)\
+  ((int) malc_get_type_code ((x)) == malc_type_refdtor)
+
+#define MALC_IS_REF(x)\
+  ((int) malc_get_type_code ((x)) == malc_type_strref ||\
+         malc_get_type_code ((x)) == malc_type_memref)
+
+#define MALC_GET_CLEANUP_COUNT(...) \
+  pp_apply (MALC_IS_CLEANUP, pp_plus, __VA_ARGS__)
+
+#define MALC_GET_REF_COUNT(...) \
+  pp_apply (MALC_IS_REF, pp_plus, __VA_ARGS__)
+
+#define MALC_LOG_VALIDATE_REF_AND_CLEANUP(...) \
+  static_assert( \
+    ((MALC_GET_CLEANUP_COUNT (__VA_ARGS__)) == 0 && \
+     (MALC_GET_REF_COUNT (__VA_ARGS__)) == 0) || \
+    ((MALC_GET_CLEANUP_COUNT (__VA_ARGS__)) == 1 && \
+     (MALC_GET_REF_COUNT (__VA_ARGS__))) \
+    pp_comma() \
+    "_logstrref_ and _logmemref_ require one (and only one) " \
+    "_logrefcleanup_ function. _logrefcleanup_ can only be used in log "\
+    "entries that contain either a _logstrref_ or a _logmemref_."  \
+    ); \
+  static_assert( \
+    (MALC_GET_CLEANUP_COUNT (__VA_ARGS__)) == 0 || \
+    malc_get_type_code (pp_vargs_last (0, __VA_ARGS__)) == malc_type_refdtor \
+    pp_comma()\
+    "_logrefcleanup_ must be the last function call parameter."\
+    );
+/*----------------------------------------------------------------------------*/
 #define MALC_LOG_IF_PRIVATE(condition, err, malc_ptr, sev, ...) \
   do { \
     if ((condition) && ((sev) >= MALC_GET_MIN_SEVERITY_FNAME ((malc_ptr)))) { \
+      MALC_LOG_CREATE_CONST_ENTRY ((sev), __VA_ARGS__); \
       pp_if (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))(\
         /*A copy of the passed expressions is created, this is to avoid */\
         /*calling more than once any functions (expressions) and to do some.*/\
         /*data preprocessing. A register optimizer will find plain builtin*/\
         /*copies trivial to remove but will keep calls with side-effects.*/\
         MALC_LOG_DECLARE_TMP_VARIABLES (pp_vargs_ignore_first (__VA_ARGS__))\
+        MALC_LOG_VALIDATE_REF_AND_CLEANUP (pp_vargs_ignore_first (__VA_ARGS__))\
       )\
       MALC_LOG_PRIVATE_IMPL ((err), (malc_ptr), (sev), __VA_ARGS__); \
     } \

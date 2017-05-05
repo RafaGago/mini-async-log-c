@@ -128,23 +128,51 @@ static inline malc_memcp logmemcpy (u8 const* mem, u16 size)
   malc_memcp b = { mem, size };
   return b;
 }
-/*----------------------------------------------------------------------------*/
-#if 0
-/*TODO: This will need malc_sync_token*/
 /*------------------------------------------------------------------------------
-Passes a string by reference to mal log. The string must be alive until it's
-consumed (logged) by the producer. The string can be determined as consumed or
-not by getting a "malc_sync_token" after having logged the entry.
+Passes a string by reference to mal log. Needs a log entry cleanup callback
+(see "logrefdtor"). To be used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
-static inline malc_strref logstrref (char const* str, u16 len);
+static inline malc_strref logstrref (char const* str, u16 len)
+{
+  bl_assert ((str && len) || len == 0);
+  malc_strref s = { str, len };
+  return s;
+}
 /*------------------------------------------------------------------------------
-Passes a memory area by reference to mal log. The string must be alive until
-it's consumed (logged) by the producer. The string can be determined as consumed
-or not by getting a "malc_sync_token" after having logged the entry.
+Passes a memory area by reference to mal log. Needs a log entry cleanup callback
+(see "logrefdtor"). To be used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
 static inline malc_memref logmemref (u8 const* mem, u16 size)
-#endif
+{
+  bl_assert ((mem && size) || size == 0);
+  malc_memref b = { mem, size };
+  return b;
+}
+/*------------------------------------------------------------------------------
+typedef void (*malc_refdtor_fn)(
+  void* context, malc_ref const* refs, uword refs_count
+  );
 
+Passed by reference parameter destructor.
+
+This is mandatory to be used as the last parameter on log calls that contain a
+parameter passed by reference ("logstrref" or "logmemref"). It does make the
+consumer (logger) thread to invoke a callback that can be used to do memory
+cleanup/recycling.
+
+This means that blocking on the callback will block the consumer. Callbacks
+should be kept short, ideally doing an atomic reference count decrement +
+deallocation or something similar.
+
+Remember when using it to check the error code of the log error function. If the
+entry doesn't succeed to log the destructor won't be called.
+------------------------------------------------------------------------------*/
+static inline malc_refdtor logrefdtor (malc_refdtor_fn func, void* context)
+{
+  malc_refdtor r = { func, context };
+  return r;
+}
+/*----------------------------------------------------------------------------*/
 #if !defined (MALC_NO_SHORT_LOG_MACROS)
 
 #define log_debug(err, ...)    malc_debug    ((err), __VA_ARGS__)

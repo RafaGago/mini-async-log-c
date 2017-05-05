@@ -28,6 +28,37 @@ MALC_EXPORT uword malc_get_min_severity_test (malc const*l )
   return malc_sev_note;
 }
 /*----------------------------------------------------------------------------*/
+static inline u32 decode_comp_32 (malc_compressed_32 v)
+{
+  uword size = malc_compressed_get_size (v.format_nibble);
+  uword neg  = malc_compressed_is_negative (v.format_nibble);
+  u32 r = 0;
+  for (uword i = 0; i < size; ++i) {
+    r |= (v.v & (((u32) 0xff) << (i * 8)));
+  }
+  return (neg) ? ~r : r;
+}
+static inline u64 decode_comp_64 (malc_compressed_64 v)
+{
+  uword size = malc_compressed_get_size (v.format_nibble);
+  uword neg  = malc_compressed_is_negative (v.format_nibble);
+  u64 r = 0;
+  for (uword i = 0; i < size; ++i) {
+    r |= (v.v & (((u64) 0xff) << (i * 8)));
+  }
+  return (neg) ? ~r : r;
+}
+static inline void* decode_comp_ptr (malc_compressed_ptr v)
+{
+  uword size = malc_compressed_get_size (v.format_nibble);
+  uword neg  = malc_compressed_is_negative (v.format_nibble);
+  uword r = 0;
+  for (uword i = 0; i < size; ++i) {
+    r |= (v.v & (((uword) 0xff) << (i * 8)));
+  }
+  return (void*) ((neg) ? ~r : r);
+}
+/*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_log_test(
   struct malc* l, malc_const_entry const* e, uword size, ...
   )
@@ -87,49 +118,25 @@ MALC_EXPORT bl_err malc_log_test(
     case malc_type_i32: {
       malc_compressed_32 v;
       v = malc_get_va_arg (vargs, v);
-      uword size = v.format_nibble & ((1 << 3) - 1);
-      ++size;
-      uword neg  = v.format_nibble >> 3;
-      l->types.vi32 = 0;
-      for (uword i = 0; i < size; ++i) {
-        l->types.vi32 |= (v.v & (0xff << (i * 8)));
-      }
-      l->types.vi32 = (neg) ? ~l->types.vi32 : l->types.vi32;
+      l->types.vi32 = (i32) decode_comp_32 (v);
       break;
       }
     case malc_type_u32: {
       malc_compressed_32 v;
       v = malc_get_va_arg (vargs, v);
-      uword size = v.format_nibble & ((1 << 3) - 1);
-      ++size;
-      l->types.vu32 = 0;
-      for (uword i = 0; i < size; ++i) {
-        l->types.vu32 |= (v.v & (0xff << (i * 8)));
-      }
+      l->types.vu32 = (u32) decode_comp_32 (v);
       break;
       }
     case malc_type_i64: {
       malc_compressed_64 v;
       v = malc_get_va_arg (vargs, v);
-      uword size = v.format_nibble & ((1 << 3) - 1);
-      ++size;
-      uword neg  = v.format_nibble >> 3;
-      l->types.vi64 = 0;
-      for (uword i = 0; i < size; ++i) {
-        l->types.vi64 |= (v.v & (0xffULL << (i * 8)));
-      }
-      l->types.vi64 = (neg) ? ~l->types.vi64 : l->types.vi64;
+      l->types.vi64 = (i64) decode_comp_64 (v);
       break;
       }
     case malc_type_u64: {
       malc_compressed_64 v;
       v = malc_get_va_arg (vargs, v);
-      uword size = v.format_nibble & ((1 << 3) - 1);
-      ++size;
-      l->types.vu64 = 0;
-      for (uword i = 0; i < size; ++i) {
-        l->types.vu64 |= (v.v & (0xffULL << (i * 8)));
-      }
+      l->types.vu64 = (u64) decode_comp_64 (v);
       break;
       }
 #endif
@@ -142,54 +149,50 @@ MALC_EXPORT bl_err malc_log_test(
       l->types.vlit = malc_get_va_arg (vargs, l->types.vlit);
       break;
       }
-#elif BL_WORDSIZE == 64
-    case malc_type_ptr: {
-      malc_compressed_64 v;
-      v = malc_get_va_arg (vargs, v);
-      uword size = v.format_nibble & ((1 << 3) - 1);
-      ++size;
-      u64 res = 0;
-      for (uword i = 0; i < size; ++i) {
-        res |= (v.v & (0xffULL << (i * 8)));
-      }
-      l->types.vptr = (void*) res;
+    case malc_type_strref: {
+      l->types.vstrref = malc_get_va_arg (vargs, l->types.vstrref);
       break;
       }
-    case malc_type_lit: {
-      malc_compressed_64 v;
-      v = malc_get_va_arg (vargs, v);
-      uword size = v.format_nibble & ((1 << 3) - 1);
-      ++size;
-      u64 res = 0;
-      for (uword i = 0; i < size; ++i) {
-        res |= (v.v & (0xffULL << (i * 8)));
+    case malc_type_memref: {
+      l->types.vmemref = malc_get_va_arg (vargs, l->types.vmemref);
+      break;
       }
-      l->types.vlit.lit = (char const*) res;
+    case malc_type_refdtor: {
+      l->types.vrefdtor = malc_get_va_arg (vargs, l->types.vrefdtor);
       break;
       }
 #else
     case malc_type_ptr: {
-      malc_compressed_32 v;
+      malc_compressed_ptr v;
       v = malc_get_va_arg (vargs, v);
-      uword size = v.format_nibble & ((1 << 3) - 1);
-      ++size;
-      u32 res = 0;
-      for (uword i = 0; i < size; ++i) {
-        res |= (v.v & (0xffULL << (i * 8)));
-      }
-      l->types.vptr = (void*) res;
+      l->types.vptr = decode_comp_ptr (v);
       break;
       }
     case malc_type_lit: {
-      malc_compressed_64 v;
+      malc_compressed_ptr v;
       v = malc_get_va_arg (vargs, v);
-      uword size = v.format_nibble & ((1 << 3) - 1);
-      ++size;
-      u32 res = 0;
-      for (uword i = 0; i < size; ++i) {
-        res |= (v.v & (0xffULL << (i * 8)));
+      l->types.vlit.lit = (char const*) decode_comp_ptr (v);
+      break;
       }
-      l->types.vlit.lit = (char const*) res;
+    case malc_type_strref: {
+      malc_compressed_ref v;
+      v = malc_get_va_arg (vargs, v);
+      l->types.vstrref.str = (char const*) decode_comp_ptr (v.ref);
+      l->types.vstrref.len = v.size;
+      break;
+      }
+    case malc_type_memref: {
+      malc_compressed_ref v;
+      v = malc_get_va_arg (vargs, v);
+      l->types.vmemref.mem  = decode_comp_ptr (v.ref);
+      l->types.vmemref.size = v.size;
+      break;
+      }
+    case malc_type_refdtor: {
+      malc_compressed_refdtor v;
+      v = malc_get_va_arg (vargs, v);
+      l->types.vrefdtor.func    = (malc_refdtor_fn) decode_comp_ptr (v.func);
+      l->types.vrefdtor.context = decode_comp_ptr (v.context);
       break;
       }
 #endif
@@ -433,6 +436,28 @@ static void interface_test_strcp (void **state)
   assert_true (m.entry->compressed_count == 0);
 }
 /*----------------------------------------------------------------------------*/
+static void interface_test_strref (void **state)
+{
+  malc m;
+  memset (&m, 0, sizeof m);
+  bl_err err;
+  malc_strref  v = {(char const*)     0xaa00aa00, 12345 };
+  malc_refdtor d = {(malc_refdtor_fn) 0xaa00aa00, (void*) 0x12125656 };
+  malc_error_i (err, &m, FMT_STRING, v, d);
+  assert_int_equal (err, bl_ok);
+  assert_true (v.str == m.types.vstrref.str);
+  assert_true (v.len == m.types.vstrref.len);
+#ifdef MALC_NO_PTR_COMPRESSION
+  assert_true(
+    m.size == sizeof d.func + sizeof d.context + sizeof v.str + sizeof v.len
+    );
+  assert_true (m.entry->compressed_count == 0);
+#else
+  assert_true (m.size == 4 + sizeof (u16) + 4 + 4);
+  assert_true (m.entry->compressed_count == 3);
+#endif
+}
+/*----------------------------------------------------------------------------*/
 static void interface_test_memcp (void **state)
 {
   malc m;
@@ -445,6 +470,28 @@ static void interface_test_memcp (void **state)
   assert_true (v.size == m.types.vmemcp.size);
   assert_true (m.size == sizeof (u16) + m.types.vmemcp.size);
   assert_true (m.entry->compressed_count == 0);
+}
+/*----------------------------------------------------------------------------*/
+static void interface_test_memref (void **state)
+{
+  malc m;
+  memset (&m, 0, sizeof m);
+  bl_err err;
+  malc_memref  v = {(u8 const*)       0xaa00aa00, 12345 };
+  malc_refdtor d = {(malc_refdtor_fn) 0xaa00aa00, (void*) 0x12125656 };
+  malc_error_i (err, &m, FMT_STRING, v, d);
+  assert_int_equal (err, bl_ok);
+  assert_true (v.mem == m.types.vmemref.mem);
+  assert_true (v.size == m.types.vmemref.size);
+#ifdef MALC_NO_PTR_COMPRESSION
+  assert_true(
+    m.size == (sizeof d.func + sizeof d.context + sizeof v.mem + sizeof v.size)
+    );
+  assert_true (m.entry->compressed_count == 0);
+#else
+  assert_true (m.size == 4 + sizeof (u16) + 4 + 4);
+  assert_true (m.entry->compressed_count == 3);
+#endif
 }
 /*----------------------------------------------------------------------------*/
 static void interface_test_all (void **state)
@@ -469,25 +516,34 @@ static void interface_test_all (void **state)
     malc_type_strcp,
     malc_type_lit,
     malc_type_memcp,
+    malc_type_strref,
+    malc_type_memref,
+    malc_type_refdtor,
     0
   };
 
-  all.vu8         = 2;
-  all.vi8         = 5;
-  all.vu16        = 23422;
-  all.vi16        = -22222;
-  all.vu32        = 23459999;
-  all.vi32        = -234243442;
-  all.vu64        = 3222222222222222222;
-  all.vi64        = -5666666666566666666;
-  all.vfloat      = 195953.2342f;
-  all.vdouble     = 1231231123123123.234234444;
-  all.vptr        = (void*) 0xaa00aa00;
-  all.vstrcp.str  = (char const*) 0x123123;
-  all.vstrcp.len  = 12;
-  all.vlit.lit    = (char const*) 0x16783123;
-  all.vmemcp.mem  = (u8 const*) 0xaa55aa55;
-  all.vmemcp.size = 2345;
+  all.vu8              = 2;
+  all.vi8              = 5;
+  all.vu16             = 23422;
+  all.vi16             = -22222;
+  all.vu32             = 23459999;
+  all.vi32             = -234243442;
+  all.vu64             = 3222222222222222222;
+  all.vi64             = -5666666666566666666;
+  all.vfloat           = 195953.2342f;
+  all.vdouble          = 1231231123123123.234234444;
+  all.vptr             = (void*) 0xaa40aa00;
+  all.vstrcp.str       = (char const*) 0x123123;
+  all.vstrcp.len       = 12;
+  all.vlit.lit         = (char const*) 0x16783123;
+  all.vmemcp.mem       = (u8 const*) 0xaa55aa55;
+  all.vmemcp.size      = 2345;
+  all.vstrref.str      = (char const*) 0xaa00aa11;
+  all.vstrref.len      = 88;
+  all.vmemref.mem      = (u8 const*) 0xaa00aa22;
+  all.vmemref.size     = 169;
+  all.vrefdtor.func    = (malc_refdtor_fn) 0xaa44aa00;
+  all.vrefdtor.context = (void*) 0x12125656;
 
   bl_err err;
   malc_error_i(
@@ -508,6 +564,9 @@ static void interface_test_all (void **state)
     all.vstrcp,
     all.vlit,
     all.vmemcp,
+    all.vstrref,
+    all.vmemref,
+    all.vrefdtor
     );
 
   assert_int_equal (err, bl_ok);
@@ -572,7 +631,9 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test (interface_test_ptr),
   cmocka_unit_test (interface_test_lit),
   cmocka_unit_test (interface_test_strcp),
+  cmocka_unit_test (interface_test_strref),
   cmocka_unit_test (interface_test_memcp),
+  cmocka_unit_test (interface_test_memref),
   cmocka_unit_test (interface_test_all),
   cmocka_unit_test (interface_test_casting),
   cmocka_unit_test (interface_test_func_call_with_casting),

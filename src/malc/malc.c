@@ -262,9 +262,13 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
         if (!err) {
           log_entry le = deserializer_get_log_entry (&l->ds);
           /* Build strings and send to all destinations */
+          if (le.refdtor.func) {
+            le.refdtor.func (le.refdtor.context, le.refs, le.refs_count);
+          }
         }
         else {
-          /* log error (or not if someone is trying to overflow the logs) */
+          assert (false && "bug or something malicious happenning");
+          /*in this case */
         }
         memory_dealloc (&l->mem, (u8*) n, tag, slots);
         break;

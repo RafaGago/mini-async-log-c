@@ -11,6 +11,9 @@
 #include <malc/log_entry.h>
 
 /*----------------------------------------------------------------------------*/
+define_autoarray_types (log_args, log_argument);
+define_autoarray_types (log_refs, malc_ref);
+/*----------------------------------------------------------------------------*/
 typedef struct compressed_header {
   u8*   hdr;
   uword idx;
@@ -69,6 +72,8 @@ extern uword serializer_execute (serializer* se, u8* mem, va_list vargs);
 /*----------------------------------------------------------------------------*/
 typedef struct deserializer {
   log_args                args;
+  log_refs                refs;
+  malc_refdtor            refdtor;
   malc_const_entry const* entry;
   tstamp                  t;
   compressed_header*      ch;
@@ -92,13 +97,6 @@ extern bl_err deserializer_execute(
   alloc_tbl const* alloc
   );
 /*----------------------------------------------------------------------------*/
-static inline log_entry deserializer_get_log_entry (deserializer const* ds)
-{
-  log_entry le;
-  le.entry     = ds->entry;
-  le.args      = &ds->args;
-  le.timestamp = ds->t;
-  return le;
-}
+extern log_entry deserializer_get_log_entry (deserializer const* ds);
 /*----------------------------------------------------------------------------*/
 #endif
