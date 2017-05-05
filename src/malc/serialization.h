@@ -41,13 +41,7 @@ typedef struct serializer {
   malc_compressed_64      t;
   uword                   extra_size;
   compressed_header*      ch;
-#if BL_WORDSIZE == 32
-  malc_compressed_32      comp_entry;
-#elif BL_WORDSIZE == 64
-  malc_compressed_64      comp_entry;
-#else
-  #error "unsoported bit width"
-#endif
+  malc_compressed_ptr     comp_entry;
   uword                   hdr_size;
   compressed_header       chval;
 }

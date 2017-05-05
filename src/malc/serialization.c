@@ -186,6 +186,26 @@ static bl_err decode_compressed_64(
 }
 #endif
 /*----------------------------------------------------------------------------*/
+#if !defined (MALC_NO_COMPRESSION) && BL_WORDSIZE == 64
+/*----------------------------------------------------------------------------*/
+static bl_err decode_compressed_ptr(
+  compressed_header* ch, u8** mem, u8* mem_end, void** v
+  )
+{
+  return decode_compressed_64 (ch, mem, mem_end, (u64*) v);
+}
+/*----------------------------------------------------------------------------*/
+#elif !defined (MALC_NO_COMPRESSION) && BL_WORDSIZE == 32
+/*----------------------------------------------------------------------------*/
+static bl_err decode_compressed_ptr(
+  compressed_header* ch, u8** mem, u8* mem_end, void** v
+  )
+{
+  return decode_compressed_32 (ch, mem, mem_end, (u32*) v);
+}
+/*----------------------------------------------------------------------------*/
+#endif
+/*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_8) (
   compressed_header* ch, u8** mem, u8* mem_end, u8* v
   )
@@ -291,22 +311,13 @@ static inline bl_err DECODE_NAME_BUILD(_ptr)(
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-#elif BL_WORDSIZE == 64
-/*----------------------------------------------------------------------------*/
-static inline bl_err DECODE_NAME_BUILD(_ptr)(
-  compressed_header* ch, u8** mem, u8* mem_end, void** v
-  )
-{
-  return decode_compressed_64 (ch, mem, mem_end, (u64*) v);
-}
-/*----------------------------------------------------------------------------*/
 #else
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_ptr)(
   compressed_header* ch, u8** mem, u8* mem_end, void** v
   )
 {
-  return decode_compressed_32 (ch, mem, mem_end, (u32*) v);
+  return decode_compressed_ptr (ch, mem, mem_end, v);
 }
 /*----------------------------------------------------------------------------*/
 #endif
@@ -393,11 +404,7 @@ void serializer_init(
 {
   se->entry      = entry;
   se->has_tstamp = has_tstamp;
-#if BL_WORDSIZE == 64
-  se->comp_entry = malc_get_compressed_u64 ((u64) entry);
-#else
-  se->comp_entry = malc_get_compressed_u32 ((u32) entry);
-#endif
+  se->comp_entry = malc_get_compressed_ptr ((void*) entry);
   if (has_tstamp) {
     se->t = malc_get_compressed_u64 ((u64) bl_get_tstamp());
   }
@@ -556,11 +563,9 @@ bl_err deserializer_execute(
   ds->entry   = nullptr;
   ds->ch->hdr = mem;
   ++mem;
-#if BL_WORDSIZE == 64
-  bl_err err = decode_compressed_64 (ds->ch, &mem, mem_end, (u64*) &ds->entry);
-#else
-  bl_err err = decode_compressed_32 (ds->ch, &mem, mem_end, (u32*) &ds->entry);
-#endif
+  bl_err err = decode_compressed_ptr(
+    ds->ch, &mem, mem_end, (void**) &ds->entry
+    );
   if (unlikely (err)) {
     return err;
   }
