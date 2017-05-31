@@ -7,6 +7,7 @@ project(
     license : 'BSD-3',
     default_options : [
         'c_std=gnu11',
+        'cpp_std=c++11',
 #        'warning_level=1',
         'default_library=static'
         ]
