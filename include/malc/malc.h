@@ -85,18 +85,24 @@ returns bl_ok:            Consumer not in idle-state.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us);
 /*------------------------------------------------------------------------------
-log destination can only be added before initializing
+log destination. Can only be added before initializing. Instance will contain
+the memory address of the created instance that can be stored or used for
+further configuration that malc doesn't need to know about.
+
+If run-time modifications are done to the instance/object, keep in mind thread
+safety issues of variables used by the functions pointed by the "malc_dst"
+table.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_add_destination(
-  malc* l, u32* dst_id, malc_dst const* dst
+  malc* l, void** instance, malc_dst const* dst
   );
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_get_destination(
-  malc* l, u32 dst_id, malc_dst* dst, void* instance
+extern MALC_EXPORT bl_err malc_get_destination_cfg(
+  malc* l, void const* instance, malc_dst_cfg* cfg
   );
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_set_destination_severity(
-  malc* l, u32 dst_id, u8 severity
+extern MALC_EXPORT bl_err malc_set_destination_cfg(
+  malc* l, void const* instance, malc_dst_cfg const* cfg
   );
 /*------------------------------------------------------------------------------
 Passes a literal to mal log. By using this function you are saying to the logger
