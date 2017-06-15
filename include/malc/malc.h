@@ -1,6 +1,8 @@
 #ifndef __MALC_H__
 #define __MALC_H__
 
+#include <string.h>
+
 #include <bl/base/integer.h>
 #include <bl/base/error.h>
 #include <bl/base/assert.h>
@@ -125,6 +127,12 @@ static inline malc_strcp logstrcpy (char const* str, u16 len)
   malc_strcp s = { str, len };
   return s;
 }
+/*----------------------------------------------------------------------------*/
+static inline malc_strcp logstrcpyl (char const* str)
+{
+  uword len = strlen (str);
+  return logstrcpy (str, (u16) (len < 65536 ? len : 65535));
+}
 /*------------------------------------------------------------------------------
 Passes a memory area by value (deep copy) to mal log. It will be printed as hex.
 ------------------------------------------------------------------------------*/
@@ -143,6 +151,12 @@ static inline malc_strref logstrref (char const* str, u16 len)
   bl_assert ((str && len) || len == 0);
   malc_strref s = { str, len };
   return s;
+}
+/*----------------------------------------------------------------------------*/
+static inline malc_strref logstrrefl (char const* str)
+{
+  uword len = strlen (str);
+  return logstrref (str, (u16) (len < 65536 ? len : 65535));
 }
 /*------------------------------------------------------------------------------
 Passes a memory area by reference to mal log. Needs a log entry cleanup callback

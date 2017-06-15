@@ -106,7 +106,7 @@ malc_refdtor;
 typedef struct malc_const_entry {
   char const* format;
   char const* info;
-  u16         compressed_count;
+  u16         compressed_count; /*TODO: this is unused: remove*/
 }
 malc_const_entry;
 /*----------------------------------------------------------------------------*/
@@ -997,7 +997,7 @@ static inline bl_err malc_warning_silencer() { return bl_ok; }
 
 #define malc_notice(err, ...)\
   MALC_LOG_PRIVATE( \
-    (err), MALC_GET_LOGGER_INSTANCE_FUNC, malc_sev_notice, __VA_ARGS__ \
+    (err), MALC_GET_LOGGER_INSTANCE_FUNC, malc_sev_note, __VA_ARGS__ \
     )
 
 #define malc_notice_if(err, condition, ...)\
@@ -1005,16 +1005,16 @@ static inline bl_err malc_warning_silencer() { return bl_ok; }
     (condition), \
     (err), \
     MALC_GET_LOGGER_INSTANCE_FUNC, \
-    malc_sev_notice, \
+    malc_sev_note, \
     __VA_ARGS__\
     )
 
 #define malc_notice_i(err, malc_ptr, ...)\
-  MALC_LOG_PRIVATE ((err), (malc_ptr), malc_sev_notice, __VA_ARGS__)
+  MALC_LOG_PRIVATE ((err), (malc_ptr), malc_sev_note, __VA_ARGS__)
 
 #define malc_notice_i_if(err, malc_ptr, condition, ...)\
   MALC_LOG_IF_PRIVATE(\
-    (condition), (err), (malc_ptr), malc_sev_notice, __VA_ARGS__\
+    (condition), (err), (malc_ptr), malc_sev_note, __VA_ARGS__\
     )
 
 #else /* MALC_STRIP_LOG_NOTICE */

@@ -17,11 +17,12 @@
 #include <malc/stack_args.h>
 #include <malc/memory.h>
 #include <malc/serialization.h>
+#include <malc/entry_parser.h>
 
 #ifdef __cplusplus
   extern "C" {
 #endif
-
+/*----------------------------------------------------------------------------*/
 enum state {
   st_stopped,
   st_initializing,
@@ -46,6 +47,7 @@ struct malc {
   tstamp            idle_deadline;
   u32               idle_boundary_us;
   deserializer      ds;
+  entry_parser      ep;
 };
 /*----------------------------------------------------------------------------*/
 enum queue_command {
@@ -138,8 +140,11 @@ MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* alloc)
   }
   err = deserializer_init (&l->ds, alloc);
   if (err) {
-    memory_destroy (&l->mem);
-    return err;
+    goto memory_destroy;
+  }
+  err = entry_parser_init (&l->ep, alloc);
+  if (err) {
+    goto deserializer_destroy;
   }
   l->consumer.idle_task_period_us = 300000;
   l->consumer.start_own_thread    = false;
@@ -148,6 +153,12 @@ MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* alloc)
   l->alloc = alloc;
   atomic_uword_store_rlx (&l->state, st_stopped);
   return bl_ok;
+
+deserializer_destroy:
+  deserializer_destroy (&l->ds, alloc);
+memory_destroy:
+  memory_destroy (&l->mem);
+  return err;
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_destroy (malc* l)
@@ -158,6 +169,7 @@ MALC_EXPORT bl_err malc_destroy (malc* l)
   }
   memory_destroy (&l->mem);
   deserializer_destroy (&l->ds, l->alloc);
+  entry_parser_destroy (&l->ep);
   l->alloc = nullptr;
   return bl_ok;
 }
@@ -261,7 +273,11 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
           );
         if (!err) {
           log_entry le = deserializer_get_log_entry (&l->ds);
-          /* Build strings and send to all destinations */
+          log_strings strs;
+          bl_err entry_err = entry_parser_get_log_strings (&l->ep, &le, &strs);
+          if (likely (!entry_err)) {
+            /*send to all destinations*/
+          }
           if (le.refdtor.func) {
             le.refdtor.func (le.refdtor.context, le.refs, le.refs_count);
           }
