@@ -328,21 +328,28 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_add_destination(
-  malc* l, void** instance, malc_dst const* dst
+  malc* l, u32* dest_id, malc_dst const* dst
+  )
+{
+  return bl_ok;
+}
+/*----------------------------------------------------------------------------*/
+MALC_EXPORT bl_err malc_get_destination_instance(
+  malc* l, void** instance, u32 dest_id
   )
 {
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_get_destination_cfg(
-  malc* l, void const* instance, malc_dst_cfg* cfg
+  malc* l, malc_dst_cfg* cfg, u32 dest_id
   )
 {
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_set_destination_cfg(
-  malc* l, void const* instance, malc_dst_cfg const* cfg
+  malc* l, malc_dst_cfg const* cfg, u32 dest_id
   )
 {
   return bl_ok;
