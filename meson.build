@@ -100,6 +100,7 @@ malc_srcs = [
     'src/malc/tls_buffer.c',
     'src/malc/serialization.c',
     'src/malc/entry_parser.c',
+    'src/malc/destinations/array.c',
 ]
 malc_test_srcs = [
     'test/src/malc/tests_main.c',
@@ -107,6 +108,7 @@ malc_test_srcs = [
     'test/src/malc/interface_test.c',
     'test/src/malc/serialization_test.c',
     'test/src/malc/entry_parser_test.c',
+    'test/src/malc/array_destination_test.c',
 ]
 
 #cflags += [ '-E' ] #erase
