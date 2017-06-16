@@ -5,6 +5,7 @@
 #include <bl/base/preprocessor.h>
 #include <bl/base/time.h>
 #include <bl/base/integer.h>
+#include <bl/base/static_assert.h>
 #include <bl/base/hex_string.h>
 #include <bl/base/utility.h>
 #include <bl/base/integer_printf_format.h>
@@ -396,6 +397,8 @@ BL_EXPORT bl_err entry_parser_get_log_strings(
     bl_assert (false);
     return bl_invalid;
   }
+  /* meson old versions ignored base library flags */
+  static_assert_ns (sizeof e->timestamp == sizeof (u64));
   snprintf(
     ep->tstamp,
     TSTAMP_INTEGER + 2,

@@ -33,7 +33,7 @@ The new "N" specifier is replaced by the number of nibbles of an integer:
 
 > "full width hex zero padded integer: {0Nx}"
 
-The "*" width and ".*" precission specifiers are unsupported.
+The "*" width and ".*" precision specifiers are unsupported.
 
 The opening brace '{' and '}' is escaped by a doubling it. The close brace never
 needs escaping:
@@ -50,3 +50,10 @@ TODO
     log entries).
 - Security: Rate limit of the same log entry (attacker trying to erase
     information of the logs by forcing rotation).
+
+Build
+==================
+
+Meson 0.41 is used. In Ubuntu:
+
+> sudo -H pip3 install meson
