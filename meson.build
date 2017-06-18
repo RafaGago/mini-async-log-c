@@ -100,6 +100,7 @@ malc_srcs = [
     'src/malc/tls_buffer.c',
     'src/malc/serialization.c',
     'src/malc/entry_parser.c',
+    'src/malc/destinations.c',
     'src/malc/destinations/array.c',
 ]
 malc_test_srcs = [

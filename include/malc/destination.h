@@ -29,7 +29,7 @@ typedef struct malc_dst {
   bl_err (*init)      (void* instance, alloc_tbl const* alloc);
   /* termination before memory deallocation. can be set to null if there is no
      termination required */
-  bl_err (*terminate) (void* instance);
+  void   (*terminate) (void* instance);
   /* flush all data in case of the "write" function being buffered. It can be
      set to null if there is no flush. */
   bl_err (*flush)     (void* instance);

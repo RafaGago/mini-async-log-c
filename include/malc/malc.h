@@ -94,6 +94,11 @@ further configuration that malc doesn't need to know about.
 If run-time modifications are done to the instance/object, keep in mind thread
 safety issues of variables used by the functions pointed by the "malc_dst"
 table.
+
+Note that adding destinations can invalidate references to instances and
+configurations, if you are to save the instances get by
+"malc_get_destination_instance" do it after all your destinations are added
+(through "malc_add_destination").
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_add_destination(
   malc* l, u32* dest_id, malc_dst const* dst
