@@ -336,6 +336,10 @@ MALC_EXPORT bl_err malc_add_destination(
   malc* l, u32* dest_id, malc_dst const* dst
   )
 {
+  uword state = atomic_uword_fetch_add_rlx (&l->state, 0);
+  if (state > st_initializing) {
+    return bl_preconditions;
+  }
   return destinations_add (&l->dst, dest_id, dst);
 }
 /*----------------------------------------------------------------------------*/
