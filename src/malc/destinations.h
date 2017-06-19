@@ -45,7 +45,7 @@ extern void destinations_idle_task (destinations* d);
 extern void destinations_flush (destinations* d);
 /*----------------------------------------------------------------------------*/
 extern void destinations_write(
-  destinations* d, tstamp now, log_strings strs
+  destinations* d, uword sev, tstamp now, log_strings strs
   );
 /*----------------------------------------------------------------------------*/
 extern bl_err destinations_get_instance(

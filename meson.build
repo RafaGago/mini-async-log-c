@@ -109,6 +109,7 @@ malc_test_srcs = [
     'test/src/malc/interface_test.c',
     'test/src/malc/serialization_test.c',
     'test/src/malc/entry_parser_test.c',
+    'test/src/malc/destinations_test.c',
     'test/src/malc/array_destination_test.c',
 ]
 
@@ -128,7 +129,7 @@ pkg_mod.generate(
     version     : '0.0.1',
     name        : 'libmalc',
     filebase    : 'malc',
-    description : 'simulator task scheduler'
+    description : 'mini-async-log-c'
     )
 test(
     'malc',

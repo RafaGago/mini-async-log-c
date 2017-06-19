@@ -73,10 +73,7 @@ void destinations_init (destinations* d,  alloc_tbl const* alloc)
 void destinations_destroy (destinations* d)
 {
   (void) destinations_terminate (d);
-  d->mem   = nullptr;
   d->alloc = nullptr;
-  d->size  = 0;
-  d->count = 0;
 }
 /*----------------------------------------------------------------------------*/
 bl_err destinations_add (destinations* d, u32* dest_id, malc_dst const* dst)
@@ -132,6 +129,9 @@ void destinations_terminate (destinations* d)
     }
   }
   bl_dealloc (d->alloc, d->mem);
+  d->mem   = nullptr;
+  d->size  = 0;
+  d->count = 0;
 }
 /*----------------------------------------------------------------------------*/
 void destinations_idle_task (destinations* d)
@@ -158,21 +158,25 @@ void destinations_flush (destinations* d)
   }
 }
 /*----------------------------------------------------------------------------*/
-void destinations_write (destinations* d, tstamp now, log_strings strs)
+void destinations_write(
+  destinations* d, uword sev, tstamp now, log_strings strs
+  )
 {
   destination* dest;
   FOREACH_DESTINATION (d->mem, dest) {
     bl_assert (dest->dst.write);
-    (void) dest->dst.write(
-      destination_get_instance (dest),
-      now,
-      strs.tstamp,
-      dest->cfg.show_timestamp ? strs.tstamp_len : 0,
-      strs.sev,
-      dest->cfg.show_severity ? strs.sev_len : 0,
-      strs.text,
-      strs.text_len
-      );
+    if (sev >= dest->cfg.severity) {
+      (void) dest->dst.write(
+        destination_get_instance (dest),
+        now,
+        strs.tstamp,
+        dest->cfg.show_timestamp ? strs.tstamp_len : 0,
+        strs.sev,
+        dest->cfg.show_severity ? strs.sev_len : 0,
+        strs.text,
+        strs.text_len
+        );
+    }
   }
 }
 /*----------------------------------------------------------------------------*/
