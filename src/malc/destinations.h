@@ -25,7 +25,7 @@ typedef struct destinations {
 }
 destinations;
 /*----------------------------------------------------------------------------*/
-static inline uword destinations_min_severity (destinations* d)
+static inline uword destinations_min_severity (destinations const* d)
 {
   return d->min_severity;
 }

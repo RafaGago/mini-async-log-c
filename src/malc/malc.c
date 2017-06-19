@@ -18,6 +18,7 @@
 #include <malc/memory.h>
 #include <malc/serialization.h>
 #include <malc/entry_parser.h>
+#include <malc/destinations.h>
 
 #ifdef __cplusplus
   extern "C" {
@@ -48,6 +49,7 @@ struct malc {
   u32               idle_boundary_us;
   deserializer      ds;
   entry_parser      ep;
+  destinations      dst;
 };
 /*----------------------------------------------------------------------------*/
 enum queue_command {
@@ -119,7 +121,7 @@ static bool malc_try_run_idle_task (malc* l, tstamp now)
   if (!deadline_expired_explicit (l->idle_deadline, now)) {
     return false;
   }
-  /*TODO: do the actual work*/
+  destinations_idle_task (&l->dst);
   do {
     l->idle_deadline += bl_usec_to_tstamp (l->consumer.idle_task_period_us);
   }
@@ -146,6 +148,7 @@ MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* alloc)
   if (err) {
     goto deserializer_destroy;
   }
+  destinations_init (&l->dst, alloc);
   l->consumer.idle_task_period_us = 300000;
   l->consumer.start_own_thread    = false;
   l->producer.timestamp           = false;
@@ -170,6 +173,7 @@ MALC_EXPORT bl_err malc_destroy (malc* l)
   memory_destroy (&l->mem);
   deserializer_destroy (&l->ds, l->alloc);
   entry_parser_destroy (&l->ep);
+  destinations_destroy (&l->dst);
   l->alloc = nullptr;
   return bl_ok;
 }
@@ -276,7 +280,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
           log_strings strs;
           bl_err entry_err = entry_parser_get_log_strings (&l->ep, &le, &strs);
           if (likely (!entry_err)) {
-            /*send to all destinations*/
+            destinations_write (&l->dst, le.entry->info[0], now, strs);
           }
           if (le.refdtor.func) {
             le.refdtor.func (le.refdtor.context, le.refs, le.refs_count);
@@ -294,7 +298,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
         break;
 
       case q_cmd_flush:
-        /*TODO: call flush on all the destinations*/
+        destinations_flush (&l->dst);
         ++n->slots;
         terminated = atomic_uword_load_rlx (&l->state) == st_terminating;
         break;
@@ -324,6 +328,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
   if (terminated) {
     atomic_uword_store_rlx (&l->state, st_stopped);
   }
+  destinations_terminate (&l->dst);
   return err;
 }
 /*----------------------------------------------------------------------------*/
@@ -331,33 +336,33 @@ MALC_EXPORT bl_err malc_add_destination(
   malc* l, u32* dest_id, malc_dst const* dst
   )
 {
-  return bl_ok;
+  return destinations_add (&l->dst, dest_id, dst);
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_get_destination_instance(
   malc* l, void** instance, u32 dest_id
   )
 {
-  return bl_ok;
+  return destinations_get_instance (&l->dst, instance, dest_id);
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_get_destination_cfg(
   malc* l, malc_dst_cfg* cfg, u32 dest_id
   )
 {
-  return bl_ok;
+  return destinations_get_cfg (&l->dst, cfg, dest_id);
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_set_destination_cfg(
   malc* l, malc_dst_cfg const* cfg, u32 dest_id
   )
 {
-  return bl_ok;
+  return destinations_set_cfg (&l->dst, cfg, dest_id);
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT uword malc_get_min_severity (malc const* l)
 {
-  return malc_sev_debug;
+  return destinations_min_severity (&l->dst);
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_log(
