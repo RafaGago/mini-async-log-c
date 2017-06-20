@@ -61,14 +61,12 @@ done:
   fclose (f);
 }
 /*----------------------------------------------------------------------------*/
-void destinations_init (destinations* d,  alloc_tbl const* alloc)
+void destinations_init (destinations* d, alloc_tbl const* alloc)
 {
-  d->mem          = nullptr;
+  memset (d, 0, sizeof *d);
   d->alloc        = alloc;
   d->min_severity = DEFAULT_SEVERITY;
-  d->size         = 0;
-  d->count        = 0;
-}
+  }
 /*----------------------------------------------------------------------------*/
 void destinations_destroy (destinations* d)
 {
@@ -118,6 +116,34 @@ bl_err destinations_add (destinations* d, u32* dest_id, malc_dst const* dst)
   ++d->count;
   d->size += size;
   return bl_ok;
+}
+/*----------------------------------------------------------------------------*/
+bl_err destinations_validate_rate_limit_settings(
+  destinations* d, malc_security const* sec
+  )
+{
+  return bl_ok;
+}
+/*----------------------------------------------------------------------------*/
+bl_err destinations_set_rate_limit_settings(
+  destinations* d, malc_security const* sec
+  )
+{
+  bl_err err = destinations_validate_rate_limit_settings (d, sec);
+  if (err) {
+    return err;
+  }
+  d->filter_time_us     = sec->log_rate_filter_time_us;
+  d->filter_max         = sec->log_rate_filter_max;
+  d->filter_watch_count = sec->log_rate_filter_watch_count;
+  return bl_ok;
+}
+/*----------------------------------------------------------------------------*/
+void destinations_get_rate_limit_settings (destinations* d, malc_security* sec)
+{
+  sec->log_rate_filter_time_us     = d->filter_time_us;
+  sec->log_rate_filter_max         = d->filter_max;
+  sec->log_rate_filter_watch_count = d->filter_watch_count;
 }
 /*----------------------------------------------------------------------------*/
 void destinations_terminate (destinations* d)

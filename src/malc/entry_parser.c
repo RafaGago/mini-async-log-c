@@ -59,7 +59,7 @@ BL_EXPORT bl_err entry_parser_init(
   if (err) {
     dstr_destroy (&ep->str);
   }
-  ep->rm_newlines = false;
+  ep->sanitize_log_entries = false;
   return err;
 }
 /*----------------------------------------------------------------------------*/
@@ -422,7 +422,7 @@ BL_EXPORT bl_err entry_parser_get_log_strings(
   strs->text     = nullptr;
   strs->text_len = 0;
 
-  if (ep->rm_newlines) {
+  if (ep->sanitize_log_entries) {
     err = dstr_replace_lit (&ep->str, "\n", "", 0, 0);
     if (unlikely (err)) {
       return err;

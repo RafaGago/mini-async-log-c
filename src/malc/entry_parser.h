@@ -41,7 +41,7 @@ typedef struct entry_parser {
   char tstamp[TSTAMP_INTEGER + TSTAMP_DECIMAL + 1 + 1]; /* dot + teminating 0 */
   dstr str;
   dstr fmt;
-  bool rm_newlines;
+  bool sanitize_log_entries;
 }
 entry_parser;
 /*----------------------------------------------------------------------------*/

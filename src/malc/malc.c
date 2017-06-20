@@ -32,7 +32,7 @@ enum state {
   st_terminating,
   st_destructing,
   st_get_updated_state_val, /* this value will never be set by anyone*/
-  st_invalid, /* this value will never be set by anyone*/
+  st_invalid,               /* this value will never be set by anyone*/
 };
 /*----------------------------------------------------------------------------*/
 struct malc {
@@ -44,6 +44,7 @@ struct malc {
   /*place all consumer-only related resources on separated cache lines. "mpsc_i"
     leaves a separation cache line before and after it*/
   malc_consumer_cfg consumer;
+  malc_security     sec;
   nonblock_backoff  cbackoff;
   tstamp            idle_deadline;
   u32               idle_boundary_us;
@@ -101,7 +102,6 @@ static void malc_tls_destructor (void* mem, void* context)
 /*----------------------------------------------------------------------------*/
 static void malc_send_blocking_flush (malc* l)
 {
- /*TODO: use the heap and provide the user a timeout*/
   qnode            n;
   nonblock_backoff b;
 
@@ -180,16 +180,46 @@ MALC_EXPORT bl_err malc_destroy (malc* l)
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_get_cfg (malc* l, malc_cfg* cfg)
 {
+  cfg->consumer = l->consumer;
+  cfg->producer = l->producer;
+  cfg->alloc    = l->mem.cfg;
+  cfg->sec.sanitize_log_entries = l->ep.sanitize_log_entries;
+  destinations_get_rate_limit_settings (&l->dst, &cfg->sec);
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg)
+MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg_readonly)
 {
-  /* TODO: cfg validation + data validation on each destination */
-  /* TODO: cfg validation: sanitize producer.timestamp to 1 or 0 */
+  /* validation */
+  malc_cfg cfg;
+  if (cfg_readonly) {
+    cfg = *cfg_readonly;
+  }
+  else {
+    malc_get_cfg (l, &cfg);
+  }
+  bl_err err = destinations_validate_rate_limit_settings (&l->dst, &cfg.sec);
+  if (err) {
+    return err;
+  }
+  /* booleanization */
+  cfg.consumer.start_own_thread = !!cfg.consumer.start_own_thread;
+  cfg.producer.timestamp        = !!cfg.producer.timestamp;
+  cfg.sec.sanitize_log_entries  = !!cfg.sec.sanitize_log_entries;
+
+  /* initialization */
   uword expected = st_stopped;
   if (atomic_uword_strong_cas_rlx (&l->state, &expected, st_initializing)) {
     return bl_preconditions;
+  }
+  l->mem.cfg  = cfg.alloc;
+  l->consumer = cfg.consumer;
+  l->producer = cfg.producer;
+  l->ep.sanitize_log_entries = cfg.sec.sanitize_log_entries;
+  err = destinations_set_rate_limit_settings (&l->dst, &cfg.sec);
+  if (err) {
+    atomic_uword_store_rlx (&l->state, expected);
+    return err;
   }
   atomic_uword_store (&l->state, st_first_consume_run, mo_release);
   return bl_ok;

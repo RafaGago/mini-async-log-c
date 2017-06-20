@@ -70,9 +70,9 @@ static const malc_dst mock_dst_tbl = {
 };
 /*----------------------------------------------------------------------------*/
 typedef struct destinations_context {
-  malc_dst     tbls[2];
-  alloc_tbl    alloc;
-  destinations d;
+  malc_dst      tbls[2];
+  alloc_tbl     alloc;
+  destinations  d;
 }
 destinations_context;
 /*----------------------------------------------------------------------------*/
