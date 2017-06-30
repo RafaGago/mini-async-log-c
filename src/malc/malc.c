@@ -43,6 +43,7 @@ struct malc {
   mpsc_i            q;
   /*place all consumer-only related resources on separated cache lines. "mpsc_i"
     leaves a separation cache line before and after it*/
+  bl_thread         thread;
   malc_consumer_cfg consumer;
   malc_security     sec;
   nonblock_backoff  cbackoff;
@@ -188,6 +189,16 @@ MALC_EXPORT bl_err malc_get_cfg (malc* l, malc_cfg* cfg)
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
+static int malc_thread (void* d)
+{
+  bl_err err;
+  do {
+    err = malc_run_consume_task ((malc*) d, 200000);
+  }
+  while (!err || err == bl_nothing_to_do);
+  return 0;
+}
+/*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg_readonly)
 {
   /* validation */
@@ -218,11 +229,17 @@ MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg_readonly)
   l->ep.sanitize_log_entries = cfg.sec.sanitize_log_entries;
   err = destinations_set_rate_limit_settings (&l->dst, &cfg.sec);
   if (err) {
-    atomic_uword_store_rlx (&l->state, expected);
-    return err;
+    goto finish;
   }
   atomic_uword_store (&l->state, st_first_consume_run, mo_release);
-  return bl_ok;
+  if (l->consumer.start_own_thread) {
+    err = bl_thread_init (&l->thread, malc_thread, l);
+  }
+finish:
+  if (err) {
+    atomic_uword_store_rlx (&l->state, expected);
+  }
+  return err;
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_flush (malc* l)
@@ -358,9 +375,9 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
     }
     else if (err == bl_empty) {
       err = bl_nothing_to_do;
-      toffset next_slsep_us = nonblock_backoff_next_sleep_us (&l->cbackoff);
+      toffset next_sleep_us = nonblock_backoff_next_sleep_us (&l->cbackoff);
       bool do_backoff       = false;
-      if (l->idle_boundary_us >= next_slsep_us)  {
+      if (l->idle_boundary_us >= next_sleep_us)  {
         do_backoff = !malc_try_run_idle_task (l, now);
       }
       if (do_backoff && timeout_us) {
@@ -375,8 +392,8 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
   while (!deadline_expired_explicit (deadline, now) || (terminated && qn));
   if (terminated) {
     atomic_uword_store_rlx (&l->state, st_stopped);
+    destinations_terminate (&l->dst);
   }
-  destinations_terminate (&l->dst);
   return err;
 }
 /*----------------------------------------------------------------------------*/
