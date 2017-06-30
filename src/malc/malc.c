@@ -121,7 +121,7 @@ static bool malc_try_run_idle_task (malc* l, tstamp now)
   if (!deadline_expired_explicit (l->idle_deadline, now)) {
     return false;
   }
-  destinations_idle_task (&l->dst);
+  destinations_idle_task (&l->dst, now);
   do {
     l->idle_deadline += bl_usec_to_tstamp (l->consumer.idle_task_period_us);
   }
@@ -310,7 +310,25 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
           log_strings strs;
           bl_err entry_err = entry_parser_get_log_strings (&l->ep, &le, &strs);
           if (likely (!entry_err)) {
-            destinations_write (&l->dst, le.entry->info[0], now, strs);
+            /*NOTE: Possible problem when using the rate_filter:
+
+            The format string pointer (to a constant) is used raw as an entry
+            id/hash. This can potentially lead to id/hash collisions on the
+            rate_filter if some entries have the same format string. (e.g. {})
+            and the linker optimizes them away (it should).
+
+            If I had to improve this, my preferred way would be to always
+            concatenate __LINE__ to the format string to decrease the chances
+            of the linker optimizing a given string. Then __LINE__ would
+            be just ignored by the entry_parser. This method decreases the
+            collision chance a lot withouth needing to bloat the binaries by
+            forcing the use of __FILE__.
+
+            Note that log lines that prefix the file and line are not affected
+            by this. */
+            destinations_write(
+              &l->dst, (uword) le.entry->format, now, le.entry->info[0], strs
+              );
           }
           if (le.refdtor.func) {
             le.refdtor.func (le.refdtor.context, le.refs, le.refs_count);

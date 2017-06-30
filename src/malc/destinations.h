@@ -4,10 +4,17 @@
 #include <bl/base/platform.h>
 #include <bl/base/time.h>
 #include <bl/base/error.h>
+#include <bl/base/ringbuffer.h>
 
 #include <malc/malc.h>
 #include <malc/log_strings.h>
 
+/*----------------------------------------------------------------------------*/
+typedef struct past_entry {
+  uword  entry_id;
+  tstamp tprev;
+}
+past_entry;
 /*----------------------------------------------------------------------------*/
 typedef struct destination {
   uword        next_offset;
@@ -17,14 +24,16 @@ typedef struct destination {
 destination;
 /*----------------------------------------------------------------------------*/
 typedef struct destinations {
-  void*                mem;
-  alloc_tbl const*     alloc;
-  uword                min_severity;
-  uword                count;
-  uword                size;
-  u32                  filter_time_us;
-  u32                  filter_max;
-  u32                  filter_watch_count;
+  void*            mem;
+  alloc_tbl const* alloc;
+  uword            min_severity;
+  uword            count;
+  uword            size;
+  tstamp           filter_max_time;
+  u32              filter_watch_count;
+  u32              filter_min_severity;
+  ringb            pe;
+  past_entry       pe_buffer[64];
 }
 destinations;
 /*----------------------------------------------------------------------------*/
@@ -55,12 +64,12 @@ extern void destinations_get_rate_limit_settings(
 /*----------------------------------------------------------------------------*/
 extern void destinations_terminate (destinations* d);
 /*----------------------------------------------------------------------------*/
-extern void destinations_idle_task (destinations* d);
+extern void destinations_idle_task (destinations* , tstamp now);
 /*----------------------------------------------------------------------------*/
 extern void destinations_flush (destinations* d);
 /*----------------------------------------------------------------------------*/
 extern void destinations_write(
-  destinations* d, uword sev, tstamp now, log_strings strs
+  destinations* d, uword entry_id, tstamp now, uword sev, log_strings strs
   );
 /*----------------------------------------------------------------------------*/
 extern bl_err destinations_get_instance(

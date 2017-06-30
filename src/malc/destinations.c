@@ -4,8 +4,13 @@
 #include <malc/destinations.h>
 
 #include <bl/base/assert.h>
+#include <bl/base/deadline.h>
+#include <bl/base/time.h>
 #include <bl/base/utility.h>
 #include <bl/base/static_integer_math.h>
+#include <bl/base/integer_math.h>
+
+define_ringb_funcs (past_entries, past_entry)
 
 #define DEFAULT_SEVERITY malc_sev_warning
 /*----------------------------------------------------------------------------*/
@@ -66,7 +71,8 @@ void destinations_init (destinations* d, alloc_tbl const* alloc)
   memset (d, 0, sizeof *d);
   d->alloc        = alloc;
   d->min_severity = DEFAULT_SEVERITY;
-  }
+  d->filter_min_severity = malc_sev_note;
+}
 /*----------------------------------------------------------------------------*/
 void destinations_destroy (destinations* d)
 {
@@ -92,10 +98,11 @@ bl_err destinations_add (destinations* d, u32* dest_id, malc_dst const* dst)
   dest->next_offset = 0;
   dest->dst         = *dst;
 
-  dest->cfg.show_timestamp     = true;
-  dest->cfg.show_severity      = true;
-  dest->cfg.severity           = DEFAULT_SEVERITY;
-  dest->cfg.severity_file_path = nullptr;
+  dest->cfg.show_timestamp = true;
+  dest->cfg.show_severity  = true;
+  dest->cfg.severity       = DEFAULT_SEVERITY;
+  dest->cfg.severity_file_path   = nullptr;
+  dest->cfg.log_rate_filter_time = 0;
 
   if (dst->init) {
     bl_err err = dst->init (destination_get_instance (dest), d->alloc);
@@ -118,32 +125,68 @@ bl_err destinations_add (destinations* d, u32* dest_id, malc_dst const* dst)
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
+static bl_err destinations_set_rate_limit_settings_impl(
+  destinations* d, malc_security const* sec, bool validate_only
+  )
+{
+  bool enabled = sec->log_rate_filter_watch_count != 0;
+  if (enabled) {
+    destination* dest;
+    enabled = false;
+    FOREACH_DESTINATION (d->mem, dest) {
+      if (dest->cfg.log_rate_filter_time != 0) {
+        enabled = true;
+        break;
+      }
+    }
+  }
+  uword wc = 0;
+  if (enabled) {
+    wc = round_next_pow2_u32 (sec->log_rate_filter_watch_count);
+    if (wc > arr_elems_member (destinations, pe_buffer)) {
+      return bl_invalid;
+    }
+    if (!malc_is_valid_severity (sec->log_rate_filter_min_severity)) {
+      return bl_invalid;
+    }
+  }
+  if (validate_only) {
+    return bl_ok;
+  }
+  if (!enabled) {
+    d->filter_watch_count = 0;
+    return bl_ok;
+  }
+  d->filter_watch_count  = wc;
+  d->filter_max_time     = 0;
+  d->filter_min_severity = sec->log_rate_filter_min_severity;
+
+  destination* dest;
+  FOREACH_DESTINATION (d->mem, dest) {
+    d->filter_max_time =
+      bl_max (d->filter_max_time, dest->cfg.log_rate_filter_time);
+  }
+  return past_entries_init_extern (&d->pe, d->pe_buffer, wc);
+}
+/*----------------------------------------------------------------------------*/
 bl_err destinations_validate_rate_limit_settings(
   destinations* d, malc_security const* sec
   )
 {
-  return bl_ok;
+  return destinations_set_rate_limit_settings_impl (d, sec, true);
 }
 /*----------------------------------------------------------------------------*/
 bl_err destinations_set_rate_limit_settings(
   destinations* d, malc_security const* sec
   )
 {
-  bl_err err = destinations_validate_rate_limit_settings (d, sec);
-  if (err) {
-    return err;
-  }
-  d->filter_time_us     = sec->log_rate_filter_time_us;
-  d->filter_max         = sec->log_rate_filter_max;
-  d->filter_watch_count = sec->log_rate_filter_watch_count;
-  return bl_ok;
+  return destinations_set_rate_limit_settings_impl (d, sec, false);
 }
 /*----------------------------------------------------------------------------*/
 void destinations_get_rate_limit_settings (destinations* d, malc_security* sec)
 {
-  sec->log_rate_filter_time_us     = d->filter_time_us;
-  sec->log_rate_filter_max         = d->filter_max;
-  sec->log_rate_filter_watch_count = d->filter_watch_count;
+  sec->log_rate_filter_watch_count  = d->filter_watch_count;
+  sec->log_rate_filter_min_severity = d->filter_min_severity;
 }
 /*----------------------------------------------------------------------------*/
 void destinations_terminate (destinations* d)
@@ -160,9 +203,24 @@ void destinations_terminate (destinations* d)
   d->count = 0;
 }
 /*----------------------------------------------------------------------------*/
-void destinations_idle_task (destinations* d)
+static void entry_filter_idle (destinations* d, tstamp now)
 {
-  /* TODO check fds */
+  for (uword i = 0; i < past_entries_size (&d->pe); ++i) {
+    past_entry* pe = past_entries_at (&d->pe, i);
+    tstamp t_allowed = pe->tprev + d->filter_max_time;
+    if (unlikely (tstamp_get_diff (now, t_allowed) >= 0)) {
+      past_entries_drop (&d->pe, i);
+      --i;
+    }
+  }
+  if (past_entries_size (&d->pe) == 0) {
+    ringb_set_start_position (&d->pe, 0);
+  }
+}
+/*----------------------------------------------------------------------------*/
+void destinations_idle_task (destinations* d, tstamp now)
+{
+  entry_filter_idle (d, now);
   destination* dest;
   FOREACH_DESTINATION (d->mem, dest) {
     if (dest->cfg.severity_file_path) {
@@ -185,24 +243,69 @@ void destinations_flush (destinations* d)
 }
 /*----------------------------------------------------------------------------*/
 void destinations_write(
-  destinations* d, uword sev, tstamp now, log_strings strs
+  destinations* d, uword entry_id, tstamp now, uword sev, log_strings strs
   )
 {
   destination* dest;
-  FOREACH_DESTINATION (d->mem, dest) {
-    bl_assert (dest->dst.write);
-    if (sev >= dest->cfg.severity) {
-      (void) dest->dst.write(
-        destination_get_instance (dest),
-        now,
-        strs.tstamp,
-        dest->cfg.show_timestamp ? strs.tstamp_len : 0,
-        strs.sev,
-        dest->cfg.show_severity ? strs.sev_len : 0,
-        strs.text,
-        strs.text_len
-        );
+  if (d->filter_watch_count == 0 || sev < d->filter_min_severity) {
+    /*filtering inactive*/
+    FOREACH_DESTINATION (d->mem, dest) {
+      bl_assert (dest->dst.write);
+      if (sev >= dest->cfg.severity) {
+        (void) dest->dst.write(
+          destination_get_instance (dest),
+          now,
+          strs.tstamp,
+          dest->cfg.show_timestamp ? strs.tstamp_len : 0,
+          strs.sev,
+          dest->cfg.show_severity ? strs.sev_len : 0,
+          strs.text,
+          strs.text_len
+          );
+      }
     }
+  }
+  else {
+    /*filtering active*/
+    past_entry* pe = nullptr;
+    /* small contiguous cache-friendly structure: linear search */
+    for (uword i = 0; i < past_entries_size (&d->pe); ++i) {
+      past_entry* e = past_entries_at (&d->pe, i);
+      if (e->entry_id == entry_id) {
+        pe = e;
+        break;
+      }
+    }
+    FOREACH_DESTINATION (d->mem, dest) {
+      bl_assert (dest->dst.write);
+      if (sev >= dest->cfg.severity) {
+        if (pe && dest->cfg.log_rate_filter_time != 0) {
+          tstamp allowed = pe->tprev + dest->cfg.log_rate_filter_time;
+          if (unlikely (tstamp_get_diff (now, allowed) < 0)) {
+            continue;
+          }
+        }
+        (void) dest->dst.write(
+          destination_get_instance (dest),
+          now,
+          strs.tstamp,
+          dest->cfg.show_timestamp ? strs.tstamp_len : 0,
+          strs.sev,
+          dest->cfg.show_severity ? strs.sev_len : 0,
+          strs.text,
+          strs.text_len
+          );
+      }
+    }
+    if (!pe) {
+      if (!past_entries_can_insert (&d->pe)) {
+        past_entries_drop_head (&d->pe);
+      }
+      past_entries_expand_tail_n (&d->pe, 1);
+      pe = past_entries_at_tail (&d->pe);
+      pe->entry_id  = entry_id;
+    }
+    pe->tprev = now;
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -250,8 +353,11 @@ bl_err destinations_set_cfg (
   if (unlikely (!dest)) {
     return bl_invalid;
   }
+  d->filter_max_time = 0;
   FOREACH_DESTINATION (d->mem, dest) {
     d->min_severity = bl_min (d->min_severity, dest->cfg.severity);
+    d->filter_max_time =
+      bl_max (d->filter_max_time, dest->cfg.log_rate_filter_time);
   }
   return bl_ok;
 }

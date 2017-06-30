@@ -58,6 +58,11 @@ typedef enum malc_encodings {
 }
 malc_type_ids;
 /*----------------------------------------------------------------------------*/
+static inline bool malc_is_valid_severity (uword sev)
+{
+  return (sev >= malc_sev_debug) && (sev <= malc_sev_critical);
+}
+/*----------------------------------------------------------------------------*/
 typedef struct malc_lit {
   char const* lit;
 }

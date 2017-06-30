@@ -51,30 +51,28 @@ sanitize_log_entries:
   The log entries are removed from any character that may make them to be
   confused with another log line, e.g. newline, so log injection isn't possible.
 
-log_rate_filter_time_us:
-log_rate_filter_max:
 log_rate_filter_watch_count:
-  These three parameters are better explained all in once.
+  Controls how many different entries log entries can be watched simultaneosly
+  by the log rate filter. This number may be limited to be very low (64), as
+  calculating the data rate of all the previous entries has performance
+  implications. 0 disables the filter.
 
-  A hacked application may try to erase data logs by running a legitimate piece
-  of code of the application in a loop, either to make the server disk to be
-  full (no rotation in place) or to erase attack traces. These parameters try to
-  limit messages with an excessive data rate.
+log_rate_filter_min_severity: Controls the lowest severity affected by the
+  log_rate_filter. This is intended to let the user decide if the lowest
+  severitites should be filtered or not, as these can be used for debugging and
+  stripped from the release executable.
 
-  A buffer with the last log entries and its timestamps is kept. If one of these
-  entries repeats too often it will be silently dropped.
+  Both this and is "log_rate_filter_watch_count" are be used together with
+  the per-destination (in struct "malc_dst_cfg") "log_rate_filter_time".
 
-  "log_rate_filter_time_us" and "log_rate_filter_max" control how many log
-  entries can happen in a unit of time before the protection being activated.
-
-  "log_rate_filter_watch_count" controls how many of the last log entries are
-  watched (circular buffer).
+log_rate_filter_cutoff_eps:
+  Controls the maximum rate that a given log entry can have. The units are
+  entries per second.
 ------------------------------------------------------------------------------*/
 typedef struct malc_security {
   bool sanitize_log_entries;
-  u32  log_rate_filter_time_us;
-  u32  log_rate_filter_max;
   u32  log_rate_filter_watch_count;
+  u32  log_rate_filter_min_severity;
 }
 malc_security;
 /*----------------------------------------------------------------------------*/

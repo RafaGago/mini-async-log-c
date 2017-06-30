@@ -46,10 +46,11 @@ Features (Planned)
 TODO
 
 - Enqueue strategy: Heap, thread local storage and bounded.
-- Security: Sanitized log strings (removing newlines: attacker trying to fake
-    log entries).
-- Security: Rate limit of the same log entry (attacker trying to erase
-    information of the logs by forcing rotation).
+- Auto log_fileline (by severity (manual macros for each severity or threshold
+  based)).
+- Own thread launch.
+- File writer (rotation - etc).
+- Remove compressed_count from malc_entry (unused).
 
 Build
 ==================

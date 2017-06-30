@@ -3,6 +3,7 @@
 
 #include <bl/cmocka_pre.h>
 #include <bl/base/default_allocator.h>
+#include <bl/base/time.h>
 
 #include <malc/destinations.h>
 
@@ -152,7 +153,7 @@ static void destinations_idle_task_test (void **state)
 
   c->tbls[0].idle_task = nullptr;
   destinations_do_add (c, id, mock);
-  destinations_idle_task (&c->d);
+  destinations_idle_task (&c->d, 0);
 
   assert_int_equal (mock[0]->idle_task, 0);
   assert_int_equal (mock[1]->idle_task, 1);
@@ -194,7 +195,7 @@ static void destinations_write_test (void **state)
   destinations_do_add (c, id, mock);
   log_strings strings;
   memset (&strings, 0, sizeof strings);
-  destinations_write (&c->d, malc_sev_critical, 0, strings);
+  destinations_write (&c->d, 0, 0, malc_sev_critical, strings);
 
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
@@ -219,11 +220,11 @@ static void destinations_write_sev_test (void **state)
   err = destinations_set_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (bl_ok, err);
 
-  destinations_write (&c->d, malc_sev_error, 0, strings);
+  destinations_write (&c->d, 0, 0, malc_sev_error, strings);
   assert_int_equal (mock[0]->write, 0);
   assert_int_equal (mock[1]->write, 1);
 
-  destinations_write (&c->d, malc_sev_critical, 0, strings);
+  destinations_write (&c->d, 0, 0, malc_sev_critical, strings);
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 2);
 }
@@ -236,6 +237,105 @@ static void write_sev_file (char const* text)
   int e = ferror (f);
   fclose (f);
   assert_int_equal (0, e);
+}
+/*----------------------------------------------------------------------------*/
+static void destinations_write_rate_filter_test (void **state)
+{
+  destinations_context* c = (destinations_context*) *state;
+  u32          id[2];
+  mock_dest*   mock[2];
+  malc_dst_cfg cfg;
+  bl_err       err;
+  log_strings  strings;
+
+  memset (&strings, 0, sizeof strings);
+
+  destinations_do_add (c, id, mock);
+
+  err = destinations_get_cfg (&c->d, &cfg, id[0]);
+  assert_int_equal (bl_ok, err);
+  cfg.log_rate_filter_time = bl_usec_to_tstamp (2);
+  err = destinations_set_cfg (&c->d, &cfg, id[0]);
+  assert_int_equal (bl_ok, err);
+
+  err = destinations_get_cfg (&c->d, &cfg, id[1]);
+  assert_int_equal (bl_ok, err);
+  cfg.log_rate_filter_time = bl_usec_to_tstamp (2);
+  err = destinations_set_cfg (&c->d, &cfg, id[1]);
+  assert_int_equal (bl_ok, err);
+
+  malc_security sec;
+  sec.log_rate_filter_watch_count  = 4;
+  sec.log_rate_filter_min_severity = malc_sev_debug;
+  err = destinations_set_rate_limit_settings (&c->d, &sec);
+  assert_int_equal (bl_ok, err);
+
+  tstamp t = 0;
+  destinations_write (&c->d, 0, t, malc_sev_critical, strings);
+  assert_int_equal (mock[0]->write, 1);
+  assert_int_equal (mock[1]->write, 1);
+
+  t += bl_usec_to_tstamp (2);
+  destinations_write (&c->d, 0, t, malc_sev_critical, strings);
+  assert_int_equal (mock[0]->write, 2);
+  assert_int_equal (mock[1]->write, 2);
+
+  t += bl_usec_to_tstamp (1);
+  destinations_write (&c->d, 0, t, malc_sev_critical, strings);
+  /*filtered out: less than 2 us with last entry */
+  assert_int_equal (mock[0]->write, 2);
+  assert_int_equal (mock[1]->write, 2);
+}
+/*----------------------------------------------------------------------------*/
+static void destinations_write_rate_filter_severity_test (void **state)
+{
+  destinations_context* c = (destinations_context*) *state;
+  u32          id[2];
+  mock_dest*   mock[2];
+  malc_dst_cfg cfg;
+  bl_err       err;
+  log_strings  strings;
+
+  memset (&strings, 0, sizeof strings);
+
+  destinations_do_add (c, id, mock);
+
+  err = destinations_get_cfg (&c->d, &cfg, id[0]);
+  assert_int_equal (bl_ok, err);
+  cfg.log_rate_filter_time = bl_usec_to_tstamp (2);
+  cfg.severity             = malc_sev_debug;
+  err = destinations_set_cfg (&c->d, &cfg, id[0]);
+  assert_int_equal (bl_ok, err);
+
+  err = destinations_get_cfg (&c->d, &cfg, id[1]);
+  assert_int_equal (bl_ok, err);
+  cfg.log_rate_filter_time = bl_usec_to_tstamp (2);
+  cfg.severity             = malc_sev_debug;
+  err = destinations_set_cfg (&c->d, &cfg, id[1]);
+  assert_int_equal (bl_ok, err);
+
+  malc_security sec;
+  sec.log_rate_filter_watch_count  = 4;
+  sec.log_rate_filter_min_severity = malc_sev_warning;
+  err = destinations_set_rate_limit_settings (&c->d, &sec);
+  assert_int_equal (bl_ok, err);
+
+  tstamp t = 0;
+  destinations_write (&c->d, 0, t, malc_sev_critical, strings);
+  assert_int_equal (mock[0]->write, 1);
+  assert_int_equal (mock[1]->write, 1);
+
+  t += bl_usec_to_tstamp (1);
+  destinations_write (&c->d, 0, t, malc_sev_warning, strings);
+  /*filtered out: severity */
+  assert_int_equal (mock[0]->write, 1);
+  assert_int_equal (mock[1]->write, 1);
+
+  t += bl_usec_to_tstamp (1);
+  destinations_write (&c->d, 0, t, malc_sev_note, strings);
+  /*not filtered out: severity */
+  assert_int_equal (mock[0]->write, 2);
+  assert_int_equal (mock[1]->write, 2);
 }
 /*----------------------------------------------------------------------------*/
 static void destinations_sev_file_test (void **state)
@@ -260,32 +360,32 @@ static void destinations_sev_file_test (void **state)
   assert_int_equal (bl_ok, err);
 
   write_sev_file ("critical");
-  destinations_idle_task (&c->d);
+  destinations_idle_task (&c->d, 0);
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (cfg.severity, malc_sev_critical);
 
   write_sev_file ("error");
-  destinations_idle_task (&c->d);
+  destinations_idle_task (&c->d, 0);
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (cfg.severity, malc_sev_error);
 
   write_sev_file ("warning");
-  destinations_idle_task (&c->d);
+  destinations_idle_task (&c->d, 0);
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (cfg.severity, malc_sev_warning);
 
   write_sev_file ("note");
-  destinations_idle_task (&c->d);
+  destinations_idle_task (&c->d, 0);
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (cfg.severity, malc_sev_note);
 
   write_sev_file ("trace");
-  destinations_idle_task (&c->d);
+  destinations_idle_task (&c->d, 0);
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (cfg.severity, malc_sev_trace);
 
   write_sev_file ("debug");
-  destinations_idle_task (&c->d);
+  destinations_idle_task (&c->d, 0);
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (cfg.severity, malc_sev_debug);
 }
@@ -308,6 +408,14 @@ static const struct CMUnitTest tests[] = {
     ),
   cmocka_unit_test_setup_teardown(
     destinations_write_sev_test, dsts_test_setup, dsts_test_teardown
+    ),
+  cmocka_unit_test_setup_teardown(
+    destinations_write_rate_filter_test, dsts_test_setup, dsts_test_teardown
+    ),
+  cmocka_unit_test_setup_teardown(
+    destinations_write_rate_filter_severity_test,
+    dsts_test_setup,
+    dsts_test_teardown
     ),
   cmocka_unit_test_setup_teardown(
     destinations_sev_file_test, dsts_test_setup, dsts_test_teardown
