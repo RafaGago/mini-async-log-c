@@ -13,7 +13,9 @@
 
 /* TODO: bounded queue. Needs a custom spmc with variable size pop, maybe
    the Dmitry algo buth syncing on the sequence and using the enqueue_pos
-   as a hint can do multielement allocations */
+   as a hint can do multielement allocations. See if doing a per-cpu list
+   helps:
+   */
 
 /*----------------------------------------------------------------------------*/
 bl_err memory_init (memory* m)
