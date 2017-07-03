@@ -92,8 +92,7 @@ void boundedb_dealloc (boundedb* b, u8* mem, u32 slots)
 {
   for (uword i = 0; i < cpuq_size (&b->queues); ++i) {
     mpmc_bpm* q = cpuq_at (&b->queues, i);
-    /*TODO: add mpmc_bpm function to check this...*/
-    if ((mem >= q->mem) && (mem < (q->mem + (q->slots * q->slot_size)))) {
+    if (mpmc_bpm_allocation_is_in_range (q, mem)) {
       mpmc_bpm_dealloc (q, mem, slots);
       return;
     }
