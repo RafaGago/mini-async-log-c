@@ -161,7 +161,7 @@ MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* alloc)
 deserializer_destroy:
   deserializer_destroy (&l->ds, alloc);
 memory_destroy:
-  memory_destroy (&l->mem);
+  memory_destroy (&l->mem, alloc);
   return err;
 }
 /*----------------------------------------------------------------------------*/
@@ -171,7 +171,7 @@ MALC_EXPORT bl_err malc_destroy (malc* l)
   if (atomic_uword_strong_cas_rlx (&l->state, &expected, st_destructing)) {
     return bl_preconditions;
   }
-  memory_destroy (&l->mem);
+  memory_destroy (&l->mem, l->alloc);
   deserializer_destroy (&l->ds, l->alloc);
   entry_parser_destroy (&l->ep);
   destinations_destroy (&l->dst);
@@ -228,6 +228,10 @@ MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg_readonly)
   l->producer = cfg.producer;
   l->ep.sanitize_log_entries = cfg.sec.sanitize_log_entries;
   err = destinations_set_rate_limit_settings (&l->dst, &cfg.sec);
+  if (err) {
+    goto finish;
+  }
+  err = memory_bounded_buffer_init (&l->mem, l->alloc);
   if (err) {
     goto finish;
   }

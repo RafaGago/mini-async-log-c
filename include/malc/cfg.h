@@ -33,7 +33,6 @@ typedef struct malc_producer_cfg {
 }
 malc_producer_cfg;
 /*------------------------------------------------------------------------------
-
 heap_allocator:
   Each producer may have a buffer in TLS, when it's exhausted and this variable
   is not null the pointed heap allocator is used until the TLS buffers start
@@ -41,9 +40,27 @@ heap_allocator:
   second used choice. Note that this allocator is only used to enqueue log
   entries from the heap. The TLS allocator is the one passed on "malc_init".
 
+fixed_allocator_bytes:
+  The minimal amount of bytes that each fixed allocator will have. This number
+  might be rounded up to cache line size or to the next power of 2. 0 disables
+  the fixed allocator.
+
+fixed_allocator_max_slots:
+  The maximum amount of slots that a single call to the fixed allocator can
+  have. The slot size is unspecified so this parameter is a bit vague. Consider
+  a slot size equal or very near the cache line size.
+
+fixed_allocator_per_cpu:
+  Create one fixed allocator for each CPU core. This is an optimization (or
+  pessimization: measure your performance) to alleviate false sharing. Note that
+  "fixed_allocator_bytes" is not divided by the number CPUs when this setting is
+  active.
 ------------------------------------------------------------------------------*/
 typedef struct malc_alloc_cfg {
   alloc_tbl const* heap_allocator;
+  u32              fixed_allocator_bytes;
+  u32              fixed_allocator_max_slots;
+  bool             fixed_allocator_per_cpu;
 }
 malc_alloc_cfg;
 /*------------------------------------------------------------------------------

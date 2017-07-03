@@ -26,12 +26,14 @@ bl_err memory_init (memory* m)
   }
   m->default_allocator  = get_default_alloc();
   m->cfg.heap_allocator = &m->default_allocator;
+  boundedb_init (&m->bb);
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-void memory_destroy (memory* m)
+void memory_destroy (memory* m, alloc_tbl const* alloc)
 {
   bl_tss_destroy (m->tss_key);
+  boundedb_destroy (&m->bb, alloc);
 }
 /*----------------------------------------------------------------------------*/
 bl_err memory_tls_init(
@@ -62,6 +64,18 @@ bl_err memory_tls_init(
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
+bl_err memory_bounded_buffer_init (memory* m, alloc_tbl const* alloc)
+{
+  return boundedb_reset(
+    &m->bb,
+    alloc,
+    m->cfg.fixed_allocator_bytes,
+    alloc_slot_size,
+    m->cfg.fixed_allocator_max_slots,
+    m->cfg.fixed_allocator_per_cpu
+    );
+}
+/*----------------------------------------------------------------------------*/
 void memory_tls_destroy_explicit (memory* m)
 {
   tls_buffer_destroy (malc_tls);
@@ -77,12 +91,19 @@ bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
       return bl_ok;
     }
   }
+  bl_err err = bl_would_overflow;
+  if (m->cfg.fixed_allocator_bytes > 0) {
+    err = boundedb_alloc (&m->bb, mem, slots);
+    if (likely (!err)) {
+      return bl_ok;
+    }
+  }
   if (m->cfg.heap_allocator) {
     *mem = bl_alloc (m->cfg.heap_allocator, slots * alloc_slot_size);
     *tag = alloc_tag_heap;
     return *mem ? bl_ok : bl_alloc;
   }
-  return bl_would_overflow;
+  return err;
 }
 /*----------------------------------------------------------------------------*/
 void memory_dealloc (memory* m, u8* mem, alloc_tag tag, u32 slots)
@@ -92,6 +113,7 @@ void memory_dealloc (memory* m, u8* mem, alloc_tag tag, u32 slots)
     tls_buffer_dealloc (mem, slots, alloc_slot_size);
     break;
   case alloc_tag_bounded:
+    boundedb_dealloc (&m->bb, mem, slots);
     break;
   case alloc_tag_heap:
     bl_dealloc (m->cfg.heap_allocator, mem);

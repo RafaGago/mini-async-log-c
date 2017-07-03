@@ -8,6 +8,7 @@
 
 #include <malc/cfg.h>
 #include <malc/tls_buffer.h>
+#include <malc/bounded_buffer.h>
 
 /*----------------------------------------------------------------------------*/
 #define alloc_slot_size 32
@@ -28,12 +29,13 @@ typedef struct memory {
   malc_alloc_cfg cfg;
   alloc_tbl      default_allocator;
   bl_tss         tss_key;
+  boundedb       bb;
 }
 memory;
 /*----------------------------------------------------------------------------*/
 extern bl_err memory_init (memory* m);
 /*----------------------------------------------------------------------------*/
-extern void memory_destroy (memory* m);
+extern void memory_destroy (memory* m, alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
 extern bl_err memory_tls_init(
   memory*          m,
@@ -42,6 +44,8 @@ extern bl_err memory_tls_init(
   tls_destructor   destructor_fn,
   void*            destructor_context
   );
+/*----------------------------------------------------------------------------*/
+extern bl_err memory_bounded_buffer_init (memory* m, alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
 extern void memory_tls_destroy_explicit (memory* m);
 /*----------------------------------------------------------------------------*/
