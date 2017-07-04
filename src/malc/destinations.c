@@ -255,6 +255,7 @@ void destinations_write(
         (void) dest->dst.write(
           destination_get_instance (dest),
           now,
+          sev,
           strs.tstamp,
           dest->cfg.show_timestamp ? strs.tstamp_len : 0,
           strs.sev,
@@ -288,6 +289,7 @@ void destinations_write(
         (void) dest->dst.write(
           destination_get_instance (dest),
           now,
+          sev,
           strs.tstamp,
           dest->cfg.show_timestamp ? strs.tstamp_len : 0,
           strs.sev,

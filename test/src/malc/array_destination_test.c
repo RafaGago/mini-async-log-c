@@ -39,7 +39,7 @@ static void array_dst_basic (void **state)
   array_dst_context* c = (array_dst_context*) *state;
   for (uword i = 0; i < arr_elems (c->entries) - 1; ++i) {
     bl_err err = malc_array_dst_tbl.write(
-      (void*) c->ad, 0, "1", 1, "2", 1, "3", 1
+      (void*) c->ad, 0, 0, "1", 1, "2", 1, "3", 1
       );
     assert_int_equal (bl_ok, err);
     assert_int_equal (i + 1, malc_array_dst_size (c->ad));
@@ -56,7 +56,7 @@ static void array_dst_rotation (void **state)
   for (uword i = 0; i < arr_elems (c->entries); ++i) {
     char ch = (char) i + 1;
     bl_err err = malc_array_dst_tbl.write(
-      (void*) c->ad, 0, &ch, 1, "", 0, "", 0
+      (void*) c->ad, 0, 0, &ch, 1, "", 0, "", 0
       );
     assert_int_equal (bl_ok, err);
   }
@@ -75,7 +75,7 @@ static void array_dst_all_truncations (void **state)
 
   /*truncation on tstamp*/
   bl_err err = malc_array_dst_tbl.write(
-    (void*) c->ad, 0, "1234567890", 10, "", 0, "", 0
+    (void*) c->ad, 0, 0, "1234567890", 10, "", 0, "", 0
     );
   assert_int_equal (bl_ok, err);
   char const* e = malc_array_dst_get_entry (c->ad, 0);
@@ -85,7 +85,7 @@ static void array_dst_all_truncations (void **state)
 
   /*truncation on sev*/
   err = malc_array_dst_tbl.write(
-    (void*) c->ad, 0, "", 0, "1234567890", 10, "", 0
+    (void*) c->ad, 0, 0, "", 0, "1234567890", 10, "", 0
     );
   assert_int_equal (bl_ok, err);
   e = malc_array_dst_get_entry (c->ad, 1);
@@ -95,7 +95,7 @@ static void array_dst_all_truncations (void **state)
 
   /*truncation on text*/
   err = malc_array_dst_tbl.write(
-    (void*) c->ad, 0, "", 0, "", 0, "1234567890", 10
+    (void*) c->ad, 0, 0, "", 0, "", 0, "1234567890", 10
     );
   assert_int_equal (bl_ok, err);
   e = malc_array_dst_get_entry (c->ad, 2);

@@ -48,6 +48,7 @@ bl_err mock_dest_idle_task (void* instance)
 bl_err mock_dest_write(
   void*       instance,
   tstamp      now,
+  uword       sev,
   char const* timestamp,
   uword       timestamp_len,
   char const* severity,

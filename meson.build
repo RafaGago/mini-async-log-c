@@ -103,6 +103,7 @@ malc_srcs = [
     'src/malc/entry_parser.c',
     'src/malc/destinations.c',
     'src/malc/destinations/array.c',
+    'src/malc/destinations/stdouterr.c',
 ]
 malc_test_srcs = [
     'test/src/malc/tests_main.c',

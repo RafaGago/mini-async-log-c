@@ -15,7 +15,7 @@ struct malc_array_dst {
   uword size;
 };
 /*----------------------------------------------------------------------------*/
-bl_err malc_array_dst_init (void* instance, alloc_tbl const* alloc)
+static bl_err malc_array_dst_init (void* instance, alloc_tbl const* alloc)
 {
   malc_array_dst* d = (malc_array_dst*) instance;
   memset (d, 0, sizeof *d);
@@ -25,6 +25,7 @@ bl_err malc_array_dst_init (void* instance, alloc_tbl const* alloc)
 static bl_err malc_array_dst_write(
     void*       instance,
     tstamp      now,
+    uword       severity_val,
     char const* timestamp,
     uword       timestamp_len,
     char const* severity,

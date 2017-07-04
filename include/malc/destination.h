@@ -79,6 +79,7 @@ typedef struct malc_dst {
   bl_err (*write)(
     void*       instance,
     tstamp      now,
+    uword       severity_val,
     char const* timestamp,
     uword       timestamp_len,
     char const* severity,
