@@ -24,12 +24,12 @@ extern MALC_EXPORT void malc_array_dst_set_array(
   malc_array_dst* d, char* mem, uword mem_entries, uword entry_chars
   );
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT uword malc_array_dst_size (malc_array_dst* d);
+extern MALC_EXPORT uword malc_array_dst_size (malc_array_dst const* d);
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT uword malc_array_dst_capacity (malc_array_dst* d);
+extern MALC_EXPORT uword malc_array_dst_capacity (malc_array_dst const* d);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT char const* malc_array_dst_get_entry(
-  malc_array_dst* d, uword idx
+  malc_array_dst const* d, uword idx
   );
 /*----------------------------------------------------------------------------*/
 

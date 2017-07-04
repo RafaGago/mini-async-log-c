@@ -79,17 +79,19 @@ MALC_EXPORT void malc_array_dst_set_array(
   memset (mem, 0, mem_entries * entry_chars);
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT uword malc_array_dst_size (malc_array_dst* d)
+MALC_EXPORT uword malc_array_dst_size (malc_array_dst const* d)
 {
   return d->size;
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT uword malc_array_dst_capacity (malc_array_dst* d)
+MALC_EXPORT uword malc_array_dst_capacity (malc_array_dst const* d)
 {
   return d->mem_entries - 1;
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT char const* malc_array_dst_get_entry (malc_array_dst* d, uword idx)
+MALC_EXPORT char const* malc_array_dst_get_entry(
+  malc_array_dst const* d, uword idx
+  )
 {
   if (likely(
     d->mem &&
