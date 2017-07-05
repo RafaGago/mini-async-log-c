@@ -46,7 +46,7 @@ bl_err tls_buffer_init(
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-void bl_tss_dtor_callconv tls_buffer_destroy (void* opaque)
+void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque)
 {
   if (malc_tls && (void*) malc_tls == opaque) {
     malc_tls      = nullptr;
@@ -66,6 +66,9 @@ bl_err tls_buffer_alloc (tls_buffer* t, u8** mem, u32 slots)
   if (unlikely (slots > t->slot_count)) {
     return bl_would_overflow;
   }
+  /* Segfaults here are most likely caused by a thread enqueueing after the
+  termination function has been called, which is forbidded but not enforced
+  (enforcing it would require heavyweight synchronization on the fast-path) */
   u8* slot_start = t->slot;
   u8* slot_end   = t->slot + (slots * t->slot_size);
 

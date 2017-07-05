@@ -56,7 +56,8 @@ struct malc {
 /*----------------------------------------------------------------------------*/
 enum queue_command {
   q_cmd_entry,
-  q_cmd_dealloc,
+  q_cmd_tls_register,
+  q_cmd_tls_dealloc_deregister,
   q_cmd_flush,
   q_cmd_max,
 };
@@ -76,6 +77,12 @@ typedef struct qnode {
 }
 qnode;
 /*----------------------------------------------------------------------------*/
+typedef struct qnode_tls_alloc {
+  qnode n;
+  void* mem;
+}
+qnode_tls_alloc;
+/*----------------------------------------------------------------------------*/
 #ifdef __cplusplus
   extern "C" {
 #endif
@@ -84,7 +91,7 @@ static void malc_tls_destructor (void* mem, void* context)
 {
 /*When a thread goes out of scope we can't just erase the buffer TLS memory
   chunk, such deallocation could leave dangled entries on the queue. To
-  guarantse that all the previous entries of a thread have bsen processed a
+  guarantee that all the previous entries of a thread have been processed a
   special node is sent to the queue. This node just commands the producer to
   deallocate the whole chunk it points to.
 
@@ -96,7 +103,7 @@ static void malc_tls_destructor (void* mem, void* context)
   malc*  l = (malc*) context;
   qnode* n = (qnode*) mem;
   n->slots = 0;
-  n->info.cmd = q_cmd_dealloc;
+  n->info.cmd = q_cmd_tls_dealloc_deregister;
   mpsc_i_node_set (&n->hook, nullptr, 0, 0);
   mpsc_i_produce_notag (&l->q, &n->hook);
 }
@@ -137,6 +144,9 @@ MALC_EXPORT uword malc_get_size (void)
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* alloc)
 {
+  if (!alloc) {
+    return bl_invalid;
+  }
   bl_err err  = memory_init (&l->mem);
   if (err) {
     return err;
@@ -263,12 +273,6 @@ MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
   if (!atomic_uword_strong_cas_rlx (&l->state, &expected, st_terminating)) {
     return bl_preconditions;
   }
-  /* This triggers the destruction of this thread's TLS buffer, but it should
-    trigger the destruction of all TLS buffers. All the "thread_local" variables
-    can't be set to null from this thread, so the library doesn't always be
-    expected to work correctly with termination and relaunching when using TLS
-    buffers */
-  memory_tls_destroy_explicit (&l->mem);
   if (!is_consume_task_thread) {
     malc_send_blocking_flush (l);
     nonblock_backoff b;
@@ -282,7 +286,23 @@ MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, u32 bytes)
 {
-  return memory_tls_init (&l->mem, bytes, l->alloc, &malc_tls_destructor, l);
+  qnode_tls_alloc* n;
+  n = (qnode_tls_alloc*) bl_alloc (l->alloc, sizeof *n);
+  if (n) {
+    return bl_alloc;
+  }
+  n->n.slots = 0;
+  n->n.info.cmd = q_cmd_tls_register;
+  bl_err err = memory_tls_init_unregistered(
+    &l->mem, bytes, l->alloc, &malc_tls_destructor, l, &n->mem
+    );
+  if (err) {
+    bl_dealloc (l->alloc, n);
+    return err;
+  }
+  mpsc_i_node_set (&n->n.hook, nullptr, 0, 0);
+  mpsc_i_produce_notag (&l->q, &n->n.hook);
+  return err;
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
@@ -373,8 +393,20 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
         memory_dealloc (&l->mem, (u8*) n, tag, slots);
         break;
         }
-      case q_cmd_dealloc:
+      case q_cmd_tls_register:
+        /* a list will all the created TLS buffers is maintained. The
+        registered TLS buffers are serialized through the event loop, so they
+        avoid mutexes. This is done like this because they are also unregistered
+        by this function. */
+        memory_tls_register (&l->mem, ((qnode_tls_alloc*) n)->mem, l->alloc);
         bl_dealloc (l->alloc, n);
+        break;
+
+      case q_cmd_tls_dealloc_deregister:
+        /* when a thread goes out of scope the TLS destructor runs. This
+        destructor calls "malc_tls_destructor", which sends the whole TLS buffer
+        memory chunk as a queue node. See "malc_tls_destructor". */
+        memory_tls_destroy (&l->mem, (void*) n, l->alloc);
         break;
 
       case q_cmd_flush:
@@ -407,6 +439,22 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
   if (terminated) {
     atomic_uword_store_rlx (&l->state, st_stopped);
     destinations_terminate (&l->dst);
+    /*Destroy all registered TLS buffers. From now on "bl_thread_local malc_tls"
+    is dangled.
+
+    The comments on the header state that the threads with TLS buffers can't
+    outlive the logger. The reason for these comments are that the
+    "thread_local" variable "malc_tls" can't be set to nullptr, so enqueueing
+    in a transitional termination state could lead to "malc_tls" pointing to an
+    already deallocated buffer. Avoiding it would require heavyweight state
+    synchronization on "malc_log" which is prohibitive, as "malc_log" is
+    to be kept extremely fast.
+
+    Even though it is said that threads using TLS for logging can't outlive the
+    logger, the TLS buffers are still deallocated on termination. This will
+    hopefully manifest as segmentation faults and the user will realize.
+    */
+    memory_tls_destroy_all (&l->mem, l->alloc);
   }
   return count ? bl_ok : bl_nothing_to_do;;
 }

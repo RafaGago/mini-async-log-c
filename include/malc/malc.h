@@ -45,9 +45,13 @@ will block forever.
 extern MALC_EXPORT bl_err malc_flush (malc* l);
 /*------------------------------------------------------------------------------
 This can be use from any thread. After this is invoked the "consume_task" will
-start the necessary steps to cleanly shutdown the logger. If you are terminating
-from the thread that runs the consume_task you have to set the
-"is_consume_task_thread" parameter to true and to keep running
+start the necessary steps to cleanly shutdown the logger.
+
+After calling this function no further log messages can be enqueued by any
+thread.
+
+If you are terminating from the thread that runs the consume_task you have to
+set the "is_consume_task_thread" parameter to true and to keep running
 "malc_run_consume_task" until it returns "bl_preconditions".
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread);
@@ -62,12 +66,12 @@ done for three reasons:
 1.When writing a library using this logger, it may be unnecessary and wasteful
   to place thread local resources on threads that are not going to use it.
 
-2.Threads activating the thread local buffer can never outlive the data logger,
-  they have to be "join"ed before calling "malc_terminate"(*): when a thread goes
-  out of scope it sends the buffer back to the logger instance and it is
-  deallocated from the consume task. This is to ensure that the buffer isn't
-  deallocated before all the entries have been logged (would corrupt the logger
-  queue linked list and cause segmentation faults).
+2.Threads activating the thread local buffer can _never_ outlive the data
+  logger, they have to be "join"ed before calling "malc_terminate"(*): when a
+  thread goes out of scope they send the buffer back to the logger instance and
+  it is deallocated from the consume task. This is to ensure that the buffer
+  isn't deallocated before all the entries have been logged (would corrupt the
+  logger queue linked list and cause segmentation faults).
 
   It is very likely that the user that manually calls this function does it from
   a thread for which he has full control and can comply with this requirement.
@@ -79,6 +83,8 @@ done for three reasons:
 3.There is no straightforward way to do it from C (which is a good thing, I
   would't do it anyways for the two reasons above).
 
+Note that when using thread local storage (per-thread global variables) it's
+only possible to use one library instance on each thread.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, u32 bytes);
 /*------------------------------------------------------------------------------

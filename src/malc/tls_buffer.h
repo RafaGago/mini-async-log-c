@@ -45,7 +45,7 @@ extern bl_err tls_buffer_init(
   void*            destructor_context
   );
 /*----------------------------------------------------------------------------*/
-extern void bl_tss_dtor_callconv tls_buffer_destroy (void* opaque);
+extern void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque);
 /*----------------------------------------------------------------------------*/
 extern bl_err tls_buffer_alloc (tls_buffer* t, u8** mem, u32 slots);
 /*----------------------------------------------------------------------------*/

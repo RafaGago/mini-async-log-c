@@ -11,33 +11,35 @@
 #include <malc/memory.h>
 #include <malc/tls_buffer.h>
 
+declare_dynarray_funcs (mem_array, void*)
 /*----------------------------------------------------------------------------*/
 bl_err memory_init (memory* m)
 {
-  bl_err err = bl_tss_init (&m->tss_key, &tls_buffer_destroy);
+  bl_err err = bl_tss_init (&m->tss_key, &tls_buffer_out_of_scope_destroy);
   if (err) {
     return err;
   }
   m->default_allocator = get_default_alloc();
   m->cfg.msg_allocator = &m->default_allocator;
   boundedb_init (&m->bb);
+  mem_array_init_empty (&m->tss_list);
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
 void memory_destroy (memory* m, alloc_tbl const* alloc)
 {
-  /* TODO: this should manually deallocate all TLS buffers. A list with them
-     needs to be maintained */
   bl_tss_destroy (m->tss_key);
   boundedb_destroy (&m->bb, alloc);
+  mem_array_destroy (&m->tss_list, alloc);
 }
 /*----------------------------------------------------------------------------*/
-bl_err memory_tls_init(
+bl_err memory_tls_init_unregistered(
   memory*          m,
   u32              bytes,
   alloc_tbl const* alloc,
   tls_destructor   destructor_fn,
-  void*            destructor_context
+  void*            destructor_context,
+  void**           tls_buffer_addr
   )
 {
   if (malc_tls) {
@@ -53,9 +55,10 @@ bl_err memory_tls_init(
   }
   err = bl_tss_set (m->tss_key, t);
   if (err) {
-    tls_buffer_destroy (t);
+    bl_dealloc (alloc, t);
     return err;
   }
+  *tls_buffer_addr = (void*) t;
   malc_tls = t;
   return bl_ok;
 }
@@ -72,10 +75,41 @@ bl_err memory_bounded_buffer_init (memory* m, alloc_tbl const* alloc)
     );
 }
 /*----------------------------------------------------------------------------*/
-void memory_tls_destroy_explicit (memory* m)
+bl_err memory_tls_register (memory* m, void* mem, alloc_tbl const* alloc)
 {
-  void* b = (void*) malc_tls;
-  tls_buffer_destroy (b);
+  dynarray_foreach (mem_array, void*, &m->tss_list, it) {
+    if (*it == nullptr) {
+      *it = mem;
+      return bl_ok;
+    }
+  }
+  bl_err err = mem_array_grow (&m->tss_list, 1, alloc);
+  if (err) {
+    return err;
+  }
+  *mem_array_last (&m->tss_list) = mem;
+  return err;
+}
+/*----------------------------------------------------------------------------*/
+void memory_tls_destroy (memory* m, void* mem, alloc_tbl const* alloc)
+{
+  dynarray_foreach (mem_array, void*, &m->tss_list, it) {
+    if (*it == mem) {
+      bl_dealloc (alloc, mem);
+      *it = nullptr;
+      break;
+    }
+  }
+}
+/*----------------------------------------------------------------------------*/
+void memory_tls_destroy_all (memory* m, alloc_tbl const* alloc)
+{
+  dynarray_foreach (mem_array, void*, &m->tss_list, it) {
+    if (*it != nullptr) {
+      bl_dealloc (alloc, *it);
+      *it = nullptr;
+    }
+  }
 }
 /*----------------------------------------------------------------------------*/
 bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
