@@ -36,6 +36,10 @@ test_include_dirs  = include_dirs
 test_include_dirs += [ include_directories ('test/src') ]
 test_include_dirs +=  base_library.get_variable ('test_include_dirs')
 
+smoke_test_include_dirs  = include_dirs
+smoke_test_include_dirs += [ include_directories ('smoke_test/src') ]
+smoke_test_include_dirs +=  base_library.get_variable ('test_include_dirs')
+
 pkg_mod = import ('pkgconfig')
 install_subdir ('include/malc', install_dir : 'include')
 
@@ -115,8 +119,9 @@ malc_test_srcs = [
     'test/src/malc/destinations_test.c',
     'test/src/malc/array_destination_test.c',
 ]
-
-#cflags += [ '-E' ] #erase
+malc_smoke_test_srcs = [
+    'smoke_test/src/malc/smoke.c',
+]
 
 malc_lib = build_target(
     'malc',
@@ -140,6 +145,17 @@ test(
         'malc-test',
         malc_test_srcs,
         include_directories : test_include_dirs,
+        link_with           : malc_lib,
+        link_args           : test_link_args,
+        c_args              : cflags + test_cflags,
+        dependencies        : threads
+    ))
+test(
+    'malc',
+    executable(
+        'malc-smoke',
+        malc_smoke_test_srcs,
+        include_directories : smoke_test_include_dirs,
         link_with           : malc_lib,
         link_args           : test_link_args,
         c_args              : cflags + test_cflags,

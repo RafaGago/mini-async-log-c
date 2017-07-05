@@ -168,7 +168,7 @@ memory_destroy:
 MALC_EXPORT bl_err malc_destroy (malc* l)
 {
   uword expected = st_stopped;
-  if (atomic_uword_strong_cas_rlx (&l->state, &expected, st_destructing)) {
+  if (!atomic_uword_strong_cas_rlx (&l->state, &expected, st_destructing)) {
     return bl_preconditions;
   }
   memory_destroy (&l->mem, l->alloc);
@@ -260,7 +260,7 @@ MALC_EXPORT bl_err malc_flush (malc* l)
 MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
 {
   uword expected = st_running;
-  if (atomic_uword_strong_cas_rlx (&l->state, &expected, st_terminating)) {
+  if (!atomic_uword_strong_cas_rlx (&l->state, &expected, st_terminating)) {
     return bl_preconditions;
   }
   /* This triggers the destruction of this thread's TLS buffer, but it should
@@ -310,9 +310,11 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
     atomic_uword_store_rlx (&l->state, st_running);
     l->idle_boundary_us = bl_min (l->consumer.backoff_max_us, 1000);
   }
+  terminated = (state == st_terminating);
   mpsc_i_node* qn;
   do {
     while (1) {
+      qn = nullptr;
       err = mpsc_i_consume (&l->q, &qn, 0);
       if (err != bl_busy) {
         break;

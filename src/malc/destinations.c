@@ -193,6 +193,9 @@ void destinations_terminate (destinations* d)
 {
   destination* dest;
   FOREACH_DESTINATION (d->mem, dest) {
+    if (dest->dst.flush) {
+      dest->dst.flush (destination_get_instance (dest));
+    }
     if (dest->dst.terminate) {
       dest->dst.terminate (destination_get_instance (dest));
     }
