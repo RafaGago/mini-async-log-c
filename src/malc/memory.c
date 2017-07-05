@@ -18,8 +18,8 @@ bl_err memory_init (memory* m)
   if (err) {
     return err;
   }
-  m->default_allocator  = get_default_alloc();
-  m->cfg.heap_allocator = &m->default_allocator;
+  m->default_allocator = get_default_alloc();
+  m->cfg.msg_allocator = &m->default_allocator;
   boundedb_init (&m->bb);
   return bl_ok;
 }
@@ -81,22 +81,22 @@ void memory_tls_destroy_explicit (memory* m)
 bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
 {
   bl_assert (m && mem && tag && slots);
-  if (likely (!malc_tls)) {
+  if (likely (malc_tls)) {
     tls_buffer* t = (tls_buffer*) malc_tls;
     if (likely (tls_buffer_alloc (t, mem, slots) == bl_ok)) {
       *tag = alloc_tag_tls;
       return bl_ok;
     }
   }
-  bl_err err = bl_would_overflow;
+  bl_err err = bl_alloc;
   if (m->cfg.fixed_allocator_bytes > 0) {
     err = boundedb_alloc (&m->bb, mem, slots);
     if (likely (!err)) {
       return bl_ok;
     }
   }
-  if (m->cfg.heap_allocator) {
-    *mem = bl_alloc (m->cfg.heap_allocator, slots * alloc_slot_size);
+  if (m->cfg.msg_allocator) {
+    *mem = bl_alloc (m->cfg.msg_allocator, slots * alloc_slot_size);
     *tag = alloc_tag_heap;
     return *mem ? bl_ok : bl_alloc;
   }
@@ -113,7 +113,7 @@ void memory_dealloc (memory* m, u8* mem, alloc_tag tag, u32 slots)
     boundedb_dealloc (&m->bb, mem, slots);
     break;
   case alloc_tag_heap:
-    bl_dealloc (m->cfg.heap_allocator, mem);
+    bl_dealloc (m->cfg.msg_allocator, mem);
     break;
   default:
     bl_assert (false && "bug");

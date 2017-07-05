@@ -33,10 +33,10 @@ typedef struct malc_producer_cfg {
 }
 malc_producer_cfg;
 /*------------------------------------------------------------------------------
-heap_allocator:
+msg_allocator:
   Each producer may have a buffer in TLS, when it's exhausted and this variable
   is not null the pointed heap allocator is used until the TLS buffers start
-  to be available again. If there is no TLS buffer the heap_allocator is the
+  to be available again. If there is no TLS buffer the msg_allocator is the
   second used choice. Note that this allocator is only used to enqueue log
   entries from the heap. The TLS allocator is the one passed on "malc_init".
 
@@ -57,7 +57,7 @@ fixed_allocator_per_cpu:
   active.
 ------------------------------------------------------------------------------*/
 typedef struct malc_alloc_cfg {
-  alloc_tbl const* heap_allocator;
+  alloc_tbl const* msg_allocator;
   u32              fixed_allocator_bytes;
   u32              fixed_allocator_max_slots;
   bool             fixed_allocator_per_cpu;

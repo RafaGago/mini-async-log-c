@@ -310,8 +310,9 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
     atomic_uword_store_rlx (&l->state, st_running);
     l->idle_boundary_us = bl_min (l->consumer.backoff_max_us, 1000);
   }
-  terminated = (state == st_terminating);
   mpsc_i_node* qn;
+  terminated  = (state == st_terminating);
+  uword count = 0;
   do {
     while (1) {
       qn = nullptr;
@@ -322,6 +323,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
       processor_pause();
     }
     if (likely (!err)) {
+      ++count;
       qnode* n = to_type_containing (qn, hook, qnode);
       switch (n->info.cmd) {
       case q_cmd_entry: {
@@ -387,7 +389,6 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
       nonblock_backoff_init_default (&l->cbackoff, l->consumer.backoff_max_us);
     }
     else if (err == bl_empty) {
-      err = bl_nothing_to_do;
       toffset next_sleep_us = nonblock_backoff_next_sleep_us (&l->cbackoff);
       bool do_backoff       = false;
       if (l->idle_boundary_us >= next_sleep_us)  {
@@ -407,7 +408,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
     atomic_uword_store_rlx (&l->state, st_stopped);
     destinations_terminate (&l->dst);
   }
-  return err;
+  return count ? bl_ok : bl_nothing_to_do;;
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_add_destination(
@@ -470,7 +471,8 @@ MALC_EXPORT bl_err malc_log(
     entry->info
     );
 #endif
-  if (unlikely (atomic_uword_load_rlx (&l->state)) != st_running) {
+  uword state = atomic_uword_load_rlx (&l->state);
+  if (unlikely (state != st_running && state != st_first_consume_run)) {
     return bl_preconditions;
   }
   serializer se;
