@@ -220,7 +220,7 @@ MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg_readonly)
 
   /* initialization */
   uword expected = st_stopped;
-  if (atomic_uword_strong_cas_rlx (&l->state, &expected, st_initializing)) {
+  if (!atomic_uword_strong_cas_rlx (&l->state, &expected, st_initializing)) {
     return bl_preconditions;
   }
   l->mem.cfg  = cfg.alloc;
@@ -257,18 +257,25 @@ MALC_EXPORT bl_err malc_flush (malc* l)
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT bl_err malc_terminate (malc* l)
+MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
 {
   uword expected = st_running;
   if (atomic_uword_strong_cas_rlx (&l->state, &expected, st_terminating)) {
     return bl_preconditions;
   }
+  /* This triggers the destruction of this thread's TLS buffer, but it should
+    trigger the destruction of all TLS buffers. All the "thread_local" variables
+    can't be set to null from this thread, so the library doesn't always be
+    expected to work correctly with termination and relaunching when using TLS
+    buffers */
   memory_tls_destroy_explicit (&l->mem);
-  malc_send_blocking_flush (l);
-  nonblock_backoff b;
-  nonblock_backoff_init_default (&b, 1000);
-  while (atomic_uword_load_rlx (&l->state) == st_stopped) {
-    nonblock_backoff_run (&b);
+  if (!is_consume_task_thread) {
+    malc_send_blocking_flush (l);
+    nonblock_backoff b;
+    nonblock_backoff_init_default (&b, 1000);
+    while (atomic_uword_load_rlx (&l->state) == st_stopped) {
+      nonblock_backoff_run (&b);
+    }
   }
   return bl_ok;
 }

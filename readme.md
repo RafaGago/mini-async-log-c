@@ -73,3 +73,9 @@ Build
 Meson 0.41 is used. In Ubuntu:
 
 > sudo -H pip3 install meson
+
+TODO
+==================
+
+-TLS buffers lifetimes (destroy them in destructor (requires a list), consider
+tls_init on existant buffers...).

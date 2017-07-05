@@ -26,6 +26,8 @@ bl_err memory_init (memory* m)
 /*----------------------------------------------------------------------------*/
 void memory_destroy (memory* m, alloc_tbl const* alloc)
 {
+  /* TODO: this should manually deallocate all TLS buffers. A list with them
+     needs to be maintained */
   bl_tss_destroy (m->tss_key);
   boundedb_destroy (&m->bb, alloc);
 }
@@ -72,7 +74,8 @@ bl_err memory_bounded_buffer_init (memory* m, alloc_tbl const* alloc)
 /*----------------------------------------------------------------------------*/
 void memory_tls_destroy_explicit (memory* m)
 {
-  tls_buffer_destroy (malc_tls);
+  void* b = (void*) malc_tls;
+  tls_buffer_destroy (b);
 }
 /*----------------------------------------------------------------------------*/
 bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)

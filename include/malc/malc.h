@@ -45,9 +45,12 @@ will block forever.
 extern MALC_EXPORT bl_err malc_flush (malc* l);
 /*------------------------------------------------------------------------------
 This can be use from any thread. After this is invoked the "consume_task" will
-start the necessary steps to cleanly shutdown the logger.
+start the necessary steps to cleanly shutdown the logger. If you are terminating
+from the thread that runs the consume_task you have to set the
+"is_consume_task_thread" parameter to true and to keep running
+"malc_run_consume_task" until it returns "bl_preconditions".
 ------------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_terminate (malc* l);
+extern MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread);
 /*------------------------------------------------------------------------------
 Activates the thread local buffer for the caller thread. Using this buffer makes
 the logging threads wait-free and is the fastest. This logger was designed to
@@ -82,8 +85,8 @@ extern MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, u32 bytes);
 timeout_us: timeout to block before returning. 0 just runs one iteration.
 
 returns bl_ok:            Consumer not in idle-state.
-        bl_nothing_to_do: Consumer not on idle-state.
-        bl_locked:        Terminated.
+        bl_nothing_to_do: Consumer in idle-state.
+        bl_preconditions: Malc library not ready to run (no init, terminated...)
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us);
 /*------------------------------------------------------------------------------
