@@ -146,7 +146,7 @@ MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* alloc)
   if (!alloc) {
     return bl_invalid;
   }
-  bl_err err  = memory_init (&l->mem);
+  bl_err err  = memory_init (&l->mem, alloc);
   if (err) {
     return err;
   }

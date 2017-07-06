@@ -30,14 +30,13 @@ define_dynarray_types (mem_array, void*)
 /*----------------------------------------------------------------------------*/
 typedef struct memory {
   malc_alloc_cfg cfg;
-  alloc_tbl      default_allocator;
   bl_tss         tss_key;
   mem_array      tss_list;
   boundedb       bb;
 }
 memory;
 /*----------------------------------------------------------------------------*/
-extern bl_err memory_init (memory* m);
+extern bl_err memory_init (memory* m, alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
 extern void memory_destroy (memory* m, alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/

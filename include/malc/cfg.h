@@ -3,6 +3,7 @@
 
 #include <bl/base/platform.h>
 #include <bl/base/integer.h>
+#include <bl/base/allocator.h>
 
 /*------------------------------------------------------------------------------
 idle_task_period_us:

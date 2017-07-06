@@ -5,7 +5,6 @@
 #include <bl/base/assert.h>
 #include <bl/base/utility.h>
 #include <bl/base/integer_manipulation.h>
-#include <bl/base/default_allocator.h>
 
 #include <malc/cfg.h>
 #include <malc/memory.h>
@@ -13,16 +12,16 @@
 
 declare_dynarray_funcs (mem_array, void*)
 /*----------------------------------------------------------------------------*/
-bl_err memory_init (memory* m)
+bl_err memory_init (memory* m, alloc_tbl const* alloc)
 {
   bl_err err = bl_tss_init (&m->tss_key, &tls_buffer_out_of_scope_destroy);
   if (err) {
     return err;
   }
-  m->default_allocator = get_default_alloc();
-  m->cfg.msg_allocator = &m->default_allocator;
+  m->cfg.msg_allocator = alloc;
   boundedb_init (&m->bb);
   mem_array_init_empty (&m->tss_list);
+  malc_tls = nullptr; /* resetting TLS var, mostly done for the smoke tests */
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
