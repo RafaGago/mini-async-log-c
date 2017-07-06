@@ -21,7 +21,7 @@ bl_err memory_init (memory* m, alloc_tbl const* alloc)
   m->cfg.msg_allocator = alloc;
   boundedb_init (&m->bb);
   mem_array_init_empty (&m->tss_list);
-  malc_tls = nullptr; /* resetting TLS var, mostly done for the smoke tests */
+  tls_buffer_thread_local_set (nullptr); /* for smoke testing mostly */
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
@@ -41,7 +41,7 @@ bl_err memory_tls_init_unregistered(
   void**           tls_buffer_addr
   )
 {
-  if (malc_tls) {
+  if (tls_buffer_thread_local_get ()) {
     return bl_locked;
   }
   tls_buffer* t;
@@ -58,7 +58,7 @@ bl_err memory_tls_init_unregistered(
     return err;
   }
   *tls_buffer_addr = (void*) t;
-  malc_tls = t;
+  tls_buffer_thread_local_set ((void*) t);
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
@@ -115,14 +115,11 @@ void memory_tls_destroy_all (memory* m, alloc_tbl const* alloc)
 bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
 {
   bl_assert (m && mem && tag && slots);
-  if (likely (malc_tls)) {
-    tls_buffer* t = (tls_buffer*) malc_tls;
-    if (likely (tls_buffer_alloc (t, mem, slots) == bl_ok)) {
-      *tag = alloc_tag_tls;
-      return bl_ok;
-    }
+  bl_err err = tls_buffer_alloc (mem, slots);
+  if (likely (!err)) {
+    *tag = alloc_tag_tls;
+    return bl_ok;
   }
-  bl_err err = bl_alloc;
   if (m->cfg.fixed_allocator_bytes > 0) {
     err = boundedb_alloc (&m->bb, mem, slots);
     if (likely (!err)) {

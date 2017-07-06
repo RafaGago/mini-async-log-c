@@ -12,7 +12,19 @@
 #include <malc/tls_buffer.h>
 
 /*----------------------------------------------------------------------------*/
-bl_thread_local void* malc_tls = nullptr;
+static bl_thread_local void* malc_tls = nullptr;
+/*----------------------------------------------------------------------------*/
+/* Workaround GCC issues with extern thread_local */
+void tls_buffer_thread_local_set (void* mem)
+{
+  malc_tls = mem;
+}
+/*----------------------------------------------------------------------------*/
+/* Workaround GCC issues with extern thread_local */
+void* tls_buffer_thread_local_get (void)
+{
+  return malc_tls;
+}
 /*----------------------------------------------------------------------------*/
 bl_err tls_buffer_init(
   tls_buffer**     out,
@@ -60,8 +72,12 @@ void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque)
   }
 }
 /*----------------------------------------------------------------------------*/
-bl_err tls_buffer_alloc (tls_buffer* t, u8** mem, u32 slots)
+bl_err tls_buffer_alloc (u8** mem, u32 slots)
 {
+  tls_buffer* t = malc_tls;
+  if (unlikely (!t)) {
+    return bl_alloc;
+  }
   bl_assert (slots != 0 && mem && t);
   if (unlikely (slots > t->slot_count)) {
     return bl_would_overflow;

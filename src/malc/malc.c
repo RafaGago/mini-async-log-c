@@ -287,7 +287,7 @@ MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, u32 bytes)
 {
   qnode_tls_alloc* n;
   n = (qnode_tls_alloc*) bl_alloc (l->alloc, sizeof *n);
-  if (n) {
+  if (!n) {
     return bl_alloc;
   }
   n->n.slots = 0;
