@@ -89,6 +89,38 @@ static void init_terminate (void **state)
   assert_int_equal (err, bl_ok);
 }
 /*----------------------------------------------------------------------------*/
+static void tls_allocation (void **state)
+{
+  static const uword tls_size = 32;
+
+  context* c = (context*) *state;
+  malc_cfg cfg;
+  bl_err err = malc_get_cfg (c->l, &cfg);
+  assert_int_equal (err, bl_ok);
+
+  err = malc_producer_thread_local_init (c->l, tls_size);
+  assert_int_equal (err, bl_ok);
+
+  cfg.consumer.start_own_thread   = false;
+  cfg.alloc.fixed_allocator_bytes = 0; /* No bounded queue */
+  cfg.alloc.msg_allocator = nullptr; /* No dynamic allocation */
+
+  err = malc_init (c->l, &cfg);
+  assert_int_equal (err, bl_ok);
+
+  log_warning (err, "msg1: {}", 1);
+  assert_int_equal (err, bl_ok);
+
+  err = malc_run_consume_task (c->l, 50000);
+  assert_int_equal (err, bl_ok);
+
+  assert_int_equal (malc_array_dst_size (c->dst), 1);
+  assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
+
+  log_warning (err, "msg2: {}", logmemcpy ((void*) &err, tls_size * 8));
+  assert_int_equal (err, bl_alloc);
+}
+/*----------------------------------------------------------------------------*/
 static void dynamic_allocation (void **state)
 {
   context* c = (context*) *state;
@@ -115,6 +147,7 @@ static void dynamic_allocation (void **state)
 /*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
+  cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
   cmocka_unit_test_setup_teardown (dynamic_allocation, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
