@@ -44,8 +44,8 @@ will block forever.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_flush (malc* l);
 /*------------------------------------------------------------------------------
-This can be use from any thread. After this is invoked the "consume_task" will
-start the necessary steps to cleanly shutdown the logger.
+Prepares the logger for termination. After this is invoked the "consume_task"
+will start the necessary steps to cleanly shutdown the logger.
 
 After calling this function no further log messages can be enqueued by any
 thread.
@@ -53,6 +53,10 @@ thread.
 If you are terminating from the thread that runs the consume_task you have to
 set the "is_consume_task_thread" parameter to true and to keep running
 "malc_run_consume_task" until it returns "bl_preconditions".
+
+If you set "is_consume_task_thread" to "true" this call will block until the
+termination has been processed bu the consume task, so you can call
+"malc_destroy" when this function returns.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread);
 /*------------------------------------------------------------------------------

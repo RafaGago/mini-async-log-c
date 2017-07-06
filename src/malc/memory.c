@@ -91,15 +91,16 @@ bl_err memory_tls_register (memory* m, void* mem, alloc_tbl const* alloc)
   return err;
 }
 /*----------------------------------------------------------------------------*/
-void memory_tls_destroy (memory* m, void* mem, alloc_tbl const* alloc)
+bool memory_tls_destroy (memory* m, void* mem, alloc_tbl const* alloc)
 {
   dynarray_foreach (mem_array, void*, &m->tss_list, it) {
     if (*it == mem) {
       bl_dealloc (alloc, mem);
       *it = nullptr;
-      break;
+      return true;
     }
   }
+  return false;
 }
 /*----------------------------------------------------------------------------*/
 void memory_tls_destroy_all (memory* m, alloc_tbl const* alloc)

@@ -91,14 +91,13 @@ static void malc_tls_destructor (void* mem, void* context)
 {
 /*When a thread goes out of scope we can't just erase the buffer TLS memory
   chunk, such deallocation could leave dangled entries on the queue. To
-  guarantee that all the previous entries of a thread have been processed a
-  special node is sent to the queue. This node just commands the producer to
-  deallocate the whole chunk it points to.
+  guarantee that all the previous entries of a thread have been processed before
+  the command the special node is sent to the tail of the queue. This node just
+  commands the producer to deallocate the whole chunk it points to.
 
-  The node hook overwrites the TLS buffer header to guarantse that this
+  The node hook overwrites the TLS buffer header to guarantee that this
   message can be sent even when the full TLS buffer is pending on the queue
-  (sse static_assert below).
- */
+  (sse static_assert below). */
   static_assert_ns (sizeof (qnode) <= sizeof (tls_buffer));
   malc*  l = (malc*) context;
   qnode* n = (qnode*) mem;
@@ -406,7 +405,9 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
         /* when a thread goes out of scope the TLS destructor runs. This
         destructor calls "malc_tls_destructor", which sends the whole TLS buffer
         memory chunk as a queue node. See "malc_tls_destructor". */
-        memory_tls_destroy (&l->mem, (void*) n, l->alloc);
+        bl_assert_side_effect(
+          memory_tls_destroy (&l->mem, (void*) n, l->alloc)
+          );
         break;
 
       case q_cmd_flush:
@@ -452,8 +453,8 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
 
     Even though it is said that threads using TLS for logging can't outlive the
     logger, the TLS buffers are still deallocated on termination. This will
-    hopefully manifest as segmentation faults and the user will realize.
-    */
+    hopefully manifest as segmentation faults and the user can hopefully realize
+    the mistake.*/
     memory_tls_destroy_all (&l->mem, l->alloc);
   }
   return count ? bl_ok : bl_nothing_to_do;;
