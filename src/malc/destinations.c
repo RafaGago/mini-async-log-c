@@ -112,7 +112,7 @@ bl_err destinations_add (destinations* d, u32* dest_id, malc_dst const* dst)
     }
   }
   if (d->count) {
-    destination* last;
+    destination* last = nullptr;
     FOREACH_DESTINATION (d->mem, dest) {
       last = dest;
     }
