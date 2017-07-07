@@ -122,6 +122,7 @@ bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
   }
   if (m->cfg.fixed_allocator_bytes > 0) {
     err = boundedb_alloc (&m->bb, mem, slots);
+    *tag = alloc_tag_bounded;
     if (likely (!err)) {
       return bl_ok;
     }

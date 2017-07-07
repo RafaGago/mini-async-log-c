@@ -59,21 +59,29 @@ static int setup (void **state)
   return err;
 }
 /*----------------------------------------------------------------------------*/
+static void termination_check (context* c)
+{
+  bl_err err = malc_run_consume_task (c->l, 10000);
+  assert_int_equal (err, bl_nothing_to_do); /* test left work to do...*/
+  err = malc_terminate (c->l, true);
+  assert_int_equal (err, bl_ok);
+  err = malc_run_consume_task (c->l, 10000);
+  assert_true (err == bl_ok || err == bl_nothing_to_do);
+  err = malc_run_consume_task (c->l, 10000);
+  assert_true (err == bl_preconditions);
+}
+/*----------------------------------------------------------------------------*/
 static int teardown (void **state)
 {
-  bool had_err = false;
   context* c = (context*) *state;
-  bl_err err = malc_run_consume_task (c->l, 50000);
-  had_err |= (err != bl_nothing_to_do); /* test left work to do...*/
-  err = malc_terminate (c->l, true);
-  had_err |= (err != bl_ok);
-  err = malc_run_consume_task (c->l, 50000);
-  had_err |= (err != bl_ok && err != bl_nothing_to_do);
-  err = malc_run_consume_task (c->l, 50000);
-  had_err |= (err != bl_preconditions);
-  malc_destroy (c->l);
+  bl_err err = malc_destroy (c->l);
+  if (err == bl_preconditions) {
+    (void) malc_terminate (c->l, true);
+    (void) malc_run_consume_task (c->l, 10000);
+    (void) malc_destroy (c->l);
+  }
   bl_dealloc (&c->alloc, c->l);
-  return had_err;
+  return 0;
 }
 /*----------------------------------------------------------------------------*/
 static void init_terminate (void **state)
@@ -87,6 +95,8 @@ static void init_terminate (void **state)
 
   err = malc_init (c->l, &cfg);
   assert_int_equal (err, bl_ok);
+
+  termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
 static void tls_allocation (void **state)
@@ -111,7 +121,7 @@ static void tls_allocation (void **state)
   log_warning (err, "msg1: {}", 1);
   assert_int_equal (err, bl_ok);
 
-  err = malc_run_consume_task (c->l, 50000);
+  err = malc_run_consume_task (c->l, 10000);
   assert_int_equal (err, bl_ok);
 
   assert_int_equal (malc_array_dst_size (c->dst), 1);
@@ -119,6 +129,41 @@ static void tls_allocation (void **state)
 
   log_warning (err, "msg2: {}", logmemcpy ((void*) &err, tls_size * 8));
   assert_int_equal (err, bl_alloc);
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
+static void bounded_allocation (void **state)
+{
+  static const uword bounded_size = 128;
+
+  context* c = (context*) *state;
+  malc_cfg cfg;
+  bl_err err = malc_get_cfg (c->l, &cfg);
+  assert_int_equal (err, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+  cfg.alloc.fixed_allocator_bytes = bounded_size; /* bounded queue */
+  cfg.alloc.fixed_allocator_max_slots = 1;
+  cfg.alloc.fixed_allocator_per_cpu = true;
+  cfg.alloc.msg_allocator = nullptr; /* No dynamic allocation */
+
+  err = malc_init (c->l, &cfg);
+  assert_int_equal (err, bl_ok);
+
+  log_warning (err, "msg1: {}", 1);
+  assert_int_equal (err, bl_ok);
+
+  err = malc_run_consume_task (c->l, 10000);
+  assert_int_equal (err, bl_ok);
+
+  assert_int_equal (malc_array_dst_size (c->dst), 1);
+  assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
+
+  log_warning (err, "msg2: {}", logmemcpy ((void*) &err, bounded_size * 8));
+  assert_int_equal (err, bl_alloc);
+
+  termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
 static void dynamic_allocation (void **state)
@@ -138,16 +183,19 @@ static void dynamic_allocation (void **state)
   log_warning (err, "msg1: {}", 1);
   assert_int_equal (err, bl_ok);
 
-  err = malc_run_consume_task (c->l, 50000);
+  err = malc_run_consume_task (c->l, 10000);
   assert_int_equal (err, bl_ok);
 
   assert_int_equal (malc_array_dst_size (c->dst), 1);
   assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
+
+  termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
+  cmocka_unit_test_setup_teardown (bounded_allocation, setup, teardown),
   cmocka_unit_test_setup_teardown (dynamic_allocation, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
