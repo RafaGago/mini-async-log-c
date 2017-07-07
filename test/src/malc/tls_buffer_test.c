@@ -85,7 +85,7 @@ static void tls_single_alloc_too_big_test (void **state)
 {
   u8* mem;
   bl_err err = tls_buffer_alloc (&mem, tls_buff_slots + 1);
-  assert_int_equal (err, bl_would_overflow);
+  assert_int_equal (err, bl_alloc);
 }
 /*----------------------------------------------------------------------------*/
 static void tls_double_alloc_too_big_test (void **state)
@@ -97,7 +97,7 @@ static void tls_double_alloc_too_big_test (void **state)
   assert_ptr_equal (mem, c->t->mem);
   *((uword*) mem) = DUMMY_POINTER_VALUE;
   err = tls_buffer_alloc (&mem, 1);
-  assert_int_equal (err, bl_would_overflow);
+  assert_int_equal (err, bl_alloc);
 }
 /*----------------------------------------------------------------------------*/
 static void tls_dealloc_test (void **state)

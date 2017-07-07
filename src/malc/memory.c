@@ -45,7 +45,7 @@ bl_err memory_tls_init_unregistered(
     return bl_locked;
   }
   tls_buffer* t;
-  u32 slots  = round_to_next_multiple (bytes, (u32) alloc_slot_size);
+  u32 slots  = div_ceil (bytes, (u32) alloc_slot_size);
   bl_err err = tls_buffer_init(
     &t, alloc_slot_size, slots, alloc, destructor_fn, destructor_context
     );

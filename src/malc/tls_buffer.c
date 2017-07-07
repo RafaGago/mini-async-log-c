@@ -14,15 +14,15 @@
 /*----------------------------------------------------------------------------*/
 static bl_thread_local void* malc_tls = nullptr;
 /*----------------------------------------------------------------------------*/
-/* Workaround GCC issues with extern thread_local */
 void tls_buffer_thread_local_set (void* mem)
 {
+  /* Some GDB versions sefault on TLS var access, set breakpoints afterwards*/
   malc_tls = mem;
 }
 /*----------------------------------------------------------------------------*/
-/* Workaround GCC issues with extern thread_local */
 void* tls_buffer_thread_local_get (void)
 {
+  /* Some GDB versions sefault on TLS var access, set breakpoints afterwards*/
   return malc_tls;
 }
 /*----------------------------------------------------------------------------*/
@@ -60,6 +60,7 @@ bl_err tls_buffer_init(
 /*----------------------------------------------------------------------------*/
 void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque)
 {
+  /* Some GDB versions sefault on TLS var access, set breakpoints afterwards*/
   if (malc_tls && (void*) malc_tls == opaque) {
     malc_tls      = nullptr;
     tls_buffer* t = (tls_buffer*) opaque;
@@ -67,6 +68,7 @@ void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque)
       t->destructor_fn (opaque, t->destructor_context);
     }
   }
+  /* Some GDB versions sefault on TLS var access, set breakpoints afterwards*/
   else if (malc_tls && (void*) malc_tls != opaque) {
     bl_assert (0 && "bad destruction (logger wrongly reinitialized)");
   }
@@ -74,13 +76,14 @@ void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque)
 /*----------------------------------------------------------------------------*/
 bl_err tls_buffer_alloc (u8** mem, u32 slots)
 {
+  /* Some GDB versions sefault on TLS var access, set breakpoints afterwards*/
   tls_buffer* t = malc_tls;
   if (unlikely (!t)) {
     return bl_alloc;
   }
   bl_assert (slots != 0 && mem && t);
   if (unlikely (slots > t->slot_count)) {
-    return bl_would_overflow;
+    return bl_alloc;
   }
   /* Segfaults here are most likely caused by a thread enqueueing after the
   termination function has been called, which is forbidded but not enforced
@@ -97,7 +100,7 @@ bl_err tls_buffer_alloc (u8** mem, u32 slots)
   while (check_iter < slot_end) {
     uword first_word = atomic_uword_load_rlx ((atomic_uword*) check_iter);
     if (unlikely (first_word != TLS_BUFFER_FREE_UWORD)) {
-      return bl_would_overflow;
+      return bl_alloc;
     }
     check_iter += t->slot_size;
   }

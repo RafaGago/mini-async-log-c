@@ -12,16 +12,15 @@
    size.
 
    TLS_BUFFER_FREE_UWORD is set to 1, so the first value on the chunk can be
-   a pointer. 1 is an invalid value in a non-tagged pointer
+   a pointer. 1 is a value that will never be returned by the OS. Don't use
+   tagged pointers that can set a ptr to 1 when using this.
 
-   This makes it a suitable allocator for intrusive list nodes of variable
-   size. The first word will be a pointer and the size has to be stored
-   somewhere else */
+   This makes it a suitable allocator for intrusive list nodes provided that the
+   first word contains the pointer (the allocation size has to be stored on the
+   node too to be able to deallocate).
+   */
 
 #define TLS_BUFFER_FREE_UWORD ((uword) 1)
-/*----------------------------------------------------------------------------*/
-//extern bl_thread_local void* malc_tls;
-//thread_local void* malc_tls;
 /*----------------------------------------------------------------------------*/
 typedef void (*tls_destructor) (void* mem, void* context);
 /*----------------------------------------------------------------------------*/
@@ -45,9 +44,9 @@ extern bl_err tls_buffer_init(
   void*            destructor_context
   );
 /*----------------------------------------------------------------------------*/
-extern void tls_buffer_thread_local_set (void* mem); /* Workaround GCC issues */
+extern void tls_buffer_thread_local_set (void* mem);
 /*----------------------------------------------------------------------------*/
-extern void* tls_buffer_thread_local_get (void); /* Workaround GCC issues */
+extern void* tls_buffer_thread_local_get (void);
 /*----------------------------------------------------------------------------*/
 extern void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque);
 /*----------------------------------------------------------------------------*/
