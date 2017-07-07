@@ -1,6 +1,7 @@
 #include <bl/cmocka_pre.h>
 #include <bl/base/default_allocator.h>
 #include <bl/base/utility.h>
+#include <bl/base/thread.h>
 
 #include <malc/malc.h>
 #include <malc/destinations/array.h>
@@ -192,11 +193,43 @@ static void dynamic_allocation (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void own_thread_and_flush (void **state)
+{
+  context* c = (context*) *state;
+  malc_cfg cfg;
+  bl_err err = malc_get_cfg (c->l, &cfg);
+  assert_int_equal (err, bl_ok);
+
+  cfg.consumer.start_own_thread   = true;
+  cfg.alloc.fixed_allocator_bytes = 0; /* No TLS, No bounded queue */
+  assert_non_null (cfg.alloc.msg_allocator);
+
+  err = malc_init (c->l, &cfg);
+  assert_int_equal (err, bl_ok);
+
+  log_warning (err, "msg1: {}", 1);
+  assert_int_equal (err, bl_ok);
+
+  /* flush, so the entry is processed by the consumer thread */
+  err = malc_flush (c->l);
+  assert_int_equal (err, bl_ok);
+
+  /* this isn't actually thread-safe, it's just the yield that makes it
+  succeed */
+  bl_thread_yield();
+  assert_int_equal (malc_array_dst_size (c->dst), 1);
+  assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
+
+  err = malc_terminate (c->l, false);
+  assert_int_equal (err, bl_ok);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
   cmocka_unit_test_setup_teardown (bounded_allocation, setup, teardown),
   cmocka_unit_test_setup_teardown (dynamic_allocation, setup, teardown),
+  cmocka_unit_test_setup_teardown (own_thread_and_flush, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)

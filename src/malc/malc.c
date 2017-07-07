@@ -259,7 +259,7 @@ MALC_EXPORT bl_err malc_flush (malc* l)
 {
   uword current = st_get_updated_state_val;
   (void) atomic_uword_strong_cas_rlx (&l->state, &current, st_invalid);
-  if (current != st_running) {
+  if (current != st_running && current != st_first_consume_run) {
     return bl_preconditions;
   }
   malc_send_blocking_flush (l);
@@ -273,10 +273,9 @@ MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
     return bl_preconditions;
   }
   if (!is_consume_task_thread) {
-    malc_send_blocking_flush (l);
     nonblock_backoff b;
     nonblock_backoff_init_default (&b, 1000);
-    while (atomic_uword_load_rlx (&l->state) == st_stopped) {
+    while (atomic_uword_load_rlx (&l->state) != st_stopped) {
       nonblock_backoff_run (&b);
     }
   }
