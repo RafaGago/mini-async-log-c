@@ -358,6 +358,7 @@ bl_err destinations_set_cfg (
   if (unlikely (!dest)) {
     return bl_invalid;
   }
+  d->min_severity    = (uword) -1;
   d->filter_max_time = 0;
   FOREACH_DESTINATION (d->mem, dest) {
     d->min_severity = bl_min (d->min_severity, dest->cfg.severity);

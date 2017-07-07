@@ -224,12 +224,59 @@ static void own_thread_and_flush (void **state)
   assert_int_equal (err, bl_ok);
 }
 /*----------------------------------------------------------------------------*/
+static void severity_change (void **state)
+{
+  context* c = (context*) *state;
+  malc_cfg cfg;
+  bl_err err = malc_get_cfg (c->l, &cfg);
+  assert_int_equal (err, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  malc_dst_cfg dcfg;
+  dcfg.log_rate_filter_time = 0;
+  dcfg.show_timestamp       = false;
+  dcfg.show_severity        = false;
+  dcfg.severity             = malc_sev_debug;
+  dcfg.severity_file_path   = nullptr;
+
+  err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  assert_int_equal (err, bl_ok);
+
+  err = malc_init (c->l, &cfg);
+  assert_int_equal (err, bl_ok);
+
+  log_debug (err, "unfiltered");
+  assert_int_equal (err, bl_ok);
+
+  err = malc_run_consume_task (c->l, 10000);
+  assert_int_equal (err, bl_ok);
+
+  assert_int_equal (malc_array_dst_size (c->dst), 1);
+  assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "unfiltered");
+
+  dcfg.severity = malc_sev_warning;
+  err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  assert_int_equal (err, bl_ok);
+
+  log_debug (err, "filtered");
+  assert_int_equal (err, bl_ok);
+
+  err = malc_run_consume_task (c->l, 10000);
+  assert_int_equal (err, bl_nothing_to_do); /*filtered out at the call site*/
+
+  assert_int_equal (malc_array_dst_size (c->dst), 1);
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
   cmocka_unit_test_setup_teardown (bounded_allocation, setup, teardown),
   cmocka_unit_test_setup_teardown (dynamic_allocation, setup, teardown),
   cmocka_unit_test_setup_teardown (own_thread_and_flush, setup, teardown),
+  cmocka_unit_test_setup_teardown (severity_change, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)

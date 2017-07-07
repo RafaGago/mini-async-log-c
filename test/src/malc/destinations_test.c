@@ -130,9 +130,9 @@ static void destinations_cfg_test (void **state)
   cfg[0].severity = malc_sev_debug;
   cfg[1].severity = malc_sev_trace;
 
-  err = destinations_set_cfg (&c->d, &cfg[0], id[0]);
-  assert_int_equal (bl_ok, err);
   err = destinations_set_cfg (&c->d, &cfg[1], id[1]);
+  assert_int_equal (bl_ok, err);
+  err = destinations_set_cfg (&c->d, &cfg[0], id[0]);
   assert_int_equal (bl_ok, err);
 
   memset (cfg, 0, sizeof cfg);
@@ -144,6 +144,7 @@ static void destinations_cfg_test (void **state)
 
   assert_int_equal (malc_sev_debug, cfg[0].severity);
   assert_int_equal (malc_sev_trace, cfg[1].severity);
+  assert_int_equal (malc_sev_debug, destinations_min_severity (&c->d));
 }
 /*----------------------------------------------------------------------------*/
 static void destinations_idle_task_test (void **state)
