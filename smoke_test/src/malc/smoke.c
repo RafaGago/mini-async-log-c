@@ -335,6 +335,61 @@ static void severity_two_destinations (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void integer_formats (void **state)
+{
+  context* c = (context*) *state;
+  malc_cfg cfg;
+  bl_err err = malc_get_cfg (c->l, &cfg);
+  assert_int_equal (err, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = malc_init (c->l, &cfg);
+  assert_int_equal (err, bl_ok);
+
+  log_warning(
+    err,
+    "{} {} {} {} {} {} {} {}",
+    (u8) 1,
+    (i8) -1,
+    (u16) 1,
+    (i16) -1,
+    (u32) 1,
+    (i32) -1,
+    (u64) 1,
+    (i64) -1,
+    );
+  assert_int_equal (err, bl_ok);
+
+  err = malc_run_consume_task (c->l, 10000);
+  assert_int_equal (err, bl_ok);
+
+  assert_int_equal (malc_array_dst_size (c->dst), 1);
+  assert_string_equal(
+    malc_array_dst_get_entry (c->dst, 0), "1 -1 1 -1 1 -1 1 -1"
+    );
+
+  log_warning(
+    err,
+    "{0Nx} {0Nx} {0Nx} {0Nx}",
+    (u8) 0x0e,
+    (u16) 0x0ffe,
+    (u32) 0x0ffffffe,
+    (u64) 0x0ffffffffffffffe,
+    );
+  assert_int_equal (err, bl_ok);
+
+  err = malc_run_consume_task (c->l, 10000);
+  assert_int_equal (err, bl_ok);
+
+  assert_int_equal (malc_array_dst_size (c->dst), 2);
+  assert_string_equal(
+    malc_array_dst_get_entry (c->dst, 1), "0e 0ffe 0ffffffe 0ffffffffffffffe"
+    );
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -343,6 +398,7 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (own_thread_and_flush, setup, teardown),
   cmocka_unit_test_setup_teardown (severity_change, setup, teardown),
   cmocka_unit_test_setup_teardown (severity_two_destinations, setup, teardown),
+  cmocka_unit_test_setup_teardown (integer_formats, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)
