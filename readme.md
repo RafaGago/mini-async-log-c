@@ -11,8 +11,9 @@ Features
 
 - Very high performance. Very hard to be faster for a generic library.
 
-- Various memory (log entry) sources: TLS, common bounded "heap" and the C
-  library heap. All can be used at the same time.
+- Various memory (log entry) sources: Thread Local Storage buffer, common
+  bounded buffer (configurable to one buffer for each CPU) and custom allocators
+  (can default to the heap).
 
 - Type-safe format strings. Achieved through C11 type-generic expressions and
   (unfortunately) preprocessor abusing.
