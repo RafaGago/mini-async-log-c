@@ -9,7 +9,7 @@ Based on the lessons learned on its older C++ counterpart mini-async-log.
 Features
 ========
 
-- Very high performance.
+- Very high performance. Very hard to be faster for a generic library.
 
 - Various memory (log entry) sources: TLS, common bounded "heap" and the C
   library heap. All can be used at the same time.
@@ -20,14 +20,17 @@ Features
 - C++ compatible/compilable.
 
 - No consumer logger thread ownership. The client application can run the
-  logger main loop from an existing (maybe shared for other purposes) thread.
+  logger's consumer thread main loop from an existing (maybe shared for other
+  purposes) thread.
 
-- Basic security features: Log entry rate limiting and newline removal (to
-  be used if bindings to other languages are written).
+- Basic security features: Log entry rate limiting and newline removal.
 
 - Extensible log destinations (sinks).
 
 - Compile-time removable severities.
+
+- Zero-copy logging of strings/memory ranges providing a callback, suitable for
+  deallocation or reference count decrementing.
 
 - Very decent test coverage.
 
