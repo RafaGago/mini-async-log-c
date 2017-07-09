@@ -270,6 +270,71 @@ static void severity_change (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void severity_two_destinations (void **state)
+{
+  char lines[64][80];
+  u32             dst_id2;
+  malc_array_dst* dst2;
+
+  context* c = (context*) *state;
+
+  bl_err err = malc_add_destination (c->l, &dst_id2, &malc_array_dst_tbl);
+  assert_int_equal (err, bl_ok);
+  err = malc_get_destination_instance (c->l, (void**) &dst2, dst_id2);
+  assert_int_equal (err, bl_ok);
+  malc_array_dst_set_array(
+    dst2, (char*) lines, arr_elems (lines), arr_elems (lines[0])
+    );
+
+  malc_dst_cfg dcfg;
+  dcfg.log_rate_filter_time = 0;
+  dcfg.show_timestamp       = false;
+  dcfg.show_severity        = false;
+  dcfg.severity             = malc_sev_debug;
+  dcfg.severity_file_path   = nullptr;
+
+  err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  assert_int_equal (err, bl_ok);
+
+  dcfg.severity = malc_sev_error;
+  err = malc_set_destination_cfg (c->l, &dcfg, dst_id2);
+  assert_int_equal (err, bl_ok);
+
+  malc_cfg cfg;
+  err = malc_get_cfg (c->l, &cfg);
+  assert_int_equal (err, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = malc_init (c->l, &cfg);
+  assert_int_equal (err, bl_ok);
+
+  log_debug (err, "filtered");
+  assert_int_equal (err, bl_ok);
+
+  err = malc_run_consume_task (c->l, 10000);
+  assert_int_equal (err, bl_ok);
+
+  assert_int_equal (malc_array_dst_size (c->dst), 1);
+  assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "filtered");
+
+  assert_int_equal (malc_array_dst_size (dst2), 0);
+
+  log_error (err, "unfiltered");
+  assert_int_equal (err, bl_ok);
+
+  err = malc_run_consume_task (c->l, 10000);
+  assert_int_equal (err, bl_ok);
+
+  assert_int_equal (malc_array_dst_size (c->dst), 2);
+  assert_string_equal (malc_array_dst_get_entry (c->dst, 1), "unfiltered");
+
+  assert_int_equal (malc_array_dst_size (dst2), 1);
+  assert_string_equal (malc_array_dst_get_entry (dst2, 0), "unfiltered");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -277,6 +342,7 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (dynamic_allocation, setup, teardown),
   cmocka_unit_test_setup_teardown (own_thread_and_flush, setup, teardown),
   cmocka_unit_test_setup_teardown (severity_change, setup, teardown),
+  cmocka_unit_test_setup_teardown (severity_two_destinations, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)
