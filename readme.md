@@ -81,5 +81,6 @@ Meson 0.41 is used. In Ubuntu:
 TODO
 ==================
 
--TLS buffers lifetimes (destroy them in destructor (requires a list), consider
-tls_init on existant buffers...).
+-Rotating file writer.
+-Add more smoke tests.
+-Benchmark/optimize.
