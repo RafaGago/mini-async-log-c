@@ -89,15 +89,14 @@ qnode_tls_alloc;
 /*----------------------------------------------------------------------------*/
 static void malc_tls_destructor (void* mem, void* context)
 {
-/*When a thread goes out of scope we can't just erase the buffer TLS memory
-  chunk, such deallocation could leave dangled entries on the queue. To
-  guarantee that all the previous entries of a thread have been processed before
-  the command the special node is sent to the tail of the queue. This node just
-  commands the producer to deallocate the whole chunk it points to.
+/*When a thread goes out of scope we can't just deallocate its TLS memory
+  chunk/buffer; an immediate deallocation could leave dangled entries on the
+  queue. To guarantee that all the previous entries of a thread have been
+  processed before deallocating the TLS chunk the deallocation is done by
+  sending a deallocation command to the consumer thread using the same log
+  queue. This guarantees that all log entries belonging to this memory chunk
+  have been processed before. */
 
-  The node hook overwrites the TLS buffer header to guarantee that this
-  message can be sent even when the full TLS buffer is pending on the queue
-  (sse static_assert below). */
   static_assert_ns (sizeof (qnode) <= sizeof (tls_buffer));
   malc*  l = (malc*) context;
   qnode* n = (qnode*) mem;
