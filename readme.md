@@ -84,3 +84,4 @@ TODO
 -Rotating file writer.
 -Add more smoke tests.
 -Benchmark/optimize.
+-Move destination log data to a struct.
