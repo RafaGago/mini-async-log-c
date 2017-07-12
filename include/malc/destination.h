@@ -8,6 +8,23 @@
 #include <bl/base/time.h>
 
 /*------------------------------------------------------------------------------
+tstamp:     timestamp string (from a monotonic clock).
+tstamp_len: timestamp string length. Can be zero depending on the configuration.
+sev:        severity string
+sev_len:    severity string length. Can be zero depending on the configuration.
+text:       log entry text. It won't contain an added trailing newline.
+text_len:   log entry text length. Can't be zero.
+------------------------------------------------------------------------------*/
+typedef struct malc_log_strings {
+  char const* tstamp; /* from a monotonic clock */
+  uword       tstamp_len;
+  char const* sev;
+  uword       sev_len;
+  char const* text;
+  uword       text_len;
+}
+malc_log_strings;
+/*------------------------------------------------------------------------------
 log_rate_filter_time:
   Rate filter period. The same log entry arriving before this time will be
   discarded. 0 = disabled.
@@ -61,14 +78,8 @@ idle_task:
 
 write:
   Log write. Mandatory.
-
-    now:           current timestamp, can be used for timeouts
-    timestamp:     timestamp string
-    timestamp_len: timestamp string length. can be zero
-    severity:      severity string
-    severity_len:  severity string length. can be zero
-    text:          log entry text
-    text_len:      log entry text length. can't be zero
+    now:  current timestamp, can be used internally.
+    strs: log strings.
 ------------------------------------------------------------------------------*/
 typedef struct malc_dst {
   uword size_of;
@@ -77,15 +88,7 @@ typedef struct malc_dst {
   bl_err (*flush)     (void* instance);
   bl_err (*idle_task) (void* instance);
   bl_err (*write)(
-    void*       instance,
-    tstamp      now,
-    uword       severity_val,
-    char const* timestamp,
-    uword       timestamp_len,
-    char const* severity,
-    uword       severity_len,
-    char const* text,
-    uword       text_len
+    void* instance, tstamp now, uword sev_val, malc_log_strings const* strs
     );
 }
 malc_dst;

@@ -356,7 +356,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
           );
         if (!err) {
           log_entry le = deserializer_get_log_entry (&l->ds);
-          log_strings strs;
+          malc_log_strings strs;
           bl_err entry_err = entry_parser_get_log_strings (&l->ep, &le, &strs);
           if (likely (!entry_err)) {
             /*NOTE: Possible problem when using the rate_filter:
@@ -376,7 +376,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
             Note that log lines that prefix the file and line are not affected
             by this. */
             destinations_write(
-              &l->dst, (uword) le.entry->format, now, le.entry->info[0], strs
+              &l->dst, (uword) le.entry->format, now, le.entry->info[0], &strs
               );
           }
           if (le.refdtor.func) {

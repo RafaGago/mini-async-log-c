@@ -384,7 +384,7 @@ static bl_err parse_text(
 }
 /*----------------------------------------------------------------------------*/
 BL_EXPORT bl_err entry_parser_get_log_strings(
-  entry_parser* ep, log_entry const* e, log_strings* strs
+  entry_parser* ep, log_entry const* e, malc_log_strings* strs
   )
 {
   if (unlikely(

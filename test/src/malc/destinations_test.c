@@ -46,15 +46,7 @@ bl_err mock_dest_idle_task (void* instance)
 }
 /*----------------------------------------------------------------------------*/
 bl_err mock_dest_write(
-  void*       instance,
-  tstamp      now,
-  uword       sev,
-  char const* timestamp,
-  uword       timestamp_len,
-  char const* severity,
-  uword       severity_len,
-  char const* text,
-  uword       text_len
+  void* instance, tstamp now, uword sev, malc_log_strings const* s
   )
 {
   mock_dest* d = (mock_dest*) instance;
@@ -195,9 +187,9 @@ static void destinations_write_test (void **state)
   mock_dest* mock[2];
 
   destinations_do_add (c, id, mock);
-  log_strings strings;
+  malc_log_strings strings;
   memset (&strings, 0, sizeof strings);
-  destinations_write (&c->d, 0, 0, malc_sev_critical, strings);
+  destinations_write (&c->d, 0, 0, malc_sev_critical, &strings);
 
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
@@ -206,11 +198,11 @@ static void destinations_write_test (void **state)
 static void destinations_write_sev_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  u32          id[2];
-  mock_dest*   mock[2];
-  malc_dst_cfg cfg;
-  bl_err       err;
-  log_strings  strings;
+  u32              id[2];
+  mock_dest*       mock[2];
+  malc_dst_cfg     cfg;
+  bl_err           err;
+  malc_log_strings strings;
 
   memset (&strings, 0, sizeof strings);
 
@@ -222,11 +214,11 @@ static void destinations_write_sev_test (void **state)
   err = destinations_set_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (bl_ok, err);
 
-  destinations_write (&c->d, 0, 0, malc_sev_error, strings);
+  destinations_write (&c->d, 0, 0, malc_sev_error, &strings);
   assert_int_equal (mock[0]->write, 0);
   assert_int_equal (mock[1]->write, 1);
 
-  destinations_write (&c->d, 0, 0, malc_sev_critical, strings);
+  destinations_write (&c->d, 0, 0, malc_sev_critical, &strings);
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 2);
 }
@@ -244,11 +236,11 @@ static void write_sev_file (char const* text)
 static void destinations_write_rate_filter_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  u32          id[2];
-  mock_dest*   mock[2];
-  malc_dst_cfg cfg;
-  bl_err       err;
-  log_strings  strings;
+  u32              id[2];
+  mock_dest*       mock[2];
+  malc_dst_cfg     cfg;
+  bl_err           err;
+  malc_log_strings strings;
 
   memset (&strings, 0, sizeof strings);
 
@@ -273,17 +265,17 @@ static void destinations_write_rate_filter_test (void **state)
   assert_int_equal (bl_ok, err);
 
   tstamp t = 0;
-  destinations_write (&c->d, 0, t, malc_sev_critical, strings);
+  destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
 
   t += bl_usec_to_tstamp (2);
-  destinations_write (&c->d, 0, t, malc_sev_critical, strings);
+  destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
   assert_int_equal (mock[0]->write, 2);
   assert_int_equal (mock[1]->write, 2);
 
   t += bl_usec_to_tstamp (1);
-  destinations_write (&c->d, 0, t, malc_sev_critical, strings);
+  destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
   /*filtered out: less than 2 us with last entry */
   assert_int_equal (mock[0]->write, 2);
   assert_int_equal (mock[1]->write, 2);
@@ -292,11 +284,11 @@ static void destinations_write_rate_filter_test (void **state)
 static void destinations_write_rate_filter_severity_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  u32          id[2];
-  mock_dest*   mock[2];
-  malc_dst_cfg cfg;
-  bl_err       err;
-  log_strings  strings;
+  u32              id[2];
+  mock_dest*       mock[2];
+  malc_dst_cfg     cfg;
+  bl_err           err;
+  malc_log_strings strings;
 
   memset (&strings, 0, sizeof strings);
 
@@ -323,18 +315,18 @@ static void destinations_write_rate_filter_severity_test (void **state)
   assert_int_equal (bl_ok, err);
 
   tstamp t = 0;
-  destinations_write (&c->d, 0, t, malc_sev_critical, strings);
+  destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
 
   t += bl_usec_to_tstamp (1);
-  destinations_write (&c->d, 0, t, malc_sev_warning, strings);
+  destinations_write (&c->d, 0, t, malc_sev_warning, &strings);
   /*filtered out: severity */
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
 
   t += bl_usec_to_tstamp (1);
-  destinations_write (&c->d, 0, t, malc_sev_note, strings);
+  destinations_write (&c->d, 0, t, malc_sev_note, &strings);
   /*not filtered out: severity */
   assert_int_equal (mock[0]->write, 2);
   assert_int_equal (mock[1]->write, 2);
@@ -343,11 +335,11 @@ static void destinations_write_rate_filter_severity_test (void **state)
 static void destinations_sev_file_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  u32          id[2];
-  mock_dest*   mock[2];
-  malc_dst_cfg cfg;
-  bl_err       err;
-  log_strings  strings;
+  u32              id[2];
+  mock_dest*       mock[2];
+  malc_dst_cfg     cfg;
+  bl_err           err;
+  malc_log_strings strings;
 
   memset (&strings, 0, sizeof strings);
 

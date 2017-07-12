@@ -7,7 +7,6 @@
 #include <bl/base/ringbuffer.h>
 
 #include <malc/malc.h>
-#include <malc/log_strings.h>
 
 /*----------------------------------------------------------------------------*/
 typedef struct past_entry {
@@ -69,7 +68,11 @@ extern void destinations_idle_task (destinations* , tstamp now);
 extern void destinations_flush (destinations* d);
 /*----------------------------------------------------------------------------*/
 extern void destinations_write(
-  destinations* d, uword entry_id, tstamp now, uword sev, log_strings strs
+  destinations*           d,
+  uword                   entry_id,
+  tstamp                  now,
+  uword                   sev,
+  malc_log_strings const* strs
   );
 /*----------------------------------------------------------------------------*/
 extern bl_err destinations_get_instance(

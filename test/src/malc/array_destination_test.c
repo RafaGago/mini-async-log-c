@@ -19,6 +19,9 @@ array_dst_context;
 static const uword entry_len =
   sizeof_member (array_dst_context, entries[0]) - 1;
 /*----------------------------------------------------------------------------*/
+#define MALC_LOG_STRS_INITIALIZER(t, s, txt)\
+  { t, lit_len (t), s, lit_len (s), txt, lit_len (txt) }
+/*----------------------------------------------------------------------------*/
 static int array_dst_test_setup (void **state)
 {
   static array_dst_context c;
@@ -38,9 +41,8 @@ static void array_dst_basic (void **state)
 {
   array_dst_context* c = (array_dst_context*) *state;
   for (uword i = 0; i < arr_elems (c->entries) - 1; ++i) {
-    bl_err err = malc_array_dst_tbl.write(
-      (void*) c->ad, 0, 0, "1", 1, "2", 1, "3", 1
-      );
+    malc_log_strings s = MALC_LOG_STRS_INITIALIZER ("1", "2", "3");
+    bl_err err = malc_array_dst_tbl.write ((void*) c->ad, 0, 0, &s);
     assert_int_equal (bl_ok, err);
     assert_int_equal (i + 1, malc_array_dst_size (c->ad));
     char const* e = malc_array_dst_get_entry (c->ad, i);
@@ -55,9 +57,10 @@ static void array_dst_rotation (void **state)
   array_dst_context* c = (array_dst_context*) *state;
   for (uword i = 0; i < arr_elems (c->entries); ++i) {
     char ch = (char) i + 1;
-    bl_err err = malc_array_dst_tbl.write(
-      (void*) c->ad, 0, 0, &ch, 1, "", 0, "", 0
-      );
+    malc_log_strings s = MALC_LOG_STRS_INITIALIZER ("", "", "");
+    s.tstamp     = &ch;
+    s.tstamp_len = 1;
+    bl_err err = malc_array_dst_tbl.write ((void*) c->ad, 0, 0, &s);
     assert_int_equal (bl_ok, err);
   }
   char const* e = malc_array_dst_get_entry (c->ad, 0);
@@ -74,9 +77,8 @@ static void array_dst_all_truncations (void **state)
   array_dst_context* c = (array_dst_context*) *state;
 
   /*truncation on tstamp*/
-  bl_err err = malc_array_dst_tbl.write(
-    (void*) c->ad, 0, 0, "1234567890", 10, "", 0, "", 0
-    );
+  malc_log_strings s = MALC_LOG_STRS_INITIALIZER ("1234567890", "", "");
+  bl_err err = malc_array_dst_tbl.write ((void*) c->ad, 0, 0, &s);
   assert_int_equal (bl_ok, err);
   char const* e = malc_array_dst_get_entry (c->ad, 0);
   assert_non_null (e);
@@ -84,9 +86,8 @@ static void array_dst_all_truncations (void **state)
   assert_int_equal (0, memcmp (e, "123456789012345", entry_len));
 
   /*truncation on sev*/
-  err = malc_array_dst_tbl.write(
-    (void*) c->ad, 0, 0, "", 0, "1234567890", 10, "", 0
-    );
+  malc_log_strings s2 = MALC_LOG_STRS_INITIALIZER ("", "1234567890", "");
+  err = malc_array_dst_tbl.write((void*) c->ad, 0, 0, &s2);
   assert_int_equal (bl_ok, err);
   e = malc_array_dst_get_entry (c->ad, 1);
   assert_non_null (e);
@@ -94,9 +95,8 @@ static void array_dst_all_truncations (void **state)
   assert_int_equal (0, memcmp (e, "123456789012345", entry_len));
 
   /*truncation on text*/
-  err = malc_array_dst_tbl.write(
-    (void*) c->ad, 0, 0, "", 0, "", 0, "1234567890", 10
-    );
+  malc_log_strings s3 = MALC_LOG_STRS_INITIALIZER ("", "", "1234567890");
+  err = malc_array_dst_tbl.write((void*) c->ad, 0, 0, &s3);
   assert_int_equal (bl_ok, err);
   e = malc_array_dst_get_entry (c->ad, 2);
   assert_non_null (e);

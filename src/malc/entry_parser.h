@@ -5,7 +5,6 @@
 #include <bl/base/dynamic_string.h>
 #include <malc/malc.h>
 #include <malc/log_entry.h>
-#include <malc/log_strings.h>
 
 /*----------------------------------------------------------------------------*/
 /*  on-header strings only to be able to unit test*/
@@ -50,7 +49,7 @@ BL_EXPORT bl_err entry_parser_init (entry_parser* ep, alloc_tbl const* alloc);
 BL_EXPORT void entry_parser_destroy (entry_parser* ep);
 /*----------------------------------------------------------------------------*/
 BL_EXPORT bl_err entry_parser_get_log_strings(
-  entry_parser* ep, log_entry const* e, log_strings* strs
+  entry_parser* ep, log_entry const* e, malc_log_strings* strs
   );
 /*----------------------------------------------------------------------------*/
 #endif

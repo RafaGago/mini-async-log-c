@@ -245,8 +245,22 @@ void destinations_flush (destinations* d)
   }
 }
 /*----------------------------------------------------------------------------*/
+static malc_log_strings get_entry_strings(
+  destination* dest, malc_log_strings const* strs
+  )
+{
+  malc_log_strings s = *strs;
+  s.tstamp_len = dest->cfg.show_timestamp ? strs->tstamp_len : 0;
+  s.sev_len    = dest->cfg.show_severity ? strs->sev_len : 0;
+  return s;
+}
+/*----------------------------------------------------------------------------*/
 void destinations_write(
-  destinations* d, uword entry_id, tstamp now, uword sev, log_strings strs
+  destinations*           d,
+  uword                   entry_id,
+  tstamp                  now,
+  uword                   sev,
+  malc_log_strings const* strs
   )
 {
   destination* dest;
@@ -255,17 +269,8 @@ void destinations_write(
     FOREACH_DESTINATION (d->mem, dest) {
       bl_assert (dest->dst.write);
       if (sev >= dest->cfg.severity) {
-        (void) dest->dst.write(
-          destination_get_instance (dest),
-          now,
-          sev,
-          strs.tstamp,
-          dest->cfg.show_timestamp ? strs.tstamp_len : 0,
-          strs.sev,
-          dest->cfg.show_severity ? strs.sev_len : 0,
-          strs.text,
-          strs.text_len
-          );
+        malc_log_strings s = get_entry_strings (dest, strs);
+        (void) dest->dst.write (destination_get_instance (dest), now, sev, &s);
       }
     }
   }
@@ -289,17 +294,8 @@ void destinations_write(
             continue;
           }
         }
-        (void) dest->dst.write(
-          destination_get_instance (dest),
-          now,
-          sev,
-          strs.tstamp,
-          dest->cfg.show_timestamp ? strs.tstamp_len : 0,
-          strs.sev,
-          dest->cfg.show_severity ? strs.sev_len : 0,
-          strs.text,
-          strs.text_len
-          );
+        malc_log_strings s = get_entry_strings (dest, strs);
+        (void) dest->dst.write (destination_get_instance (dest), now, sev, &s);
       }
     }
     if (!pe) {

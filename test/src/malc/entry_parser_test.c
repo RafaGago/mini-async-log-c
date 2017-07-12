@@ -23,11 +23,11 @@
    ROI knowing the implementation but it's a good practice) */
 /*----------------------------------------------------------------------------*/
 typedef struct malc {
-  alloc_tbl    alloc;
-  bl_err       ep_err;
-  tstamp       timestamp;
-  entry_parser ep;
-  log_strings  strs;
+  alloc_tbl        alloc;
+  bl_err           ep_err;
+  tstamp           timestamp;
+  entry_parser     ep;
+  malc_log_strings strs;
 }
 eparser_context;
 /*----------------------------------------------------------------------------*/

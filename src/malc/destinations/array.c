@@ -23,15 +23,7 @@ static bl_err malc_array_dst_init (void* instance, alloc_tbl const* alloc)
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_array_dst_write(
-    void*       instance,
-    tstamp      now,
-    uword       severity_val,
-    char const* timestamp,
-    uword       timestamp_len,
-    char const* severity,
-    uword       severity_len,
-    char const* text,
-    uword       text_len
+    void* instance, tstamp now, uword sev_val, malc_log_strings const* strs
     )
 {
   malc_array_dst* d = (malc_array_dst*) instance;
@@ -40,14 +32,14 @@ static bl_err malc_array_dst_write(
   uword eoffset   = d->tail * d->entry_chars;
   uword entry_len = d->entry_chars - 1;
   uword cp;
-  cp   = bl_min (entry_len, timestamp_len);
-  memcpy (&d->mem[eoffset + idx], timestamp, cp);
+  cp   = bl_min (entry_len, strs->tstamp_len);
+  memcpy (&d->mem[eoffset + idx], strs->tstamp, cp);
   idx += cp;
-  cp   = bl_min (entry_len - idx, severity_len);
-  memcpy (&d->mem[eoffset + idx], severity, cp);
+  cp   = bl_min (entry_len - idx, strs->sev_len);
+  memcpy (&d->mem[eoffset + idx], strs->sev, cp);
   idx += cp;
-  cp   = bl_min (entry_len - idx, text_len);
-  memcpy (&d->mem[eoffset + idx], text, cp);
+  cp   = bl_min (entry_len - idx, strs->text_len);
+  memcpy (&d->mem[eoffset + idx], strs->text, cp);
   idx += cp;
   d->mem[eoffset + idx] = 0;
   ++d->tail;
