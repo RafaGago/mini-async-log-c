@@ -37,8 +37,11 @@ extern MALC_EXPORT bl_err malc_get_cfg (malc* l, malc_cfg* cfg);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg);
 /*------------------------------------------------------------------------------
-Sends a message to the queue and waits until it is dequeued and all destinations
-have been flushed (Which means that all previous messages were processed too).
+Sends a flush command message to the logger queue and waits until it is dequeued
+and processed (all destinations have been flushed). As this call is blocking,
+when this call unblocks all the messages logged from this thread have already
+been logged.
+
 If the consume task is not being called for some reason (bug in user code) it
 will block forever.
 ------------------------------------------------------------------------------*/
@@ -50,19 +53,20 @@ will start the necessary steps to cleanly shutdown the logger.
 After calling this function no further log messages can be enqueued by any
 thread.
 
-If you are terminating from the thread that runs the consume_task you have to
-set the "is_consume_task_thread" parameter to true and to keep running
-"malc_run_consume_task" until it returns "bl_preconditions".
+When terminating from the thread that runs the consume_task the
+"is_consume_task_thread" parameter has to be set to "true". Then
+"malc_run_consume_task" has to be run until it returns "bl_preconditions". Not
+doing so will make a "malc_destroy" call to fail.
 
-If you set "is_consume_task_thread" to "true" this call will block until the
-termination has been processed bu the consume task, so you can call
-"malc_destroy" when this function returns.
+If "is_consume_task_thread" is "false" this call will block until the
+termination has been processed bu the consume task, so "malc_destroy" can be
+called when this function returns.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread);
 /*------------------------------------------------------------------------------
 Activates the thread local buffer for the caller thread. Using this buffer makes
-the logging threads wait-free and is the fastest. This logger was designed to
-be used with this buffer enabled.
+the logging thread wait-free (as long as there ios room on the queue) and is the
+fastest. This logger was designed to be used with this buffer enabled.
 
 Each thread has to initialize its thread local storage buffer manually, this is
 done for three reasons:
@@ -72,23 +76,29 @@ done for three reasons:
 
 2.Threads activating the thread local buffer can _never_ outlive the data
   logger, they have to be "join"ed before calling "malc_terminate"(*): when a
-  thread goes out of scope they send the buffer back to the logger instance and
-  it is deallocated from the consume task. This is to ensure that the buffer
-  isn't deallocated before all the entries have been logged (would corrupt the
-  logger queue linked list and cause segmentation faults).
+  thread goes out of scope its TLS/TSS destructor automatically sends the
+  TLS buffer meory back to the logger queue as a deallocation command and then
+  its memory is deallocated from the consume task thread.
 
-  It is very likely that the user that manually calls this function does it from
-  a thread for which he has full control and can comply with this requirement.
+  This is to ensure that the buffer isn't deallocated before all the entries
+  from the now dyung thread have been logged (would corrupt the logger queue
+  linked list and segfault).
+
+  It is very likely that the user that manually calls this function has full
+  control of the thread and can comply with this requirement. Otherwise other
+  log entry allocation strategies are available.
 
   (*) Note that the thread that runs the "malc_terminate" function doesn't
   obviously need to be joined. The "malc_terminate" function deallocates the
-  thread local storage buffer.
+  thread local storage buffer manually.
 
-3.There is no straightforward way to do it from C (which is a good thing, I
+3.There is no straightforward way to do it on C (which is a good thing, I
   would't do it anyways for the two reasons above).
 
 Note that when using thread local storage (per-thread global variables) it's
-only possible to use one library instance on each thread.
+only possible to use one library instance on each thread. A thread logging to
+two memory instances will corrupt both loggers. This is unfixable as it is a
+limitation of Thread Local Storage.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, u32 bytes);
 /*------------------------------------------------------------------------------
@@ -100,23 +110,32 @@ returns bl_ok:            Consumer not in idle-state.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us);
 /*------------------------------------------------------------------------------
-log destination. Can only be added before initializing. Instance will contain
-the memory address of the created instance that can be stored or used for
-further configuration that malc doesn't need to know about.
+Adds a destination. Can only be added before initializing (calling "malc_init").
 
 If run-time modifications are done to the instance/object, keep in mind thread
 safety issues of variables used by the functions pointed by the "malc_dst"
 table.
-
-Note that adding destinations can invalidate references to instances and
-configurations, if you are to save the instances get by
-"malc_get_destination_instance" do it after all your destinations are added
-(through "malc_add_destination").
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_add_destination(
   malc* l, u32* dest_id, malc_dst const* dst
   );
-/*----------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------------
+Gets the allocated and initialized instance of a logger destination. E.g:
+
+  #include <malc/malc.h>
+  #include <malc/destinations/stdouterr.h>
+
+  malc* l = ...;
+  u32   id;
+  (void) malc_add_destination (l, &id, &malc_stdouterr_dst_tbl);
+  malc_stdouterr_dst* dst;
+  (void) malc_get_destination_instance (l (void**) &dst, id);
+  malc_stdouterr_set_stderr_severity (dst, malc_sev_warning);
+
+Keep in mind that adding more destinations can make this pointer address to be
+reallocated elsewhere, so storing of these pointers shouldn't happen until all
+the destinations have been added.
+------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_get_destination_instance(
   malc* l, void** instance, u32 dest_id
   );
@@ -129,10 +148,10 @@ extern MALC_EXPORT bl_err malc_set_destination_cfg(
   malc* l, malc_dst_cfg const* cfg, u32 dest_id
   );
 /*------------------------------------------------------------------------------
-Passes a literal to mal log. By using this function you are saying to the logger
-that this string will outlive the data logger. These is to be mainly used to
-pass literals by pointer (no deep copy) but it can be used for dynamic strings
-that will outlive the data logger too.
+Passes a literal to mal log. By using this function the logger interprets
+that this string is constant and will always outlive the data logger. This is
+to be mainly used to pass literals by pointer (no deep copy) but it can be used
+for dynamic constant strings that will outlive the data logger too.
 ------------------------------------------------------------------------------*/
 static inline malc_lit loglit (char const* literal)
 {
@@ -200,14 +219,16 @@ Passed by reference parameter destructor.
 This is mandatory to be used as the last parameter on log calls that contain a
 parameter passed by reference ("logstrref" or "logmemref"). It does make the
 consumer (logger) thread to invoke a callback that can be used to do memory
-cleanup/recycling.
+cleanup/recycling/reference decreasing etc.
 
-This means that blocking on the callback will block the consumer. Callbacks
-should be kept short, ideally doing an atomic reference count decrement +
-deallocation or something similar.
+This means that blocking on the callback will block the logger consumer thread,
+so callbacks should be kept short, ideally doing an atomic reference count
+decrement, a deallocation or something similar. Thread safety issues should be
+considered too.
 
-Remember when using it to check the error code of the log error function. If the
-entry doesn't succeed to log the destructor won't be called.
+Remember when using destructors to check the error code of the log error
+function. If the log entry doesn't succeed the destructor won't be called and
+you may need to deallocate the resources manually in-place.
 ------------------------------------------------------------------------------*/
 static inline malc_refdtor logrefdtor (malc_refdtor_fn func, void* context)
 {
