@@ -81,6 +81,5 @@ Meson 0.41 is used. In Ubuntu:
 TODO
 ==================
 
--Rotating file writer.
 -Add more smoke tests.
 -Benchmark/optimize.

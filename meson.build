@@ -108,6 +108,7 @@ malc_srcs = [
     'src/malc/destinations.c',
     'src/malc/destinations/array.c',
     'src/malc/destinations/stdouterr.c',
+    'src/malc/destinations/file.c',
 ]
 malc_test_srcs = [
     'test/src/malc/tests_main.c',
@@ -118,6 +119,7 @@ malc_test_srcs = [
     'test/src/malc/entry_parser_test.c',
     'test/src/malc/destinations_test.c',
     'test/src/malc/array_destination_test.c',
+    'test/src/malc/file_destination_test.c',
 ]
 malc_smoke_test_srcs = [
     'smoke_test/src/malc/smoke.c',
