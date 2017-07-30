@@ -26,6 +26,7 @@ typedef struct malc_log_strings {
 malc_log_strings;
 /*------------------------------------------------------------------------------
 log_rate_filter_time:
+
   Rate filter period. The same log entry arriving before this time will be
   discarded. 0 = disabled.
 
@@ -41,6 +42,7 @@ log_rate_filter_time:
   and set it by using "bl_usec_to_tstamp (10)"
 
 severity_file_path:
+
   null or a file to read the severity from.
 ------------------------------------------------------------------------------*/
 typedef struct malc_dst_cfg {
@@ -52,12 +54,16 @@ typedef struct malc_dst_cfg {
 }
 malc_dst_cfg;
 /*------------------------------------------------------------------------------
-malc_dst: Data table of a malc destination
+malc_dst:
+
+  Data table of a malc destination
 
 size_of:
+
   sizeof the struct, will be used by malc to allocate the correct size.
 
 init:
+
   Initialization: instance will contain a raw memory chunk of "size_of"
   bytes. "alloc" is a provided memory allocator in case it's necessary (it
   will be the same one passed to malc on "malc_create"). The allocator can
@@ -65,18 +71,22 @@ init:
   happens on initialization.
 
 terminate:
+
   Termination before memory deallocation. can be set to null if there is no
   termination required.
 
 flush:
+
   Flush all data in case of the "write" function being buffered. It can be
   set to null if there is no flush.
 
 idle_task:
+
   Will be invoked when the logger is idle, e.g. to do low priority tasks. It
   can be set to null if there is no idle task.
 
 write:
+
   Log write. Mandatory.
     now:  current timestamp, can be used internally.
     strs: log strings.
