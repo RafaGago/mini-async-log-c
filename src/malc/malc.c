@@ -267,6 +267,12 @@ MALC_EXPORT bl_err malc_flush (malc* l)
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
 {
+  /* force the the thread local storage destructor to run now (if any) instead
+     of doing it when the thread goes out of scope */
+  bl_err err = memory_tls_try_run_destructor (&l->mem);
+  if (err) {
+    return err;
+  }
   uword expected = st_running;
   if (!atomic_uword_strong_cas_rlx (&l->state, &expected, st_terminating)) {
     return bl_preconditions;

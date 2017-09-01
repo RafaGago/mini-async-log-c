@@ -63,5 +63,7 @@ extern bool memory_tls_destroy (memory* m, void* mem, alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
 extern void memory_tls_destroy_all (memory* m, alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
+extern bl_err memory_tls_try_run_destructor (memory* m);
+/*----------------------------------------------------------------------------*/
 
 #endif /* __MALC_ALLOCATOR__ */

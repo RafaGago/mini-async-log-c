@@ -112,6 +112,12 @@ void memory_tls_destroy_all (memory* m, alloc_tbl const* alloc)
   }
 }
 /*----------------------------------------------------------------------------*/
+extern bl_err memory_tls_try_run_destructor (memory* m)
+{
+  tls_buffer_out_of_scope_destroy (tls_buffer_thread_local_get());
+  return bl_ok;
+}
+/*----------------------------------------------------------------------------*/
 bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
 {
   bl_assert (m && mem && tag && slots);
