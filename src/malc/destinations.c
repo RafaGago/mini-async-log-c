@@ -117,7 +117,7 @@ bl_err destinations_add (destinations* d, u32* dest_id, malc_dst const* dst)
       last = dest;
     }
     bl_assert (last);
-    last->next_offset = size;
+    last->next_offset = (u8*) d->mem + d->size - (u8*) last;
   }
   *dest_id = d->count;
   ++d->count;
