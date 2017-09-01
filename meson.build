@@ -163,3 +163,12 @@ test(
         c_args              : cflags + test_cflags,
         dependencies        : threads
     ))
+executable(
+        'malc-example-hello-malc',
+        [ 'example/src/hello-malc.c' ],
+        include_directories : smoke_test_include_dirs,
+        link_with           : malc_lib,
+        link_args           : test_link_args,
+        c_args              : cflags,
+        dependencies        : threads
+    )
