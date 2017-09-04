@@ -172,3 +172,12 @@ executable(
         c_args              : cflags,
         dependencies        : threads
     )
+executable(
+        'malc-example-overwiew',
+        [ 'example/src/overview.c' ],
+        include_directories : smoke_test_include_dirs,
+        link_with           : malc_lib,
+        link_args           : test_link_args,
+        c_args              : cflags,
+        dependencies        : threads
+    )
