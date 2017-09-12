@@ -70,10 +70,10 @@ int log_thread (void* ctx)
     );
 
   /* strings */
-  u8 const str[] = "a demo string";
+  char const str[] = "a demo string";
   log_error (err, "a string by value: {}", logstrcpy (str, sizeof str - 1));
 
-  u8* dstr = malloc (sizeof str);
+  char* dstr = malloc (sizeof str);
   assert (dstr);
   memcpy (dstr, str, sizeof str);
   log_error(
