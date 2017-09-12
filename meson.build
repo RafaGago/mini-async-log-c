@@ -181,3 +181,12 @@ executable(
         c_args              : cflags,
         dependencies        : threads
     )
+executable(
+        'malc-example-thread-local-storage',
+        [ 'example/src/thread_local_storage.c' ],
+        include_directories : smoke_test_include_dirs,
+        link_with           : malc_lib,
+        link_args           : test_link_args,
+        c_args              : cflags,
+        dependencies        : threads
+    )
