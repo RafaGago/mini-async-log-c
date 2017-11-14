@@ -577,14 +577,14 @@ template<> struct malc_type_traits<u16> : public malc_type_traits_base<u16> {
 #else
   template<> struct malc_type_traits<void*> {
     static const char code = malc_type_ptr;
-    static inline malc_compressed_ptr transform (T v)
+    static inline malc_compressed_ptr transform (void* v)
     {
-      return malc_get_compressed_ptr ((void*) v);
+      return malc_get_compressed_ptr (v);
     }
   };
   template<> struct malc_type_traits<malc_lit> {
     static const char code = malc_type_lit;
-    static inline malc_compressed_32 transform (malc_lit v)
+    static inline malc_compressed_ptr transform (malc_lit v)
     {
       return malc_get_compressed_ptr ((void*) v.lit);
     }
@@ -611,7 +611,7 @@ template<> struct malc_type_traits<u16> : public malc_type_traits_base<u16> {
   };
   template<> struct malc_type_traits<malc_refdtor> {
     static const char code = malc_type_refdtor;
-    static inline malc_refdtor transform (malc_refdtor v)
+    static inline malc_compressed_refdtor transform (malc_refdtor v)
     {
       malc_compressed_refdtor r;
       r.func    = malc_get_compressed_ptr ((void*) v.func);
