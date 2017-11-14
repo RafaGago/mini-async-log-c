@@ -1,6 +1,8 @@
 #ifndef __MALC_MEMORY__
 #define __MALC_MEMORY__
 
+#include <string.h>
+
 #include <bl/base/thread.h>
 #include <bl/base/assert.h>
 #include <bl/base/utility.h>
@@ -18,7 +20,10 @@ bl_err memory_init (memory* m, alloc_tbl const* alloc)
   if (err) {
     return err;
   }
-  m->cfg.msg_allocator = alloc;
+  m->cfg.msg_allocator             = alloc;
+  m->cfg.fixed_allocator_bytes     = 0;
+  m->cfg.fixed_allocator_max_slots = 0;
+  m->cfg.fixed_allocator_per_cpu   = 0;
   boundedb_init (&m->bb);
   mem_array_init_empty (&m->tss_list);
   tls_buffer_thread_local_set (nullptr); /* for smoke testing mostly */
