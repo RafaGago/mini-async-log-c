@@ -530,6 +530,9 @@ uword serializer_execute (serializer* se, u8* mem, va_list vargs)
   se->ch->hdr = wptr;
   se->ch->idx = 0;
   wptr = encode (se->ch, wptr + 1, se->comp_entry);
+  /* the const entry pointer and its format byte (with a wasted nibble) is
+  placed at beggining. after that it comes the compressed format nibbles and
+  all the raw data*/
   se->ch->idx = 0;
   se->ch->hdr = wptr;
   memset (wptr, 0, serializer_hdr_size (se));
@@ -685,20 +688,22 @@ bl_err deserializer_execute(
   )
 {
 #ifdef MALC_NO_COMPRESSION
-  bl_err err = decode (ds->ch, &mem, mem_end, (void**) &ds->entry);
+  void* entry;
+  bl_err err = decode (ds->ch, &mem, mem_end, &entry);
   if (unlikely (err)) {
     return err;
   }
+  ds->entry = (malc_const_entry const*) entry;
 #else
+  void* entry;
   ds->entry   = nullptr;
   ds->ch->hdr = mem;
   ++mem;
-  bl_err err = decode_compressed_ptr(
-    ds->ch, &mem, mem_end, (void**) &ds->entry
-    );
+  bl_err err = decode_compressed_ptr(ds->ch, &mem, mem_end, &entry);
   if (unlikely (err)) {
     return err;
   }
+  ds->entry   = (malc_const_entry const*) entry;
   ds->ch->hdr = mem;
   ds->ch->idx = 0;
   mem        += div_ceil (ds->entry->compressed_count + has_timestamp, 2);

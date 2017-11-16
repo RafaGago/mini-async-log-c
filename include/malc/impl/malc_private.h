@@ -111,7 +111,7 @@ malc_refdtor;
 typedef struct malc_const_entry {
   char const* format;
   char const* info;
-  u16         compressed_count; /*TODO: this is unused: remove*/
+  u16         compressed_count;
 }
 malc_const_entry;
 /*----------------------------------------------------------------------------*/
