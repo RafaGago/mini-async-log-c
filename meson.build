@@ -44,6 +44,7 @@ pkg_mod = import ('pkgconfig')
 install_subdir ('include/malc', install_dir : 'include')
 
 cflags = base_library.get_variable ('cflags')
+cflags += [ '-DMALC_LIBRARY_COMPILATION' ]
 lib_cflags = []
 test_cflags = []
 test_link_args = [ libcmocka_path ]
@@ -73,14 +74,14 @@ if get_option ('no_compressed_builtins')
     cflags += [ '-DMALC_NO_BUILTIN_COMPRESSION' ]
     cdata.set(
         'no_compressed_builtins_placeholder',
-        '#define MALC_NO_BUILTIN_COMPRESSION'
+        '#define MALC_NO_BUILTIN_COMPRESSION 1'
         )
 endif
 
 if get_option ('no_compressed_ptrs')
     cflags += [ '-DMALC_NO_PTR_COMPRESSION' ]
     cdata.set(
-        'no_compressed_ptrs_placeholder', '#define MALC_NO_PTR_COMPRESSION'
+        'no_compressed_ptrs_placeholder', '#define MALC_NO_PTR_COMPRESSION 1'
         )
 endif
 

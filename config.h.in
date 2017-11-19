@@ -7,17 +7,7 @@
 #define MALC_VERSION_MINOR @version_minor@
 #define MALC_VERSION_REV   @version_rev@
 #define MALC_VERSION_STR   "@version@"
-
-/* Usage:
-#if MALC_VERSION <= MALC_VERSION_GET (1, 0, 0)
-#else
-#endif
-*/
-#define MALC_VERSION_GET(major,minor,rev) \
-  (major * 1000000 + minor * 1000 + rev)
-#define BL_VERSION \
-  MALC_VERSION_GET(MALC_VERSION_MAJOR, MALC_VERSION_MINOR, MALC_VERSION_REV)
-
 @no_compressed_builtins_placeholder@
 @no_compressed_ptrs_placeholder@
-#endif
+
+#endif /* __MALC_CONFIG_H__ */

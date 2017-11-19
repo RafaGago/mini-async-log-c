@@ -9,6 +9,10 @@
 #include <bl/base/allocator.h>
 #include <bl/base/thread.h>
 
+#ifndef MALC_LIBRARY_COMPILATION
+  #include <malc/config.h>
+#endif
+
 #include <malc/libexport.h>
 #include <malc/cfg.h>
 #include <malc/destination.h>
@@ -22,6 +26,17 @@ enum malc_destinations {
   malc_dst_console,
 }
 malc_destinations;
+
+/* Usage:
+#if MALC_VERSION <= MALC_VERSION_GET (1, 0, 0)
+  Do something for versions LE than 1.0.0
+#endif
+*/
+#define MALC_VERSION_GET(major,minor,rev) \
+  (major * 1000000 + minor * 1000 + rev)
+
+#define MALC_VERSION \
+  MALC_VERSION_GET(MALC_VERSION_MAJOR, MALC_VERSION_MINOR, MALC_VERSION_REV)
 
 #ifdef __cplusplus
   extern "C" {
