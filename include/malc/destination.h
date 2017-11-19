@@ -7,6 +7,10 @@
 #include <bl/base/allocator.h>
 #include <bl/base/time.h>
 
+#ifdef __cplusplus
+  extern "C" {
+#endif
+
 /*------------------------------------------------------------------------------
 tstamp:     timestamp string (from a monotonic clock).
 tstamp_len: timestamp string length. Can be zero depending on the configuration.
@@ -103,5 +107,9 @@ typedef struct malc_dst {
 }
 malc_dst;
 /*----------------------------------------------------------------------------*/
+
+#ifdef __cplusplus
+  }
+#endif
 
 #endif /* __MALC_DESTINATION_H__ */

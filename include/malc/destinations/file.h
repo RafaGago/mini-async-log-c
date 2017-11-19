@@ -6,6 +6,10 @@
 #include <malc/libexport.h>
 #include <malc/destination.h>
 
+#ifdef __cplusplus
+  extern "C" {
+#endif
+
 /*------------------------------------------------------------------------------
 prefix:
 suffix:
@@ -71,5 +75,9 @@ extern MALC_EXPORT bl_err malc_file_get_cfg(
   malc_file_dst* d, malc_file_cfg* cfg
   );
 /*----------------------------------------------------------------------------*/
+
+#ifdef __cplusplus
+  }
+#endif
 
 #endif /* __MALC_FILE_DESTINATION_H__ */

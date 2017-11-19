@@ -5,6 +5,10 @@
 #include <bl/base/integer.h>
 #include <bl/base/allocator.h>
 
+#ifdef __cplusplus
+  extern "C" {
+#endif
+
 /*------------------------------------------------------------------------------
 idle_task_period_us:
 
@@ -117,5 +121,9 @@ typedef struct malc_cfg {
 }
 malc_cfg;
 /*----------------------------------------------------------------------------*/
+
+#ifdef __cplusplus
+  }
+#endif
 
 #endif /* __MALC_CFG_H__ */

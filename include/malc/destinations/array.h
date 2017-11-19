@@ -4,6 +4,10 @@
 #include <malc/libexport.h>
 #include <malc/destination.h>
 
+#ifdef __cplusplus
+  extern "C" {
+#endif
+
 /*----------------------------------------------------------------------------*/
 /* A memory logger designed for malc smoke testing. It might be used for
 multithreaded application debugging when printf affects behavior, but be aware
@@ -32,5 +36,9 @@ extern MALC_EXPORT char const* malc_array_dst_get_entry(
   malc_array_dst const* d, uword idx
   );
 /*----------------------------------------------------------------------------*/
+
+#ifdef __cplusplus
+  }
+#endif
 
 #endif
