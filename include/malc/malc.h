@@ -177,10 +177,10 @@ static inline malc_strcp logstrcpyl (char const* str)
 /*------------------------------------------------------------------------------
 Passes a memory area by value (deep copy) to mal log. It will be printed as hex.
 ------------------------------------------------------------------------------*/
-static inline malc_memcp logmemcpy (u8 const* mem, u16 size)
+static inline malc_memcp logmemcpy (void const* mem, u16 size)
 {
   bl_assert ((mem && size) || size == 0);
-  malc_memcp b = { mem, size };
+  malc_memcp b = { (u8 const*) mem, size };
   return b;
 }
 /*------------------------------------------------------------------------------
@@ -203,10 +203,10 @@ static inline malc_strref logstrrefl (char const* str)
 Passes a memory area by reference to mal log. Needs a log entry cleanup callback
 (see "logrefdtor"). To be used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
-static inline malc_memref logmemref (u8 const* mem, u16 size)
+static inline malc_memref logmemref (void const* mem, u16 size)
 {
   bl_assert ((mem && size) || size == 0);
-  malc_memref b = { mem, size };
+  malc_memref b = { (u8 const*) mem, size };
   return b;
 }
 /*------------------------------------------------------------------------------
