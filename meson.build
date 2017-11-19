@@ -2,7 +2,7 @@
 
 project(
     'mini-async-log-c',
-    'c',
+    ['c', 'cpp'],
     version : '0.0.1',
     license : 'BSD-3',
     default_options : [
@@ -163,6 +163,26 @@ test(
         c_args              : cflags + test_cflags,
         dependencies        : threads
     ))
+
+if cc.get_id() == 'gcc' or cc.get_id() == 'clang' # C++ compiler assumed if not
+    configure_file(
+        input : 'smoke_test/src/malc/smoke.c',
+        output : 'smoke.cpp',
+        configuration : configuration_data()
+        )
+    test(
+        'malc',
+        executable(
+            'malc-smoke-cpp',
+            [ meson.build_root() + '/smoke.cpp' ],
+            include_directories : smoke_test_include_dirs,
+            link_with           : malc_lib,
+            link_args           : test_link_args,
+            cpp_args            : cflags + test_cflags,
+            dependencies        : threads
+        ))
+endif
+
 executable(
         'malc-example-hello-malc',
         [ 'example/src/hello-malc.c' ],
