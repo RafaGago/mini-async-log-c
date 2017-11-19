@@ -29,7 +29,7 @@ static int setup (void **state)
   context* c = (context*) &smoke_context;
   memset (c, 0, sizeof *c);
   c->alloc = get_default_alloc();
-  c->l     = bl_alloc (&c->alloc,  malc_get_size());
+  c->l     = (malc*) bl_alloc (&c->alloc,  malc_get_size());
   if (!c->l) {
     return 1;
   }
