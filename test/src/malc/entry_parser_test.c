@@ -1,7 +1,13 @@
 #define MALC_GET_MIN_SEVERITY_FNAME malc_entry_get_min_severity_test
 #define MALC_LOG_FNAME              malc_entry_parser_test
-#define MALC_NO_BUILTIN_COMPRESSION
-#define MALC_NO_PTR_COMPRESSION
+
+#ifndef MALC_NO_BUILTIN_COMPRESSION
+  #define MALC_NO_BUILTIN_COMPRESSION 1
+#endif
+
+#ifndef MALC_NO_PTR_COMPRESSION
+  #define MALC_NO_PTR_COMPRESSION 1
+#endif
 
 #include <stdio.h>
 #include <stdarg.h>
