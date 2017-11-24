@@ -278,10 +278,15 @@ MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
     return bl_preconditions;
   }
   if (!is_consume_task_thread) {
-    nonblock_backoff b;
-    nonblock_backoff_init_default (&b, 1000);
-    while (atomic_uword_load_rlx (&l->state) != st_stopped) {
-      nonblock_backoff_run (&b);
+    if (l->consumer.start_own_thread) {
+      bl_thread_join(l->thread);
+    }
+    else {
+      nonblock_backoff b;
+      nonblock_backoff_init_default (&b, 1000);
+      while (atomic_uword_load_rlx (&l->state) != st_stopped) {
+        nonblock_backoff_run (&b);
+      }
     }
   }
   return bl_ok;
