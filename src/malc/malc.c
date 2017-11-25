@@ -158,9 +158,13 @@ MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* alloc)
     goto deserializer_destroy;
   }
   destinations_init (&l->dst, alloc);
+
+  /*Set all producer/consumer default settings*/
   l->consumer.idle_task_period_us = 300000;
+  l->consumer.backoff_max_us      = 2000;
   l->consumer.start_own_thread    = false;
   l->producer.timestamp           = false;
+
   mpsc_i_init (&l->q);
   l->alloc = alloc;
   atomic_uword_store_rlx (&l->state, st_stopped);
@@ -216,6 +220,9 @@ MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg_readonly)
   }
   else {
     malc_get_cfg (l, &cfg);
+  }
+  if (cfg.consumer.backoff_max_us == 0) {
+    return bl_invalid;
   }
   bl_err err = destinations_validate_rate_limit_settings (&l->dst, &cfg.sec);
   if (err) {
@@ -274,7 +281,9 @@ MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
     return err;
   }
   uword expected = st_running;
-  if (!atomic_uword_strong_cas_rlx (&l->state, &expected, st_terminating)) {
+  if (!atomic_uword_strong_cas(
+    &l->state, &expected, st_terminating, mo_release, mo_relaxed
+    )) {
     return bl_preconditions;
   }
   if (!is_consume_task_thread) {
@@ -339,7 +348,6 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
     l->idle_boundary_us = bl_min (l->consumer.backoff_max_us, 1000);
   }
   mpsc_i_node* qn;
-  terminated  = (state == st_terminating);
   uword count = 0;
   do {
     while (1) {
@@ -405,7 +413,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
         /* a list will all the created TLS buffers is maintained. The
         registered TLS buffers are serialized through the event loop, so they
         avoid mutexes. This is done like this because they are also unregistered
-        by this function. */
+        by this function/thread. */
         memory_tls_register (&l->mem, ((qnode_tls_alloc*) n)->mem, l->alloc);
         bl_dealloc (l->alloc, n);
         break;
@@ -421,8 +429,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
 
       case q_cmd_flush:
         destinations_flush (&l->dst);
-        ++n->slots;
-        terminated = atomic_uword_load_rlx (&l->state) == st_terminating;
+        ++n->slots; /* poor-man's signalling to the caller */
         break;
 
       default:
@@ -432,13 +439,23 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
     }
     else if (err == bl_empty) {
       toffset next_sleep_us = nonblock_backoff_next_sleep_us (&l->cbackoff);
-      bool do_backoff       = false;
-      if (l->idle_boundary_us >= next_sleep_us)  {
+      bool do_backoff       = true;
+      if (l->idle_boundary_us < next_sleep_us)  {
         do_backoff = !malc_try_run_idle_task (l, now);
       }
-      if (do_backoff && timeout_us) {
+      if (do_backoff) {
         nonblock_backoff_run (&l->cbackoff);
-        now = bl_get_tstamp();
+        /* no timer updates on spin/yield phase of the backoff (expensive?) */
+        now = next_sleep_us ? bl_get_tstamp() : now;
+        if (!terminated) {
+          terminated = atomic_uword_load (&l->state, mo_acquire) ==
+            st_terminating;
+          if (terminated) {
+            /* only exit with an empty queue. Force one more iteration */
+            continue;
+          }
+
+        }
       }
     }
     else {
@@ -449,21 +466,20 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
   if (terminated) {
     atomic_uword_store_rlx (&l->state, st_stopped);
     destinations_terminate (&l->dst);
-    /*Destroy all registered TLS buffers. From now on "bl_thread_local malc_tls"
-    is dangled.
+    /*Destroy all registered TLS buffers. From now on all thread local buffers
+    from an hypothetical thread outliving the logger ("bl_thread_local
+    malc_tls") will be dangled. The docs say that threads using TLS can't
+    outlive the logger (reason on the next paragraph) so the TLS buffers are
+    dangled on purpose, forcing the user to investigate the segfaults that doing
+    this will (hopefully) trigger.
 
-    The comments on the header state that the threads with TLS buffers can't
-    outlive the logger. The reason for these comments are that the
-    "thread_local" variable "malc_tls" can't be set to nullptr, so enqueueing
-    in a transitional termination state could lead to "malc_tls" pointing to an
-    already deallocated buffer. Avoiding it would require heavyweight state
-    synchronization on "malc_log" which is prohibitive, as "malc_log" is
-    to be kept extremely fast.
-
-    Even though it is said that threads using TLS for logging can't outlive the
-    logger, the TLS buffers are still deallocated on termination. This will
-    hopefully manifest as segmentation faults and the user can hopefully realize
-    the mistake.*/
+    The reason why the threads with TLS buffers can't outlive the logger is
+    that a "thread local" variable can't be set from another thread (this one),
+    so there is no way to force a clean and safe shutdown sequence (that I can
+    think of) from inside the library (setting the pointer to null +
+    deallocating) without using heavyweight locking, which defeats the purpose
+    of this library. The user is forced to only use TLS on threads that he owns,
+    which is a good side effect IMO.*/
     memory_tls_destroy_all (&l->mem, l->alloc);
   }
   return count ? bl_ok : bl_nothing_to_do;;
