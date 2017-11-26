@@ -21,6 +21,7 @@ bl_err memory_init (memory* m, alloc_tbl const* alloc)
     return err;
   }
   m->cfg.msg_allocator             = alloc;
+  m->cfg.slot_size                 = 64;
   m->cfg.fixed_allocator_bytes     = 0;
   m->cfg.fixed_allocator_max_slots = 0;
   m->cfg.fixed_allocator_per_cpu   = 0;
@@ -50,9 +51,9 @@ bl_err memory_tls_init_unregistered(
     return bl_locked;
   }
   tls_buffer* t;
-  u32 slots  = div_ceil (bytes, (u32) alloc_slot_size);
+  u32 slots  = div_ceil (bytes, (u32) m->cfg.slot_size);
   bl_err err = tls_buffer_init(
-    &t, alloc_slot_size, slots, alloc, destructor_fn, destructor_context
+    &t, m->cfg.slot_size, slots, alloc, destructor_fn, destructor_context
     );
   if (err) {
     return err;
@@ -73,7 +74,7 @@ bl_err memory_bounded_buffer_init (memory* m, alloc_tbl const* alloc)
     &m->bb,
     alloc,
     m->cfg.fixed_allocator_bytes,
-    alloc_slot_size,
+    m->cfg.slot_size,
     m->cfg.fixed_allocator_max_slots,
     m->cfg.fixed_allocator_per_cpu
     );
@@ -139,7 +140,7 @@ bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
     }
   }
   if (m->cfg.msg_allocator) {
-    *mem = bl_alloc (m->cfg.msg_allocator, slots * alloc_slot_size);
+    *mem = bl_alloc (m->cfg.msg_allocator, slots * m->cfg.slot_size);
     *tag = alloc_tag_heap;
     return *mem ? bl_ok : bl_alloc;
   }
@@ -150,7 +151,7 @@ void memory_dealloc (memory* m, u8* mem, alloc_tag tag, u32 slots)
 {
   switch (tag) {
   case alloc_tag_tls:
-    tls_buffer_dealloc (mem, slots, alloc_slot_size);
+    tls_buffer_dealloc (mem, slots, m->cfg.slot_size);
     break;
   case alloc_tag_bounded:
     boundedb_dealloc (&m->bb, mem, slots);

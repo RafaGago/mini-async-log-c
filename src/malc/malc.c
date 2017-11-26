@@ -369,7 +369,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
         err = deserializer_execute(
           &l->ds,
           ((u8*) n) + sizeof *n,
-          ((u8*) n) + (slots * alloc_slot_size),
+          ((u8*) n) + (slots * l->mem.cfg.slot_size),
           n->info.has_timestamp,
           l->alloc
           );
@@ -552,7 +552,7 @@ MALC_EXPORT bl_err malc_log(
   serializer se;
   serializer_init (&se, entry, l->producer.timestamp);
   uword size  = sizeof (qnode) + serializer_log_entry_size (&se, payload_size);
-  uword slots = div_ceil (size, alloc_slot_size);
+  uword slots = div_ceil (size, l->mem.cfg.slot_size);
   if (unlikely (slots) > (1 << (sizeof_member (qnode, slots) * 8))) {
     /*entries are limited at 8KB*/
     return bl_range;

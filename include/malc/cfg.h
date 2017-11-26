@@ -53,6 +53,12 @@ msg_allocator:
   heap. All the other dynamic memory is taken from the allocator passed on
   "malc_init".
 
+slot_size:
+
+  All allocations for the produced consumer queue are rounded to ceiling to this
+  value. Usually this is intended to be set as the size in bytes of your
+  machine's cache line size.
+
 fixed_allocator_bytes:
 
   The minimal amount of bytes that each fixed allocator will have. This number
@@ -71,9 +77,11 @@ fixed_allocator_per_cpu:
   pessimization: measure your performance) to alleviate false sharing. Note that
   "fixed_allocator_bytes" is not divided by the number CPUs when this setting is
   active.
+
 ------------------------------------------------------------------------------*/
 typedef struct malc_alloc_cfg {
   alloc_tbl const* msg_allocator;
+  u32              slot_size;
   u32              fixed_allocator_bytes;
   u32              fixed_allocator_max_slots;
   bool             fixed_allocator_per_cpu;

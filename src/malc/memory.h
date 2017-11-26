@@ -12,9 +12,6 @@
 #include <malc/bounded_buffer.h>
 
 /*----------------------------------------------------------------------------*/
-#define alloc_slot_size 32
-#define alloc_slot_size_log2 (static_log2_ceil_u (alloc_slot_size))
-/*----------------------------------------------------------------------------*/
 enum alloc_tags {
   alloc_tag_free    = 0,
   alloc_tag_tls     = 1,
