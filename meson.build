@@ -70,20 +70,22 @@ endif
 threads = dependency ('threads')
 
 cdata = configuration_data()
+
 if get_option ('no_compressed_builtins')
     cflags += [ '-DMALC_NO_BUILTIN_COMPRESSION' ]
-    cdata.set(
-        'no_compressed_builtins_placeholder',
-        '#define MALC_NO_BUILTIN_COMPRESSION 1'
-        )
+    ncbph_str = '#define MALC_NO_BUILTIN_COMPRESSION 1'
+else
+    ncbph_str = ''
 endif
+cdata.set('no_compressed_builtins_placeholder', ncbph_str)
 
 if get_option ('no_compressed_ptrs')
     cflags += [ '-DMALC_NO_PTR_COMPRESSION' ]
-    cdata.set(
-        'no_compressed_ptrs_placeholder', '#define MALC_NO_PTR_COMPRESSION 1'
-        )
+    ncptrs_str = '#define MALC_NO_PTR_COMPRESSION 1'
+else
+    ncptrs_str = ''
 endif
+cdata.set('no_compressed_ptrs_placeholder', ncptrs_str)
 
 cdata.set ('version', version)
 cdata.set ('version_major', version_major)
