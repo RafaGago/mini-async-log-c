@@ -107,8 +107,8 @@ int main (int argc, char const* argv[])
       /* logger allocation/initialization */
       uword  thread_count = threads[thread_idx];
       uword  faults = 0;
-      double elapsed_sec, msgs_sec;
-      tstamp start, stop;
+      double producer_sec, consumer_sec;
+      tstamp start, stop, end;
 
       ilog = (malc*) bl_alloc (&alloc,  malc_get_size());
       if (!ilog) {
@@ -150,7 +150,7 @@ int main (int argc, char const* argv[])
       memset(tcontext, 0, sizeof tcontext);
       for (uword th = 0; th < thread_count; ++th) {
         tcontext[th].msgs      = args.msgs / thread_count;
-        tcontext[th].tls_bytes = (16 * 1024 * 1024) / thread_count;
+        tcontext[th].tls_bytes = (32 * 1024 * 1024) / thread_count;
         err = bl_thread_init (&thrs[th], througput_thread, &tcontext[th]);
         if (err) {
           fprintf (stderr, "unable to start a log thread\n");
@@ -180,17 +180,18 @@ int main (int argc, char const* argv[])
         faults += tcontext[th].faults;
       }
       (void) malc_terminate (ilog, false);
+      end = bl_get_tstamp();
 
-      elapsed_sec  =  (double) bl_tstamp_to_nsec (stop - start);
-      elapsed_sec /= (double) nsec_in_sec;
-      msgs_sec     = ((double) args.msgs / elapsed_sec);
+      producer_sec  = (double) bl_tstamp_to_nsec (stop - start);
+      consumer_sec  = (double) bl_tstamp_to_nsec (end - start);
+      producer_sec /= (double) nsec_in_sec;
+      consumer_sec /= (double) nsec_in_sec;
       printf(
-        "threads: %" FMT_W ", Kmsgs/sec: %.2f, sec: %f, faults: %" FMT_UW ", average nsec: %f\n",
+        "threads: %2" FMT_W ", Producer Kmsgs/sec: %.2f, Consumer Kmsgs/sec: %.2f, faults: %" FMT_UW "\n",
         thread_count,
-        msgs_sec / 1000.,
-        elapsed_sec,
-        faults,
-        (1. / msgs_sec) * (double) nsec_in_sec
+        ((double) (args.msgs - faults) / producer_sec) / 1000.,
+        ((double) (args.msgs - faults) / consumer_sec) / 1000.,
+        faults
         );
     destroy:
       (void) malc_destroy (ilog);
