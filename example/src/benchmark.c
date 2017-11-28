@@ -174,11 +174,11 @@ int main (int argc, char const* argv[])
       for (uword th = 0; th < thread_count; ++th) {
         bl_thread_join (&thrs[th]);
       }
+      stop = bl_get_tstamp();
       /*Results*/
       for (uword th = 0; th < thread_count; ++th) {
         faults += tcontext[th].faults;
       }
-      stop = bl_get_tstamp();
       (void) malc_terminate (ilog, false);
 
       elapsed_sec  =  (double) bl_tstamp_to_nsec (stop - start);
