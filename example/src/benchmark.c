@@ -57,8 +57,8 @@ static int througput_thread (void* ctx)
 }
 /*----------------------------------------------------------------------------*/
 typedef struct pargs {
-  int iterations;
-  int msgs;
+  uword iterations;
+  uword msgs;
 }
 pargs;
 /*----------------------------------------------------------------------------*/
@@ -105,9 +105,12 @@ int main (int argc, char const* argv[])
   for (uword i = 0; i < args.iterations; ++i) {
     for (uword thread_idx = 0; thread_idx < arr_elems(threads); ++thread_idx) {
       /* logger allocation/initialization */
-      int thread_count = threads[thread_idx];
-      ilog             = bl_alloc (&alloc,  malc_get_size());
+      uword  thread_count = threads[thread_idx];
+      uword  faults = 0;
+      double elapsed_sec, msgs_sec;
+      tstamp start, stop;
 
+      ilog = (malc*) bl_alloc (&alloc,  malc_get_size());
       if (!ilog) {
         fprintf (stderr, "Unable to allocate memory for the malc instance\n");
         return bl_alloc;
@@ -162,30 +165,27 @@ int main (int argc, char const* argv[])
           processor_pause();
         }
       }
-      tstamp start = bl_get_tstamp();
+      start = bl_get_tstamp();
       /*Signal threads to start*/
       for (uword th = 0; th < thread_count; ++th) {
         atomic_uword_store_rlx (&tcontext[th].ready, 2);
       }
-
-      tstamp stop = bl_get_tstamp();
-
-      /*Results*/
-      uword faults = 0;
-      for (uword th = 0; th < thread_count; ++th) {
-        faults += tcontext[th].faults;
-      }
-      /*Join*/
+      /*Join (will add jitter)*/
       for (uword th = 0; th < thread_count; ++th) {
         bl_thread_join (&thrs[th]);
       }
+      /*Results*/
+      for (uword th = 0; th < thread_count; ++th) {
+        faults += tcontext[th].faults;
+      }
+      stop = bl_get_tstamp();
       (void) malc_terminate (ilog, false);
 
-      word elapsed_ns = bl_tstamp_to_nsec (bl_get_tstamp() - start);
-      double elapsed_sec = (double) elapsed_ns / (double) nsec_in_sec;
-      double msgs_sec   = ((double) args.msgs / elapsed_sec);
+      elapsed_sec  =  (double) bl_tstamp_to_nsec (stop - start);
+      elapsed_sec /= (double) nsec_in_sec;
+      msgs_sec     = ((double) args.msgs / elapsed_sec);
       printf(
-        "threads: %d, Kmsgs/sec: %.2f, sec: %f, faults: %"FMT_UW", average nsec: %f\n",
+        "threads: %" FMT_W ", Kmsgs/sec: %.2f, sec: %f, faults: %" FMT_UW ", average nsec: %f\n",
         thread_count,
         msgs_sec / 1000.,
         elapsed_sec,

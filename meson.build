@@ -221,19 +221,18 @@ if cc.get_id() == 'gcc' or cc.get_id() == 'clang' # C++ compiler assumed if not
             cpp_args            : cflags + test_cflags,
             dependencies        : threads
         ))
-# TODO: breaks now
-#    configure_file(
-#        input : 'example/src/benchmark.c',
-#        output : 'benchmark.cpp',
-#        configuration : configuration_data()
-#        )
-#    executable(
-#        'malc-example-benchmark-cpp',
-#        [ meson.build_root() + '/benchmark.cpp' ],
-#        include_directories : smoke_test_include_dirs,
-#        link_with           : malc_lib,
-#        link_args           : test_link_args,
-#        c_args              : cflags,
-#        dependencies        : threads
-#    )
+    configure_file(
+        input : 'example/src/benchmark.c',
+        output : 'benchmark.cpp',
+        configuration : configuration_data()
+        )
+    executable(
+        'malc-example-benchmark-cpp',
+        [ meson.build_root() + '/benchmark.cpp' ],
+        include_directories : smoke_test_include_dirs,
+        link_with           : malc_lib,
+        link_args           : test_link_args,
+        c_args              : cflags,
+        dependencies        : threads
+    )
 endif
