@@ -288,7 +288,7 @@ MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
   }
   if (!is_consume_task_thread) {
     if (l->consumer.start_own_thread) {
-      bl_thread_join(l->thread);
+      bl_thread_join(&l->thread);
     }
     else {
       nonblock_backoff b;
