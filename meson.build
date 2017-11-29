@@ -156,7 +156,7 @@ test(
         dependencies        : threads
     ))
 test(
-    'malc',
+    'malc-smoke',
     executable(
         'malc-smoke',
         malc_smoke_test_srcs,
@@ -211,7 +211,7 @@ if cc.get_id() == 'gcc' or cc.get_id() == 'clang' # C++ compiler assumed if not
         configuration : configuration_data()
         )
     test(
-        'malc',
+        'malc-smoke-cpp',
         executable(
             'malc-smoke-cpp',
             [ meson.build_root() + '/smoke.cpp' ],
