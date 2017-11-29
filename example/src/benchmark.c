@@ -9,6 +9,7 @@
 #include <bl/base/processor_pause.h>
 #include <bl/base/time.h>
 #include <bl/base/integer_printf_format.h>
+#include <bl/base/utility.h>
 
 #include <malc/malc.h>
 #include <malc/destinations/file.h>
@@ -56,30 +57,56 @@ static int througput_thread (void* ctx)
   return 0;
 }
 /*----------------------------------------------------------------------------*/
+enum cfg_mode {
+  cfg_tls,
+  cfg_heap,
+  cfg_queue,
+  cfg_queue_cpu,
+};
+/*----------------------------------------------------------------------------*/
 typedef struct pargs {
   uword iterations;
   uword msgs;
+  uword alloc_mode;
 }
 pargs;
 /*----------------------------------------------------------------------------*/
 static void print_usage()
 {
-  puts("Usage: malc-example-benchmark <msgs> <iterations>");
+  puts("Usage: malc-example-benchmark <[tls|heap|queue|queue-cpu]> <msgs> <iterations>");
 }
 /*----------------------------------------------------------------------------*/
 static int parse_args(pargs* args, int argc, char const* argv[])
 {
-  if (argc < 3) {
+  if (argc < 4) {
+    fprintf (stderr, "invalid argument count\n");
+    print_usage();
+    return bl_invalid;
+  }
+  if (lit_strcmp (argv[1], "tls") == 0) {
+    args->alloc_mode = cfg_tls;
+  }
+  else if (lit_strcmp (argv[1], "heap") == 0) {
+    args->alloc_mode = cfg_heap;
+  }
+  else if (lit_strcmp (argv[1], "queue") == 0) {
+    args->alloc_mode = cfg_queue;
+  }
+  else if (lit_strcmp (argv[1], "queue-cpu") == 0) {
+    args->alloc_mode = cfg_queue_cpu;
+  }
+  else {
+    fprintf (stderr, "unknown mode: %s\n", argv[1]);
     print_usage();
     return bl_invalid;
   }
   char* end;
-  args->msgs = strtol (argv[1], &end, 10);
+  args->msgs = strtol (argv[2], &end, 10);
   if (argv[1] == end) {
       fprintf (stderr, "non numeric message count: %s\n", argv[1]);
       return 1;
   }
-  args->iterations = strtol (argv[2], &end, 10);
+  args->iterations = strtol (argv[3], &end, 10);
   if (argv[1] == end) {
       fprintf (stderr, "non numeric iteration count: %s\n", argv[1]);
       return 1;
@@ -88,6 +115,7 @@ static int parse_args(pargs* args, int argc, char const* argv[])
 }
 /*----------------------------------------------------------------------------*/
 #define MAX_THREADS 16
+#define QSIZE (32 * 1024 * 1024)
 static const int threads[] = { 1, 2, 4, 8, MAX_THREADS };
 /*----------------------------------------------------------------------------*/
 int main (int argc, char const* argv[])
@@ -134,13 +162,22 @@ int main (int argc, char const* argv[])
         fprintf (stderr, "bug when retrieving the logger configuration\n");
         goto destroy;
       }
-      cfg.consumer.start_own_thread       = true;
-      cfg.alloc.msg_allocator             = nullptr;
+      cfg.consumer.start_own_thread = true;
+
+      if (args.alloc_mode != cfg_heap) {
+        cfg.alloc.msg_allocator = nullptr;
+      }
       cfg.alloc.slot_size                 = 64;
       cfg.alloc.fixed_allocator_bytes     = 0;
       cfg.alloc.fixed_allocator_max_slots = 0;
       cfg.alloc.fixed_allocator_per_cpu   = 0;
 
+      if (args.alloc_mode == cfg_queue || args.alloc_mode == cfg_queue_cpu) {
+        uword div = args.alloc_mode == cfg_queue ? 1 : bl_get_cpu_count();
+        cfg.alloc.fixed_allocator_bytes     = QSIZE / div;
+        cfg.alloc.fixed_allocator_max_slots = 2;
+        cfg.alloc.fixed_allocator_per_cpu = (args.alloc_mode == cfg_queue_cpu);
+      }
       err = malc_init (ilog, &cfg);
       if (err) {
         fprintf (stderr, "unable to start logger\n");
@@ -150,7 +187,9 @@ int main (int argc, char const* argv[])
       memset(tcontext, 0, sizeof tcontext);
       for (uword th = 0; th < thread_count; ++th) {
         tcontext[th].msgs      = args.msgs / thread_count;
-        tcontext[th].tls_bytes = (32 * 1024 * 1024) / thread_count;
+        if (args.alloc_mode == cfg_tls) {
+          tcontext[th].tls_bytes = QSIZE / thread_count;
+        }
         err = bl_thread_init (&thrs[th], througput_thread, &tcontext[th]);
         if (err) {
           fprintf (stderr, "unable to start a log thread\n");
