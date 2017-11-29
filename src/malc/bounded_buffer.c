@@ -52,7 +52,7 @@ bl_err boundedb_reset(
     }
     mpmc_bpm* q = cpuq_at (&b->queues, i);
     err  = mpmc_bpm_init(
-      q, alloc, slot_count, max_slots, slot_size, slot_size, false
+      q, alloc, slot_count, max_slots, slot_size, 16, false
       );
     if (err) {
       goto do_destroy;
