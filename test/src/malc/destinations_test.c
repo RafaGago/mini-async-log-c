@@ -11,41 +11,41 @@
 
 /*----------------------------------------------------------------------------*/
 typedef struct mock_dest {
-  u8  terminate;
+  u8* terminate;
   u32 flush;
   u16 idle_task;
   u64 write;
 }
 mock_dest;
 /*----------------------------------------------------------------------------*/
-bl_err mock_dest_init (void* instance, alloc_tbl const* alloc)
+static bl_err mock_dest_init (void* instance, alloc_tbl const* alloc)
 {
   mock_dest* d = (mock_dest*) instance;
   memset (d, 0, sizeof *d);
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-void mock_dest_terminate (void* instance)
+static void mock_dest_terminate (void* instance)
 {
   mock_dest* d = (mock_dest*) instance;
   ++d->terminate;
 }
 /*----------------------------------------------------------------------------*/
-bl_err mock_dest_flush (void* instance)
+static bl_err mock_dest_flush (void* instance)
 {
   mock_dest* d = (mock_dest*) instance;
   ++d->flush;
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-bl_err mock_dest_idle_task (void* instance)
+static bl_err mock_dest_idle_task (void* instance)
 {
   mock_dest* d = (mock_dest*) instance;
   ++d->idle_task;
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-bl_err mock_dest_write(
+static bl_err mock_dest_write(
   void* instance, tstamp now, uword sev, malc_log_strings const* s
   )
 {
@@ -151,20 +151,6 @@ static void destinations_idle_task_test (void **state)
 
   assert_int_equal (mock[0]->idle_task, 0);
   assert_int_equal (mock[1]->idle_task, 1);
-}
-/*----------------------------------------------------------------------------*/
-static void destinations_terminate_test (void **state)
-{
-  destinations_context* c = (destinations_context*) *state;
-  u32 id[2];
-  mock_dest* mock[2];
-
-  c->tbls[0].terminate = nullptr;
-  destinations_do_add (c, id, mock);
-  destinations_terminate (&c->d);
-
-  assert_int_equal (mock[0]->terminate, 0);
-  assert_int_equal (mock[1]->terminate, 1);
 }
 /*----------------------------------------------------------------------------*/
 static void destinations_flush_test (void **state)
@@ -390,9 +376,6 @@ static const struct CMUnitTest tests[] = {
     ),
   cmocka_unit_test_setup_teardown(
     destinations_idle_task_test, dsts_test_setup, dsts_test_teardown
-    ),
-  cmocka_unit_test_setup_teardown(
-    destinations_terminate_test, dsts_test_setup, dsts_test_teardown
     ),
   cmocka_unit_test_setup_teardown(
     destinations_flush_test, dsts_test_setup, dsts_test_teardown
