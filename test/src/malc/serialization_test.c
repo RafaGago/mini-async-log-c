@@ -16,22 +16,21 @@
 
 /*----------------------------------------------------------------------------*/
 typedef struct ser_deser_context {
-  u8           buff[1024];
+  u8           buff[2048];
   deserializer deser;
   alloc_tbl    alloc;
 }
 ser_deser_context;
 /*----------------------------------------------------------------------------*/
-static void serialize_to_buffer(
-  ser_deser_context* c, malc_const_entry const* entry, ...
+static malc_serializer get_external_serializer(
+  ser_deser_context* c, malc_const_entry const* entry
   )
 {
   serializer ser;
   serializer_init (&ser, entry, false);
-  va_list vargs;
-  va_start (vargs, entry);
-  assert_true (serializer_execute (&ser, c->buff, vargs) > 0);
-  va_end (vargs);
+  /*Buff is assumed to be big enough, "serializer_log_entry_size" is called on
+  the impl*/
+  return serializer_prepare_external_serializer (&ser, c->buff, c->buff);
 }
 /*----------------------------------------------------------------------------*/
 static int ser_test_setup (void **state)
@@ -55,9 +54,11 @@ static void serialization_test_float (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
   float v = 12345.12345f;
+
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  serialize_to_buffer (c, entry, v);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, v);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -77,7 +78,8 @@ static void serialization_test_double (void **state)
   double v = 123451231234.12341231235;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  serialize_to_buffer (c, entry, v);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, v);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -97,7 +99,8 @@ static void serialization_test_i8 (void **state)
   i8 v = -92;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  serialize_to_buffer (c, entry, v);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, v);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -117,7 +120,8 @@ static void serialization_test_i16 (void **state)
   i16 v = -92 * 255;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  serialize_to_buffer (c, entry, v);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, v);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -138,7 +142,8 @@ static void serialization_test_i32 (void **state)
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   MALC_LOG_DECLARE_TMP_VARIABLES (v);
-  serialize_to_buffer (c, entry, I);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, I);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -159,7 +164,8 @@ static void serialization_test_i64 (void **state)
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   MALC_LOG_DECLARE_TMP_VARIABLES (v);
-  serialize_to_buffer (c, entry, I);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, I);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -179,7 +185,8 @@ static void serialization_test_u8 (void **state)
   u8 v = 92;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  serialize_to_buffer (c, entry, v);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, v);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -199,7 +206,8 @@ static void serialization_test_u16 (void **state)
   u16 v = 92 * 255;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  serialize_to_buffer (c, entry, v);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, v);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -220,7 +228,8 @@ static void serialization_test_u32 (void **state)
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   MALC_LOG_DECLARE_TMP_VARIABLES (v);
-  serialize_to_buffer (c, entry, I);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, I);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -241,7 +250,8 @@ static void serialization_test_u64 (void **state)
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   MALC_LOG_DECLARE_TMP_VARIABLES (v);
-  serialize_to_buffer (c, entry, I);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, I);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -262,7 +272,8 @@ static void serialization_test_ptr (void **state)
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   MALC_LOG_DECLARE_TMP_VARIABLES (v);
-  serialize_to_buffer (c, entry, I);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, I);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -283,7 +294,8 @@ static void serialization_test_lit (void **state)
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   MALC_LOG_DECLARE_TMP_VARIABLES (v);
-  serialize_to_buffer (c, entry, I);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, I);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -304,7 +316,8 @@ static void serialization_test_strcp (void **state)
   malc_strcp v = { str, lit_len (str) };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  serialize_to_buffer (c, entry, v);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, v);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -327,7 +340,9 @@ static void serialization_test_strref (void **state)
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v, d);
   MALC_LOG_DECLARE_TMP_VARIABLES (v, d);
-  serialize_to_buffer (c, entry, I, II);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, I);
+  malc_serialize (&ser, II);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -352,7 +367,8 @@ static void serialization_test_memcp (void **state)
   malc_memcp v = { (u8*) str, sizeof str };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  serialize_to_buffer (c, entry, v);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, v);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -375,7 +391,9 @@ static void serialization_test_memref (void **state)
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v, d);
   MALC_LOG_DECLARE_TMP_VARIABLES (v, d);
-  serialize_to_buffer (c, entry, I, II);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, I);
+  malc_serialize (&ser, II);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -459,27 +477,25 @@ static void serialization_test_all (void **state)
     all.vmemref,
     d
     );
-  serialize_to_buffer(
-    c,
-    entry,
-    I,
-    II,
-    III,
-    IIII,
-    IIIII,
-    IIIIII,
-    IIIIIII,
-    IIIIIIII,
-    IIIIIIIII,
-    IIIIIIIIII,
-    IIIIIIIIIII,
-    IIIIIIIIIIII,
-    IIIIIIIIIIIII,
-    IIIIIIIIIIIIII,
-    IIIIIIIIIIIIIII,
-    IIIIIIIIIIIIIIII,
-    IIIIIIIIIIIIIIIII
-    );
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, I);
+  malc_serialize (&ser, II);
+  malc_serialize (&ser, III);
+  malc_serialize (&ser, IIII);
+  malc_serialize (&ser, IIIII);
+  malc_serialize (&ser, IIIIII);
+  malc_serialize (&ser, IIIIIII);
+  malc_serialize (&ser, IIIIIIII);
+  malc_serialize (&ser, IIIIIIIII);
+  malc_serialize (&ser, IIIIIIIIII);
+  malc_serialize (&ser, IIIIIIIIIII);
+  malc_serialize (&ser, IIIIIIIIIIII);
+  malc_serialize (&ser, IIIIIIIIIIIII);
+  malc_serialize (&ser, IIIIIIIIIIIIII);
+  malc_serialize (&ser, IIIIIIIIIIIIIII);
+  malc_serialize (&ser, IIIIIIIIIIIIIIII);
+  malc_serialize (&ser, IIIIIIIIIIIIIIIII);
+
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
@@ -537,7 +553,8 @@ static void serialization_test_small_buffer (void **state)
   u16 v = 92 * 255;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  serialize_to_buffer (c, entry, v);
+  malc_serializer ser = get_external_serializer (c, entry);
+  malc_serialize (&ser, v);
   deserializer_reset (&c->deser);
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof v, false, &c->alloc

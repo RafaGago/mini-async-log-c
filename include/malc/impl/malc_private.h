@@ -110,7 +110,7 @@ malc_refdtor;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_const_entry {
   char const* format;
-  char const* info;
+  char const* info; /* first char is the severity */
   u16         compressed_count;
 }
 malc_const_entry;
@@ -202,9 +202,17 @@ typedef struct malc_compressed_refdtor {
 malc_compressed_refdtor;
 /*----------------------------------------------------------------------------*/
 struct malc;
+struct malc_serializer;
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_log(
-  struct malc* l, malc_const_entry const* e, uword size, ...
+extern MALC_EXPORT bl_err malc_log_entry_prepare(
+  struct malc*            l,
+  struct malc_serializer* ext_ser,
+  malc_const_entry const* entry,
+  uword                   payload_size
+  );
+/*----------------------------------------------------------------------------*/
+extern MALC_EXPORT void malc_log_entry_commit(
+  struct malc* l, struct malc_serializer const* ext_ser
   );
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
@@ -720,9 +728,15 @@ template<> struct malc_type_traits<malc_compressed_refdtor> {
 #ifndef MALC_GET_MIN_SEVERITY_FNAME
   #define MALC_GET_MIN_SEVERITY_FNAME malc_get_min_severity
 #endif
-#ifndef MALC_LOG_FNAME
-  #define MALC_LOG_FNAME malc_log
+
+#ifndef MALC_LOG_ENTRY_PREPARE_FNAME
+  #define MALC_LOG_ENTRY_PREPARE_FNAME malc_log_entry_prepare
 #endif
+
+#ifndef MALC_LOG_ENTRY_COMMIT_FNAME
+  #define MALC_LOG_ENTRY_COMMIT_FNAME malc_log_entry_commit
+#endif
+
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_CREATE_CONST_ENTRY(sev, ...) \
   static const char pp_tokconcat(malc_const_info_, __LINE__)[] = { \
@@ -756,21 +770,18 @@ template<> struct malc_type_traits<malc_compressed_refdtor> {
 
 #define MALC_GET_TYPE_SIZE_VISITOR(expr, name)  malc_type_size (name)
 
-#define MALC_GET_TYPE_SIZE(...) \
+#define MALC_GET_SERIALIZED_TYPES_SIZE(...) \
   pp_apply_wid (MALC_GET_TYPE_SIZE_VISITOR, pp_plus, __VA_ARGS__)
-/*----------------------------------------------------------------------------*/
-#define MALC_LOG_PRIVATE_IMPL(err, malc_ptr, sev, ...) \
-  (err) = MALC_LOG_FNAME( \
-    (malc_ptr), \
-    &pp_tokconcat (malc_const_entry_, __LINE__), \
-    pp_if_else (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))( \
-      MALC_GET_TYPE_SIZE (pp_vargs_ignore_first (__VA_ARGS__))\
-      pp_comma() \
-      MALC_LOG_PASS_TMP_VARIABLES (pp_vargs_ignore_first (__VA_ARGS__))\
-    ,/*else*/\
-      0\
-    ) /* endif */ \
-  )
+
+/*TODO: move to base_library*/
+#define malc_pp_semicolon() ;
+
+#define MALC_APPLY_SERIALIZER(expr, varname)\
+  malc_serialize(&pp_tokconcat(malc_serializer_, __LINE__), varname)
+
+#define MALC_SERIALIZE_TMP_VALUES(...) \
+  pp_apply_wid (MALC_APPLY_SERIALIZER, malc_pp_semicolon, __VA_ARGS__)
+
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_DECLARE_TMP_VARIABLES(...) \
   pp_apply_wid (malc_make_var_from_expression, pp_empty, __VA_ARGS__)
@@ -807,23 +818,55 @@ template<> struct malc_type_traits<malc_compressed_refdtor> {
     );
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_IF_PRIVATE(condition, err, malc_ptr, sev, ...) \
+  /* Reminder: The first __VA_ARG__ is the format string */\
   do { \
     if ((condition) && ((sev) >= MALC_GET_MIN_SEVERITY_FNAME ((malc_ptr)))) { \
       MALC_LOG_CREATE_CONST_ENTRY ((sev), __VA_ARGS__); \
-      pp_if (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))(\
-        /*A copy of the passed expressions is created, this is to avoid */\
-        /*calling more than once any functions (expressions) and to do some.*/\
-        /*data preprocessing. A register optimizer will find plain builtin*/\
-        /*copies trivial to remove but will keep calls with side-effects.*/\
+      pp_if_else (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))(\
+        /* The passed expressions (args) are stored into variables, this is */\
+        /* to keep function-like semantics (evaluating every expression */\
+        /* only once) and to do some data compression (if configured too). */\
+        /* A register optimizer will find unnecessary copies trivial to */\
+        /* remove. Variables are called I, II, III, IIII, IIIII, etc... by  */\
+        /* the preprocessor library.*/ \
         MALC_LOG_DECLARE_TMP_VARIABLES (pp_vargs_ignore_first (__VA_ARGS__))\
+        /* Validating that the functions containing refs have a ref */\
+        /* desctructor as the last argument*/\
         MALC_LOG_VALIDATE_REF_AND_CLEANUP (pp_vargs_ignore_first (__VA_ARGS__))\
-      )\
-      MALC_LOG_PRIVATE_IMPL ((err), (malc_ptr), (sev), __VA_ARGS__); \
+        malc_serializer pp_tokconcat(malc_serializer_, __LINE__);\
+        err = MALC_LOG_ENTRY_PREPARE_FNAME(\
+          (malc_ptr),\
+          &pp_tokconcat (malc_serializer_, __LINE__),\
+          &pp_tokconcat (malc_const_entry_, __LINE__),\
+          MALC_GET_SERIALIZED_TYPES_SIZE (pp_vargs_ignore_first (__VA_ARGS__))\
+          );\
+        if (err) {\
+          break;\
+        }\
+        /* passing all the variables on the serializer, which already knows */\
+        /* the total size. */\
+        MALC_SERIALIZE_TMP_VALUES (pp_vargs_ignore_first (__VA_ARGS__));\
+      , /*else: no args, just a plain format string*/\
+        malc_serializer pp_tokconcat(malc_serializer_, __LINE__);\
+        err = MALC_LOG_ENTRY_PREPARE_FNAME(\
+          (malc_ptr),\
+          &pp_tokconcat (malc_serializer_, __LINE__),\
+          &pp_tokconcat (malc_const_entry_, __LINE__),\
+          0\
+          );\
+        if (err) {\
+          break;\
+        }\
+      ) /*end if*/\
+      MALC_LOG_ENTRY_COMMIT_FNAME(\
+        (malc_ptr),\
+        &pp_tokconcat (malc_serializer_, __LINE__)\
+        );\
     } \
     else { \
       (err) = bl_ok; \
     } \
-    --(err); ++(err); /*remove unused warnings */ \
+    --(err); ++(err); /*remove unused variable warnings */ \
   } \
   while (0)
 

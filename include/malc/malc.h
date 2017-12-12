@@ -16,6 +16,7 @@
 #include <malc/libexport.h>
 #include <malc/cfg.h>
 #include <malc/destination.h>
+#include <malc/impl/serializer.h>
 #include <malc/impl/malc_private.h>
 
 struct malc;

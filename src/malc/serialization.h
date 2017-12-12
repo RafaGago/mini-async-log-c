@@ -9,6 +9,7 @@
 
 #include <malc/malc.h>
 #include <malc/log_entry.h>
+#include <malc/impl/serializer.h>
 
 /*----------------------------------------------------------------------------*/
 define_autoarray_types (log_args, log_argument);
@@ -61,14 +62,16 @@ extern void serializer_init(
   serializer* se, malc_const_entry const* entry, bool has_tstamp
   );
 /*----------------------------------------------------------------------------*/
+extern malc_serializer serializer_prepare_external_serializer(
+  serializer* ser, u8* node_mem, u8* mem
+  );
+/*----------------------------------------------------------------------------*/
 static inline uword serializer_log_entry_size(
   serializer const* se, uword payload
   )
 {
   return payload + serializer_hdr_size (se) + se->extra_size;
 }
-/*----------------------------------------------------------------------------*/
-extern uword serializer_execute (serializer* se, u8* mem, va_list vargs);
 /*----------------------------------------------------------------------------*/
 typedef struct deserializer {
   log_args                args;

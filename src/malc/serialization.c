@@ -5,205 +5,17 @@
 #include <bl/base/preprocessor_basic.h>
 
 #include <malc/malc.h>
-#include <malc/stack_args.h>
 #include <malc/serialization.h>
+#include <malc/impl/serializer.h>
 
 #ifndef __cplusplus
-  #define ENCODE_NAME_BUILD(suffix) pp_tokconcat(encode, suffix)
   #define DECODE_NAME_BUILD(suffix) pp_tokconcat(decode, suffix)
 #else
-  #define ENCODE_NAME_BUILD(suffix) encode
   #define DECODE_NAME_BUILD(suffix) decode
 #endif
 /*----------------------------------------------------------------------------*/
 declare_autoarray_funcs (log_args, log_argument);
 declare_autoarray_funcs (log_refs, malc_ref);
-/*----------------------------------------------------------------------------*/
-static inline void wrong (void) {}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_8) (compressed_header* ch, u8* mem, u8 v)
-{
-  *mem = v;
-  return mem + 1;
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_16) (compressed_header* ch, u8* mem, u16 v)
-{
-  memcpy (mem, &v, sizeof v);
-  return mem + sizeof v;
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_32) (compressed_header* ch, u8* mem, u32 v)
-{
-  memcpy (mem, &v, sizeof v);
-  return mem + sizeof v;
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_64) (compressed_header* ch, u8* mem, u64 v)
-{
-  memcpy (mem, &v, sizeof v);
-  return mem + sizeof v;
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_float)(
-  compressed_header* ch, u8* mem, float v
-  )
-{
-  memcpy (mem, &v, sizeof v);
-  return mem + sizeof v;
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_double)(
-  compressed_header* ch, u8* mem, double v
-  )
-{
-  memcpy (mem, &v, sizeof v);
-  return mem + sizeof v;
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_comp32)(
-  compressed_header* ch, u8* mem, malc_compressed_32 v
-  )
-{
-  uword size = malc_compressed_get_size (v.format_nibble);
-  bl_assert (size <= sizeof (u32));
-  ch->hdr[ch->idx / 2] |= (u8) v.format_nibble << ((ch->idx & 1) * 4);
-  ++ch->idx;
-  for (uword i = 0; i < size; ++i) {
-    *mem = (u8) (v.v >> (i * 8));
-    ++mem;
-  }
-  return mem;
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_comp64)(
-  compressed_header* ch, u8* mem, malc_compressed_64 v
-  )
-{
-  uword size = malc_compressed_get_size (v.format_nibble);
-  ch->hdr[ch->idx / 2] |= (u8) v.format_nibble << ((ch->idx & 1) * 4);
-  ++ch->idx;
-  for (uword i = 0; i < size; ++i) {
-    *mem = (u8) (v.v >> (i * 8));
-    ++mem;
-  }
-  return mem;
-}
-/*----------------------------------------------------------------------------*/
-#if BL_WORDSIZE == 64
-  static u8* encode_compressed_ptr(
-    compressed_header* ch, u8* mem, malc_compressed_ptr v
-    )
-  {
-    return ENCODE_NAME_BUILD(_comp64) (ch, mem, v);
-  }
-#else
-  static u8* encode_compressed_ptr(
-    compressed_header* ch, u8* mem, malc_compressed_ptr v
-    )
-  {
-    return ENCODE_NAME_BUILD(_comp32) (ch, mem, v);
-  }
-#endif
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_compref)(
-  compressed_header* ch, u8* mem, malc_compressed_ref v
-  )
-{
-  mem = ENCODE_NAME_BUILD(_16) (ch, mem, v.size);
-  return encode_compressed_ptr (ch, mem, v.ref);
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_comprefdtor)(
-  compressed_header* ch, u8* mem, malc_compressed_refdtor v
-  )
-{
-  mem = encode_compressed_ptr (ch, mem, v.func);
-  return encode_compressed_ptr (ch, mem, v.context);
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_ptr)(
-  compressed_header* ch, u8* mem, void* v
-  )
-{
-  memcpy (mem, &v, sizeof v);
-  return mem + sizeof v;
-}
-/*----------------------------------------------------------------------------*/
-/*lit come as compressed_ptr when !MALC_NO_PTR_COMPRESSION */
-static inline u8* ENCODE_NAME_BUILD(_lit)(
-  compressed_header* ch, u8* mem, malc_lit v
-  )
-{
-  return ENCODE_NAME_BUILD(_ptr) (ch, mem, (void*) v.lit);
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_strcp)(
-  compressed_header* ch, u8* mem, malc_strcp v
-  )
-{
-  mem = ENCODE_NAME_BUILD(_16) (ch, mem, v.len);
-  memcpy (mem, v.str, v.len);
-  return mem + v.len;
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_strref)(
-  compressed_header* ch, u8* mem, malc_strref v
-  )
-{
-  mem = ENCODE_NAME_BUILD(_16) (ch, mem, v.len);
-  return ENCODE_NAME_BUILD(_ptr) (ch, mem, (void*) v.str);
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_memcp)(
-  compressed_header* ch, u8* mem, malc_memcp v
-  )
-{
-  mem = ENCODE_NAME_BUILD(_16) (ch, mem, v.size);
-  memcpy (mem, v.mem, v.size);
-  return mem + v.size;
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_memref)(
-  compressed_header* ch, u8* mem, malc_memref v
-  )
-{
-  mem = ENCODE_NAME_BUILD(_16) (ch, mem, v.size);
-  return ENCODE_NAME_BUILD(_ptr) (ch, mem, (void*) v.mem);
-}
-/*----------------------------------------------------------------------------*/
-static inline u8* ENCODE_NAME_BUILD(_refdtor)(
-  compressed_header* ch, u8* mem, malc_refdtor v
-  )
-{
-  mem = ENCODE_NAME_BUILD(_ptr) (ch, mem, (void*) v.func);
-  return ENCODE_NAME_BUILD(_ptr) (ch, mem, (void*) v.context);
-}
-/*----------------------------------------------------------------------------*/
-#ifndef __cplusplus
-#define encode(ch, mem, val)\
-  _Generic ((val),\
-    u8:                      encode_8,\
-    u16:                     encode_16,\
-    u32:                     encode_32,\
-    u64:                     encode_64,\
-    double:                  encode_double,\
-    float:                   encode_float,\
-    void*:                   encode_ptr,\
-    malc_compressed_32:      encode_comp32,\
-    malc_compressed_64:      encode_comp64,\
-    malc_compressed_ref:     encode_compref,\
-    malc_compressed_refdtor: encode_comprefdtor,\
-    malc_lit:                encode_lit,\
-    malc_strcp:              encode_strcp,\
-    malc_strref:             encode_strref,\
-    malc_memcp:              encode_memcp,\
-    malc_memref:             encode_memref,\
-    malc_refdtor:            encode_refdtor,\
-    default:                 wrong\
-    )\
-  ((ch), (mem), (val))
-#endif
 /*----------------------------------------------------------------------------*/
 #if !defined (MALC_NO_BUILTIN_COMPRESSION) || \
     !defined (MALC_NO_PTR_COMPRESSION) && BL_WORDSIZE == 32
@@ -518,127 +330,33 @@ void serializer_init(
 /*----------------------------------------------------------------------------*/
 #endif /* MALC_NO_COMPRESSION */
 /*----------------------------------------------------------------------------*/
-uword serializer_execute (serializer* se, u8* mem, va_list vargs)
+/* write the header and return it ready to serialize write the varargs*/
+malc_serializer serializer_prepare_external_serializer(
+  serializer* ser, u8* node_mem, u8* mem
+  )
 {
-  char const* partype = &se->entry->info[1];
-
-  u8* wptr = mem;
+  malc_serializer s;
+  s.node_mem = node_mem;
 #ifdef MALC_NO_COMPRESSION
-  wptr = encode (se->ch, wptr, (void*) se->entry);
+  s.field_mem = mem;
+  malc_serialize (&s, (void*) ser->entry);
 #else /* MALC_NO_COMPRESSION */
-  *wptr       = 0;
-  se->ch->hdr = wptr;
-  se->ch->idx = 0;
-  wptr = encode (se->ch, wptr + 1, se->comp_entry);
-  /* the const entry pointer and its format byte (with a wasted nibble) is
-  placed at beggining. after that it comes the compressed format nibbles and
-  all the raw data*/
-  se->ch->idx = 0;
-  se->ch->hdr = wptr;
-  memset (wptr, 0, serializer_hdr_size (se));
-  wptr += serializer_hdr_size (se);
-#endif /* MALC_NO_COMPRESSION */
-  if (se->has_tstamp) {
-    wptr = encode (se->ch, wptr, se->t);
+  /*first byte is the entry length, wastes one nibble*/
+  s.compressed_header     = mem;
+  s.field_mem             = mem + 1;
+  *s.compressed_header    = 0
+  s.compressed_header_idx = 0;
+  malc_serialize (&s, (void*) ser->entry);
+  /*leaving space for all the size nibbles*/
+  s.compressed_header_idx = 0;
+  s.compressed_header     = s.field_mem;
+  memset (s.compressed_header, 0, serializer_hdr_size (ser));
+  s.field_mem            += serializer_hdr_size (ser);
+#endif
+  if (ser->has_tstamp) {
+    malc_serialize (&s, ser->t);
   }
-  /* the compiler will remove the fixed-size memcpy calls*/
-  while (*partype) {
-    switch (*partype) {
-    case malc_type_i8:
-    case malc_type_u8: {
-      u8 v = malc_get_va_arg (vargs, v);
-      wptr = encode (se->ch, wptr, v);
-      break;
-      }
-    case malc_type_i16:
-    case malc_type_u16: {
-      u16 v = malc_get_va_arg (vargs, v);
-      wptr = encode (se->ch, wptr, v);
-      break;
-      }
-    case malc_type_i32:
-    case malc_type_u32: {
-#ifdef MALC_NO_BUILTIN_COMPRESSION
-      u32 v = malc_get_va_arg (vargs, v);
-#else
-      malc_compressed_32 v = malc_get_va_arg (vargs, v);
-#endif
-      wptr = encode (se->ch, wptr, v);
-      break;
-      }
-    case malc_type_float: {
-      float v = malc_get_va_arg (vargs, v);
-      wptr = encode (se->ch, wptr, v);
-      break;
-      }
-    case malc_type_i64:
-    case malc_type_u64: {
-#ifdef MALC_NO_BUILTIN_COMPRESSION
-      u64 v = malc_get_va_arg (vargs, v);
-#else
-      malc_compressed_64 v = malc_get_va_arg (vargs, v);
-#endif
-      wptr = encode (se->ch, wptr, v);
-      break;
-      }
-    case malc_type_double: {
-      double v = malc_get_va_arg (vargs, v);
-      wptr = encode (se->ch, wptr, v);
-      break;
-      }
-    case malc_type_ptr: {
-#ifdef MALC_NO_PTR_COMPRESSION
-      void* v = malc_get_va_arg (vargs, v);
-#else
-      malc_compressed_ptr v = malc_get_va_arg (vargs, v);
-#endif
-      wptr = encode (se->ch, wptr, v);
-      break;
-      }
-    case malc_type_lit: {
-#ifdef MALC_NO_PTR_COMPRESSION
-      malc_lit v = malc_get_va_arg (vargs, v);
-#else
-      malc_compressed_ptr v = malc_get_va_arg (vargs, v);
-#endif
-      wptr = encode (se->ch, wptr, v);
-      break;
-      }
-    case malc_type_strcp:
-    case malc_type_memcp: {
-      malc_memcp v = malc_get_va_arg (vargs, v);
-      if (unlikely (!v.mem)) {
-        v.size = 0;
-      }
-      wptr = encode (se->ch, wptr, v);
-      break;
-      }
-    case malc_type_strref:
-    case malc_type_memref: {
-#ifdef MALC_NO_PTR_COMPRESSION
-      malc_memref v = malc_get_va_arg (vargs, v);
-#else
-      malc_compressed_ref v = malc_get_va_arg (vargs, v);
-#endif
-      wptr = encode (se->ch, wptr, v);
-      break;
-      }
-    case malc_type_refdtor: {
-#ifdef MALC_NO_PTR_COMPRESSION
-      malc_refdtor v = malc_get_va_arg (vargs, v);
-#else
-      malc_compressed_refdtor v = malc_get_va_arg (vargs, v);
-#endif
-      wptr = encode (se->ch, wptr, v);
-      break;
-      }
-    default: {
-      bl_assert (0 && "bug");
-      }
-    }
-    ++partype;
-  }
-  return (uword) (wptr - mem);
+  return s;
 }
 /*----------------------------------------------------------------------------*/
 bl_err deserializer_init (deserializer* ds, alloc_tbl const* alloc)

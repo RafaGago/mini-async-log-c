@@ -14,7 +14,6 @@
 #include <bl/nonblock/backoff.h>
 
 #include <malc/cfg.h>
-#include <malc/stack_args.h>
 #include <malc/memory.h>
 #include <malc/serialization.h>
 #include <malc/entry_parser.h>
@@ -522,8 +521,11 @@ MALC_EXPORT uword malc_get_min_severity (malc const* l)
   return destinations_min_severity (&l->dst);
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT bl_err malc_log(
-  malc* l, malc_const_entry const* entry, uword payload_size, ...
+MALC_EXPORT bl_err malc_log_entry_prepare(
+  malc*                   l,
+  malc_serializer*        ext_ser,
+  malc_const_entry const* entry,
+  uword                   payload_size
   )
 {
 #ifdef MALC_SAFETY_CHECK
@@ -564,22 +566,20 @@ MALC_EXPORT bl_err malc_log(
     return err;
   }
   qnode* n = (qnode*) mem;
-  va_list vargs;
-  va_start (vargs, payload_size);
-  /*serializer_execute is deliberately unsafe (to avoid branches on the
-    fast-path), if the log macros are used everything will be correct. Checks
-    have to be avoided on the fast-path*/
-  bl_assert_side_effect(
-    serializer_execute (&se, mem + sizeof *n, vargs) + sizeof *n <= size
-    );
-  va_end(vargs);
   n->slots    = slots - 1;
   n->info.cmd =  q_cmd_entry;
   n->info.tag = tag;
   n->info.has_timestamp = l->producer.timestamp;
   mpsc_i_node_set (&n->hook, nullptr, 0, 0);
-  mpsc_i_produce_notag (&l->q, &n->hook);
+  *ext_ser = serializer_prepare_external_serializer (&se, mem, mem + sizeof *n);
   return bl_ok;
+}
+/*----------------------------------------------------------------------------*/
+MALC_EXPORT void malc_log_entry_commit(
+  malc* l, malc_serializer const* ext_ser
+  )
+{
+  mpsc_i_produce_notag (&l->q, &((qnode*) ext_ser->node_mem)->hook);
 }
 /*----------------------------------------------------------------------------*/
 #ifdef __cplusplus

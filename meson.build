@@ -117,7 +117,6 @@ malc_test_srcs = [
     'test/src/malc/tests_main.c',
     'test/src/malc/tls_buffer_test.c',
     'test/src/malc/bounded_buffer_test.c',
-    'test/src/malc/interface_test.c',
     'test/src/malc/serialization_test.c',
     'test/src/malc/entry_parser_test.c',
     'test/src/malc/destinations_test.c',

@@ -1,7 +1,7 @@
 Description
 ===========
 
-A C11 low-latency producer wait-free (when using Thread Local Storage)
+A C11 low-latency wait-free producer (when using Thread Local Storage)
 asynchronous data logger with type-safe strings.
 
 Based on the lessons learned on its older C++ counterpart mini-async-log.
@@ -9,11 +9,12 @@ Based on the lessons learned on its older C++ counterpart mini-async-log.
 Features
 ========
 
-- Very high performance. Very hard to be faster for a generic library.
+- Very high performance. Hard to be faster for a generic library. Beats
+  "mini-async-log" in most configurations.
 
 - Various memory (log entry) sources: Thread Local Storage buffer, common
   bounded buffer (configurable to one buffer for each CPU) and custom allocators
-  (can default to the heap).
+  (defaults to the heap).
 
 - Type-safe format strings. Achieved through C11 type-generic expressions and
   (unfortunately) preprocessor abusing.
@@ -30,10 +31,11 @@ Features
 
 - Compile-time removable severities.
 
-- Zero-copy logging of strings/memory ranges providing a callback, suitable for
-  deallocation or reference count decrementing.
+- Zero-copy logging of strings/memory ranges: achieved by just invoking a
+  callback from where manual deallocation or reference counting can be done on
+  the consumer side.
 
-- Very decent test coverage.
+- Decent test coverage.
 
 Log format strings
 ==================
@@ -71,15 +73,26 @@ escaping:
 
 > "Escaped open brace: {{"
 
-Build
+Build and test
 ==================
 
-Meson 0.41 is used. In Ubuntu:
+Meson 0.41 is used. Ubuntu:
 
+> sudo apt install ninja-build python3-pip
 > sudo -H pip3 install meson
+
+> git submodule update --init --recursive
+> meson your_stage_dir  --buildtype=release
+> ninja -C your_stage_dir
+> ninja -C your_stage_dir test
+
+Windows:
+
+Untested. It's almost surely broken. If it's broken on the preprocessor code
+(Visual Studio preprocessor quirks) then the preprocessor hackery can be
+replaced with template hackery.
 
 TODO
 ==================
 
--Add more smoke tests.
 -Benchmark/optimize.
