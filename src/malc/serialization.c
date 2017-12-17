@@ -344,7 +344,7 @@ malc_serializer serializer_prepare_external_serializer(
   /*first byte is the entry length, wastes one nibble*/
   s.compressed_header     = mem;
   s.field_mem             = mem + 1;
-  *s.compressed_header    = 0
+  *s.compressed_header    = 0;
   s.compressed_header_idx = 0;
   malc_serialize (&s, (void*) ser->entry);
   /*leaving space for all the size nibbles*/
