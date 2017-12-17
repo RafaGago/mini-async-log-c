@@ -11,6 +11,12 @@ option(
      description : 'compile as shared libraries'
      )
 option(
+    'bare',
+     type        : 'boolean',
+     value       : false,
+     description : 'No extra content compilation (tests, examples, etc...)'
+     )
+option(
     'no_compressed_builtins',
      type        : 'boolean',
      value       : false,

@@ -17,13 +17,20 @@ version_major = '0'
 version_rev   = '1'
 version       = version_minor + '.' + version_major + '.' + version_rev
 
+is_bare = get_option ('bare') ? 'true' : 'false'
+
 base_library = subproject(
     'base_library',
-    default_options : ['timestamp_64bit=true']
+    default_options : [
+        'timestamp_64bit=true',
+        'bare=' + is_bare
+        ]
     )
 base_lib          = base_library.get_variable ('base_lib')
 nonblock_lib      = base_library.get_variable ('nonblock_lib')
-libcmocka_path    = base_library.get_variable ('libcmocka_path')
+if not get_option ('bare')
+    libcmocka_path    = base_library.get_variable ('libcmocka_path')
+endif
 build_helpers_dir = base_library.get_variable ('build_helpers_dir')
 
 include_dirs = [
@@ -32,13 +39,15 @@ include_dirs = [
 ]
 include_dirs += base_library.get_variable ('include_dirs')
 
-test_include_dirs  = include_dirs
-test_include_dirs += [ include_directories ('test/src') ]
-test_include_dirs +=  base_library.get_variable ('test_include_dirs')
+if not get_option ('bare')
+    test_include_dirs  = include_dirs
+    test_include_dirs += [ include_directories ('test/src') ]
+    test_include_dirs +=  base_library.get_variable ('test_include_dirs')
 
-smoke_test_include_dirs  = include_dirs
-smoke_test_include_dirs += [ include_directories ('smoke_test/src') ]
-smoke_test_include_dirs +=  base_library.get_variable ('test_include_dirs')
+    smoke_test_include_dirs  = include_dirs
+    smoke_test_include_dirs += [ include_directories ('smoke_test/src') ]
+    smoke_test_include_dirs +=  base_library.get_variable ('test_include_dirs')
+endif
 
 pkg_mod = import ('pkgconfig')
 install_subdir ('include/malc', install_dir : 'include')
@@ -46,8 +55,11 @@ install_subdir ('include/malc', install_dir : 'include')
 cflags = base_library.get_variable ('cflags')
 cflags += [ '-DMALC_LIBRARY_COMPILATION' ]
 lib_cflags = []
-test_cflags = []
-test_link_args = [ libcmocka_path ]
+
+if not get_option ('bare')
+    test_cflags = []
+    test_link_args = [ libcmocka_path ]
+endif
 
 if get_option ('sharedlib')
     libtype = 'shared_library'
@@ -64,7 +76,9 @@ endif
 
 host_system = host_machine.system()
 if host_system == 'windows'
-    test_link_args += ['-lwinmm.lib'] # Untested
+    if not get_option ('bare')
+        test_link_args += ['-lwinmm.lib'] # Untested
+    endif
 endif
 
 threads = dependency ('threads')
@@ -143,95 +157,98 @@ pkg_mod.generate(
     filebase    : 'malc',
     description : 'mini-async-log-c'
     )
-test(
-    'malc',
-    executable(
-        'malc-test',
-        malc_test_srcs,
-        include_directories : test_include_dirs,
-        link_with           : malc_lib,
-        link_args           : test_link_args,
-        c_args              : cflags + test_cflags,
-        dependencies        : threads
-    ))
-test(
-    'malc-smoke',
-    executable(
-        'malc-smoke',
-        malc_smoke_test_srcs,
-        include_directories : smoke_test_include_dirs,
-        link_with           : malc_lib,
-        link_args           : test_link_args,
-        c_args              : cflags + test_cflags,
-        dependencies        : threads
-    ))
 
-executable(
-        'malc-example-hello-malc',
-        [ 'example/src/hello-malc.c' ],
-        include_directories : smoke_test_include_dirs,
-        link_with           : malc_lib,
-        link_args           : test_link_args,
-        c_args              : cflags,
-        dependencies        : threads
-    )
-executable(
-        'malc-example-overwiew',
-        [ 'example/src/overview.c' ],
-        include_directories : smoke_test_include_dirs,
-        link_with           : malc_lib,
-        link_args           : test_link_args,
-        c_args              : cflags,
-        dependencies        : threads
-    )
-executable(
-        'malc-example-thread-local-storage',
-        [ 'example/src/thread_local_storage.c' ],
-        include_directories : smoke_test_include_dirs,
-        link_with           : malc_lib,
-        link_args           : test_link_args,
-        c_args              : cflags,
-        dependencies        : threads
-    )
-executable(
-        'malc-example-benchmark',
-        [ 'example/src/benchmark.c' ],
-        include_directories : smoke_test_include_dirs,
-        link_with           : malc_lib,
-        link_args           : test_link_args,
-        c_args              : cflags,
-        dependencies        : threads
-    )
-
-if cc.get_id() == 'gcc' or cc.get_id() == 'clang' # C++ compiler assumed if not
-    configure_file(
-        input : 'smoke_test/src/malc/smoke.c',
-        output : 'smoke.cpp',
-        configuration : configuration_data()
-        )
+if not get_option ('bare')
     test(
-        'malc-smoke-cpp',
+        'malc',
         executable(
-            'malc-smoke-cpp',
-            [ meson.build_root() + '/smoke.cpp' ],
+            'malc-test',
+            malc_test_srcs,
+            include_directories : test_include_dirs,
+            link_with           : malc_lib,
+            link_args           : test_link_args,
+            c_args              : cflags + test_cflags,
+            dependencies        : threads
+        ))
+    test(
+        'malc-smoke',
+        executable(
+            'malc-smoke',
+            malc_smoke_test_srcs,
             include_directories : smoke_test_include_dirs,
             link_with           : malc_lib,
             link_args           : test_link_args,
-            cpp_args            : cflags + test_cflags,
+            c_args              : cflags + test_cflags,
             dependencies        : threads
         ))
-    configure_file(
-        input : 'example/src/benchmark.c',
-        output : 'benchmark.cpp',
-        configuration : configuration_data()
+
+    executable(
+            'malc-example-hello-malc',
+            [ 'example/src/hello-malc.c' ],
+            include_directories : smoke_test_include_dirs,
+            link_with           : malc_lib,
+            link_args           : test_link_args,
+            c_args              : cflags,
+            dependencies        : threads
         )
     executable(
-        'malc-example-benchmark-cpp',
-        [ meson.build_root() + '/benchmark.cpp' ],
-        include_directories : smoke_test_include_dirs,
-        link_with           : malc_lib,
-        link_args           : test_link_args,
-        c_args              : cflags,
-        dependencies        : threads
-    )
+            'malc-example-overwiew',
+            [ 'example/src/overview.c' ],
+            include_directories : smoke_test_include_dirs,
+            link_with           : malc_lib,
+            link_args           : test_link_args,
+            c_args              : cflags,
+            dependencies        : threads
+        )
+    executable(
+            'malc-example-thread-local-storage',
+            [ 'example/src/thread_local_storage.c' ],
+            include_directories : smoke_test_include_dirs,
+            link_with           : malc_lib,
+            link_args           : test_link_args,
+            c_args              : cflags,
+            dependencies        : threads
+        )
+    executable(
+            'malc-example-benchmark',
+            [ 'example/src/benchmark.c' ],
+            include_directories : smoke_test_include_dirs,
+            link_with           : malc_lib,
+            link_args           : test_link_args,
+            c_args              : cflags,
+            dependencies        : threads
+        )
+
+    if cc.get_id() == 'gcc' or cc.get_id() == 'clang' # C++ compiler assumed if not
+        configure_file(
+            input : 'smoke_test/src/malc/smoke.c',
+            output : 'smoke.cpp',
+            configuration : configuration_data()
+            )
+        test(
+            'malc-smoke-cpp',
+            executable(
+                'malc-smoke-cpp',
+                [ meson.build_root() + '/smoke.cpp' ],
+                include_directories : smoke_test_include_dirs,
+                link_with           : malc_lib,
+                link_args           : test_link_args,
+                cpp_args            : cflags + test_cflags,
+                dependencies        : threads
+            ))
+        configure_file(
+            input : 'example/src/benchmark.c',
+            output : 'benchmark.cpp',
+            configuration : configuration_data()
+            )
+        executable(
+            'malc-example-benchmark-cpp',
+            [ meson.build_root() + '/benchmark.cpp' ],
+            include_directories : smoke_test_include_dirs,
+            link_with           : malc_lib,
+            link_args           : test_link_args,
+            c_args              : cflags,
+            dependencies        : threads
+        )
+    endif
 endif
