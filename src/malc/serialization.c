@@ -346,7 +346,7 @@ malc_serializer serializer_prepare_external_serializer(
   s.field_mem             = mem + 1;
   *s.compressed_header    = 0;
   s.compressed_header_idx = 0;
-  malc_serialize (&s, (void*) ser->entry);
+  malc_serialize (&s, malc_get_compressed_ptr ((void*) ser->entry));
   /*leaving space for all the size nibbles*/
   s.compressed_header_idx = 0;
   s.compressed_header     = s.field_mem;
