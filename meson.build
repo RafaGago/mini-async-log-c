@@ -171,7 +171,7 @@ if not get_option ('bare')
             dependencies        : threads
         ))
     test(
-        'malc-smoke',
+        'malc',
         executable(
             'malc-smoke',
             malc_smoke_test_srcs,
@@ -226,7 +226,7 @@ if not get_option ('bare')
             configuration : configuration_data()
             )
         test(
-            'malc-smoke-cpp',
+            'malc',
             executable(
                 'malc-smoke-cpp',
                 [ meson.build_root() + '/smoke.cpp' ],
