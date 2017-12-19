@@ -82,10 +82,6 @@ typedef struct qnode_tls_alloc {
 }
 qnode_tls_alloc;
 /*----------------------------------------------------------------------------*/
-#ifdef __cplusplus
-  extern "C" {
-#endif
-/*----------------------------------------------------------------------------*/
 static void malc_tls_destructor (void* mem, void* context)
 {
 /*When a thread goes out of scope we can't just deallocate its TLS memory
