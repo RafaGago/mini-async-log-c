@@ -9,6 +9,7 @@
 #include <bl/base/to_type_containing.h>
 #include <bl/base/processor_pause.h>
 #include <bl/base/deadline.h>
+#include <bl/base/cache.h>
 
 #include <bl/nonblock/mpsc_i.h>
 #include <bl/nonblock/backoff.h>
@@ -16,6 +17,7 @@
 #include <malc/cfg.h>
 #include <malc/memory.h>
 #include <malc/serialization.h>
+
 #include <malc/entry_parser.h>
 #include <malc/destinations.h>
 
@@ -35,6 +37,7 @@ enum state {
 };
 /*----------------------------------------------------------------------------*/
 struct malc {
+  declare_cache_pad_member;
   atomic_uword      state;
   malc_producer_cfg producer;
   alloc_tbl const*  alloc;
@@ -51,6 +54,7 @@ struct malc {
   deserializer      ds;
   entry_parser      ep;
   destinations      dst;
+  declare_cache_pad_member;
 };
 /*----------------------------------------------------------------------------*/
 enum queue_command {
