@@ -236,6 +236,17 @@ if not get_option ('bare')
                 cpp_args            : cflags + test_cflags,
                 dependencies        : threads
             ))
+        test(
+            'malc',
+            executable(
+                'malc-example-cpp-wrapper',
+                [ 'example/src/cpp-wrapper.cpp' ],
+                include_directories : smoke_test_include_dirs,
+                link_with           : malc_lib,
+                link_args           : test_link_args,
+                c_args              : cflags,
+                dependencies        : threads
+            ))
         configure_file(
             input : 'example/src/benchmark.c',
             output : 'benchmark.cpp',
