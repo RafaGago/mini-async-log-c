@@ -183,7 +183,9 @@ bl_err destinations_set_rate_limit_settings(
   return destinations_set_rate_limit_settings_impl (d, sec, false);
 }
 /*----------------------------------------------------------------------------*/
-void destinations_get_rate_limit_settings (destinations* d, malc_security* sec)
+void destinations_get_rate_limit_settings(
+  destinations const* d, malc_security* sec
+  )
 {
   sec->log_rate_filter_watch_count  = d->filter_watch_count;
   sec->log_rate_filter_min_severity = d->filter_min_severity;
@@ -310,7 +312,9 @@ void destinations_write(
   }
 }
 /*----------------------------------------------------------------------------*/
-bl_err destinations_get_instance (destinations* d, void** instance, u32 dest_id)
+bl_err destinations_get_instance(
+  destinations const* d, void** instance, u32 dest_id
+  )
 {
   destination* dest;
   uword        id = 0;
@@ -324,7 +328,9 @@ bl_err destinations_get_instance (destinations* d, void** instance, u32 dest_id)
   return bl_invalid;
 }
 /*----------------------------------------------------------------------------*/
-bl_err destinations_get_cfg (destinations* d, malc_dst_cfg* cfg, u32 dest_id)
+bl_err destinations_get_cfg(
+  destinations const* d, malc_dst_cfg* cfg, u32 dest_id
+  )
 {
   destination* dest;
   uword        id = 0;

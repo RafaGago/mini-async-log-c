@@ -58,7 +58,7 @@ extern bl_err destinations_set_rate_limit_settings(
   );
 /*----------------------------------------------------------------------------*/
 extern void destinations_get_rate_limit_settings(
-  destinations* d, malc_security* sec
+  destinations const* d, malc_security* sec
   );
 /*----------------------------------------------------------------------------*/
 extern void destinations_terminate (destinations* d);
@@ -76,11 +76,11 @@ extern void destinations_write(
   );
 /*----------------------------------------------------------------------------*/
 extern bl_err destinations_get_instance(
-  destinations* d, void** instance, u32 dest_id
+  destinations const* d, void** instance, u32 dest_id
   );
 /*----------------------------------------------------------------------------*/
 extern bl_err destinations_get_cfg(
-  destinations* d, malc_dst_cfg* cfg, u32 dest_id
+  destinations const* d, malc_dst_cfg* cfg, u32 dest_id
   );
 /*----------------------------------------------------------------------------*/
 extern bl_err destinations_set_cfg(

@@ -190,7 +190,7 @@ MALC_EXPORT bl_err malc_destroy (malc* l)
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT bl_err malc_get_cfg (malc* l, malc_cfg* cfg)
+MALC_EXPORT bl_err malc_get_cfg (malc const* l, malc_cfg* cfg)
 {
   cfg->consumer = l->consumer;
   cfg->producer = l->producer;
@@ -496,14 +496,14 @@ MALC_EXPORT bl_err malc_add_destination(
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_get_destination_instance(
-  malc* l, void** instance, u32 dest_id
+  malc const* l, void** instance, u32 dest_id
   )
 {
   return destinations_get_instance (&l->dst, instance, dest_id);
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_get_destination_cfg(
-  malc* l, malc_dst_cfg* cfg, u32 dest_id
+  malc const* l, malc_dst_cfg* cfg, u32 dest_id
   )
 {
   return destinations_get_cfg (&l->dst, cfg, dest_id);

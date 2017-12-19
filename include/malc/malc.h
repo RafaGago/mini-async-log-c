@@ -49,7 +49,7 @@ extern MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* tbl);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_destroy (malc* l);
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_get_cfg (malc* l, malc_cfg* cfg);
+extern MALC_EXPORT bl_err malc_get_cfg (malc const* l, malc_cfg* cfg);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg);
 /*------------------------------------------------------------------------------
@@ -153,11 +153,11 @@ reallocated elsewhere, so storing of these pointers shouldn't happen until all
 the destinations have been added.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_get_destination_instance(
-  malc* l, void** instance, u32 dest_id
+  malc const* l, void** instance, u32 dest_id
   );
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_get_destination_cfg(
-  malc* l, malc_dst_cfg* cfg, u32 dest_id
+  malc const* l, malc_dst_cfg* cfg, u32 dest_id
   );
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_set_destination_cfg(
