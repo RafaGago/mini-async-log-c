@@ -10,6 +10,7 @@
 #include <bl/base/time.h>
 #include <bl/base/integer_printf_format.h>
 #include <bl/base/utility.h>
+#include <bl/base/static_integer_math.h>
 
 #include <malc/malc.h>
 #include <malc/destinations/array.h>
@@ -232,6 +233,7 @@ int main (int argc, char const* argv[])
       double producer_sec, consumer_sec;
       tstamp start, stop, end;
       stress_dst* sdst = nullptr;
+      uword expected_msgs = round_to_next_multiple (args.msgs, thread_count);
 
       ilog = (malc*) bl_alloc (&alloc,  malc_get_size());
       if (!ilog) {
@@ -287,7 +289,7 @@ int main (int argc, char const* argv[])
       /*Thread start*/
       memset(tcontext, 0, sizeof tcontext);
       for (uword th = 0; th < thread_count; ++th) {
-        tcontext[th].msgs      = args.msgs / thread_count;
+        tcontext[th].msgs = expected_msgs / thread_count;
         if (args.alloc_mode == cfg_tls) {
           tcontext[th].tls_bytes = QSIZE / thread_count;
         }
@@ -331,15 +333,15 @@ int main (int argc, char const* argv[])
       printf(
         "threads: %2" FMT_W ", Producer Kmsgs/sec: %.2f, Consumer Kmsgs/sec: %.2f, faults: %" FMT_UW "\n",
         thread_count,
-        ((double) (args.msgs - faults) / producer_sec) / 1000.,
-        ((double) (args.msgs - faults) / consumer_sec) / 1000.,
+        ((double) (expected_msgs - faults) / producer_sec) / 1000.,
+        ((double) (expected_msgs - faults) / consumer_sec) / 1000.,
         faults
         );
     destroy:
       (void) malc_destroy (ilog);
     dealloc:
       bl_dealloc (&alloc, ilog);
-      if (!err && msgs != (args.msgs - faults)) {
+      if (!err && msgs != (expected_msgs - faults)) {
         fprintf(
           stderr,
           "BUG! %" FMT_UW " messages were lost\n",
