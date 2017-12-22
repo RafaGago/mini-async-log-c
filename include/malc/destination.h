@@ -80,7 +80,9 @@ terminate:
 
   Termination before memory deallocation. can be set to null if there is no
   termination to do. Its call will be triggered by "malc_terminate" (or
-  "malc_destroy" when no "malc_terminate" call is made).
+  "malc_destroy" when no "malc_terminate" call is made). Memory synchronization
+  is placed afterwars by malc, so all the actions did inside the function will
+  be visible to thread that calls "malc_terminate" (or "malc_destroy").
 
 flush:
 

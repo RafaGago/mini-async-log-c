@@ -287,12 +287,12 @@ MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
   }
   if (!is_consume_task_thread) {
     if (l->consumer.start_own_thread) {
-      bl_thread_join(&l->thread);
+      bl_thread_join (&l->thread);
     }
     else {
       nonblock_backoff b;
       nonblock_backoff_init_default (&b, 1000);
-      while (atomic_uword_load_rlx (&l->state) != st_stopped) {
+      while (atomic_uword_load (&l->state, mo_acquire) != st_stopped) {
         nonblock_backoff_run (&b);
       }
     }
@@ -463,7 +463,6 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
   }
   while (!deadline_expired_explicit (deadline, now) || (terminated && qn));
   if (terminated) {
-    atomic_uword_store_rlx (&l->state, st_stopped);
     destinations_terminate (&l->dst);
     /*Destroy all registered TLS buffers. From now on all thread local buffers
     from an hypothetical thread outliving the logger ("bl_thread_local
@@ -480,6 +479,10 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
     of this library. The user is forced to only use TLS on threads that he owns,
     which is a good side effect IMO.*/
     memory_tls_destroy_all (&l->mem, l->alloc);
+    /* release fence here to ensure that all the actions done on
+    "destinations_terminate" are visibile to the thread that called
+    "malc_terminate" */
+    atomic_uword_store (&l->state, st_stopped, mo_release);
   }
   return count ? bl_ok : bl_nothing_to_do;;
 }
