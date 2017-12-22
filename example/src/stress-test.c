@@ -12,9 +12,101 @@
 #include <bl/base/utility.h>
 
 #include <malc/malc.h>
-#include <malc/destinations/file.h>
+#include <malc/destinations/array.h>
+
+/* A program to test malc stability, basically the init/deinit sequence and the
+producer side. Thought out to be running for hours, so no file writing. */
 
 malc* ilog = nullptr;
+
+/*----------------------------------------------------------------------------*/
+/* Stress destination: a wrapper around "array_dst". Its only purpose is to
+  expose externally the received message count at the consumer side.
+
+  It's actually a decent example about how to define/work with own destinations
+  too */
+/*----------------------------------------------------------------------------*/
+typedef struct stress_dst {
+  malc_array_dst*  arr;
+  uword*           msgs;
+  alloc_tbl const* alloc;
+  char             lines[32][80];
+}
+stress_dst;
+/*----------------------------------------------------------------------------*/
+static bl_err stress_dst_init (void* dst, alloc_tbl const* alloc)
+{
+  stress_dst* d = (stress_dst*) dst;
+  d->msgs  = nullptr;
+  d->alloc = alloc;
+  d->arr   = (malc_array_dst*) bl_alloc (alloc, malc_array_dst_tbl.size_of);
+  if (!d->arr) {
+    return bl_alloc;
+  }
+  bl_err err = bl_ok;
+  if (malc_array_dst_tbl.init) {
+    err = malc_array_dst_tbl.init (d->arr, alloc);
+    if (err) {
+      bl_dealloc (alloc, d->arr);
+      d->arr = nullptr;
+      return err;
+    }
+  }
+  malc_array_dst_set_array(
+    d->arr, (char*) d->lines, arr_elems (d->lines), arr_elems (d->lines[0])
+    );
+  return bl_ok;
+}
+/*----------------------------------------------------------------------------*/
+static void stress_dst_terminate (void* dst)
+{
+  stress_dst* d = (stress_dst*) dst;
+  if (malc_array_dst_tbl.terminate) {
+    malc_array_dst_tbl.terminate (d->arr);
+  }
+  bl_dealloc (d->alloc, d->arr);
+}
+/*----------------------------------------------------------------------------*/
+static bl_err stress_dst_flush (void* dst)
+{
+  stress_dst* d = (stress_dst*) dst;
+  if (malc_array_dst_tbl.flush) {
+    return malc_array_dst_tbl.flush (d->arr);
+  }
+  return bl_ok;
+}
+/*----------------------------------------------------------------------------*/
+static bl_err stress_dst_idle_task (void* dst)
+{
+  stress_dst* d = (stress_dst*) dst;
+  if (malc_array_dst_tbl.idle_task) {
+    return malc_array_dst_tbl.idle_task (d->arr);
+  }
+  return bl_ok;
+}
+/*----------------------------------------------------------------------------*/
+static bl_err stress_dst_write(
+  void* dst, tstamp now, uword sev_val, malc_log_strings const* strs
+  )
+{
+  stress_dst* d = (stress_dst*) dst;
+  ++(*d->msgs);
+  return malc_array_dst_tbl.write (d->arr, now, sev_val, strs);
+}
+/*----------------------------------------------------------------------------*/
+static const malc_dst stress_dst_tbl = {
+  sizeof (stress_dst),
+  stress_dst_init,
+  stress_dst_terminate,
+  stress_dst_flush,
+  stress_dst_idle_task,
+  stress_dst_write
+};
+/*----------------------------------------------------------------------------*/
+static void stress_dst_set_msg_count_ptr (stress_dst* d, uword* ptr)
+{
+  d->msgs = ptr;
+}
 /*----------------------------------------------------------------------------*/
 static inline malc* get_malc_logger_instance()
 {
@@ -44,7 +136,8 @@ static int througput_thread (void* ctx)
       return 1;
     }
   }
-  /* Don't include the initialization (TLS creation) time on the benchmark */
+  /* Don't include the initialization (TLS creation) time on the data rate
+  measurements*/
   atomic_uword_store_rlx (&c->ready, 1);
   while (atomic_uword_load_rlx (&c->ready) == 1) {
     processor_pause();
@@ -73,7 +166,7 @@ pargs;
 /*----------------------------------------------------------------------------*/
 static void print_usage()
 {
-  puts("Usage: malc-example-benchmark <[tls|heap|queue|queue-cpu]> <msgs> <iterations>");
+  puts("Usage: malc-stress-test <[tls|heap|queue|queue-cpu]> <msgs> <iterations>");
 }
 /*----------------------------------------------------------------------------*/
 static int parse_args(pargs* args, int argc, char const* argv[])
@@ -133,10 +226,12 @@ int main (int argc, char const* argv[])
   for (uword i = 0; i < args.iterations; ++i) {
     for (uword thread_idx = 0; thread_idx < arr_elems(threads); ++thread_idx) {
       /* logger allocation/initialization */
-      uword  thread_count = threads[thread_idx];
-      uword  faults = 0;
+      uword thread_count = threads[thread_idx];
+      uword faults = 0;
+      uword msgs = 0;
       double producer_sec, consumer_sec;
       tstamp start, stop, end;
+      stress_dst* sdst = nullptr;
 
       ilog = (malc*) bl_alloc (&alloc,  malc_get_size());
       if (!ilog) {
@@ -149,12 +244,18 @@ int main (int argc, char const* argv[])
         goto dealloc;
       }
       /* destination register */
-      u32 file_id;
-      err = malc_add_destination (ilog, &file_id, &malc_file_dst_tbl);
+      u32 dst_id;
+      err = malc_add_destination (ilog, &dst_id, &stress_dst_tbl);
       if (err) {
-        fprintf (stderr, "Error creating the file destination\n");
+        fprintf (stderr, "Error creating the stress destination\n");
         goto destroy;
       }
+      err = malc_get_destination_instance (ilog, (void**) &sdst, dst_id);
+      if (err) {
+        fprintf (stderr, "Error getting the destination instance\n");
+        return err;
+      }
+      stress_dst_set_msg_count_ptr (sdst, &msgs);
       /* logger startup */
       malc_cfg cfg;
       err = malc_get_cfg (ilog, &cfg);
@@ -193,6 +294,8 @@ int main (int argc, char const* argv[])
         err = bl_thread_init (&thrs[th], througput_thread, &tcontext[th]);
         if (err) {
           fprintf (stderr, "unable to start a log thread\n");
+          /* too lazy now write proper deinitialization for this _test_ program
+          under such weird conditions now */
           (void) malc_destroy (ilog);
           bl_dealloc (&alloc, ilog);
           return 1;
@@ -236,6 +339,15 @@ int main (int argc, char const* argv[])
       (void) malc_destroy (ilog);
     dealloc:
       bl_dealloc (&alloc, ilog);
+      if (!err && msgs != (args.msgs - faults)) {
+        fprintf(
+          stderr,
+          "BUG! %" FMT_UW " messages were lost\n",
+          args.msgs - faults - msgs
+          );
+        bl_assert (false);
+        return -1;
+      }
     }
   }
   return err;

@@ -210,8 +210,8 @@ if not get_option ('bare')
             dependencies        : threads
         )
     executable(
-            'malc-example-benchmark',
-            [ 'example/src/benchmark.c' ],
+            'malc-example-stress-test',
+            [ 'example/src/stress-test.c' ],
             include_directories : smoke_test_include_dirs,
             link_with           : malc_lib,
             link_args           : test_link_args,
@@ -248,13 +248,13 @@ if not get_option ('bare')
                 dependencies        : threads
             ))
         configure_file(
-            input : 'example/src/benchmark.c',
-            output : 'benchmark.cpp',
+            input : 'example/src/stress-test.c',
+            output : 'stress-test.cpp',
             configuration : configuration_data()
             )
         executable(
-            'malc-example-benchmark-cpp',
-            [ meson.build_root() + '/benchmark.cpp' ],
+            'malc-example-stress-test-cpp',
+            [ meson.build_root() + '/stress-test.cpp' ],
             include_directories : smoke_test_include_dirs,
             link_with           : malc_lib,
             link_args           : test_link_args,
