@@ -96,7 +96,7 @@ val = get_option ('compressed_ptrs') ? '1' : '0'
 cflags += [ '-DMALC_PTR_COMPRESSION=' + val ]
 cdata.set(
     'compressed_ptrs_placeholder',
-    ' "#define MALC_PTR_COMPRESSION ' + val
+    '#define MALC_PTR_COMPRESSION ' + val
      )
 
 cdata.set ('version', version)
