@@ -17,8 +17,7 @@
 declare_autoarray_funcs (log_args, log_argument);
 declare_autoarray_funcs (log_refs, malc_ref);
 /*----------------------------------------------------------------------------*/
-#if !defined (MALC_NO_BUILTIN_COMPRESSION) || \
-    !defined (MALC_NO_PTR_COMPRESSION) && BL_WORDSIZE == 32
+#if MALC_BUILTIN_COMPRESSION || (MALC_PTR_COMPRESSION && BL_WORDSIZE == 32)
 static bl_err decode_compressed_32(
   compressed_header* ch, u8** mem, u8* mem_end, u32* v
   )
@@ -40,8 +39,7 @@ static bl_err decode_compressed_32(
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if !defined (MALC_NO_BUILTIN_COMPRESSION) || \
-    !defined (MALC_NO_PTR_COMPRESSION) && BL_WORDSIZE == 64
+#if MALC_BUILTIN_COMPRESSION || (MALC_PTR_COMPRESSION && BL_WORDSIZE == 64)
 static bl_err decode_compressed_64(
   compressed_header* ch, u8** mem, u8* mem_end, u64* v
   )
@@ -63,7 +61,7 @@ static bl_err decode_compressed_64(
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if !defined (MALC_NO_COMPRESSION) && BL_WORDSIZE == 64
+#if MALC_COMPRESSION && BL_WORDSIZE == 64
 /*----------------------------------------------------------------------------*/
 static bl_err decode_compressed_ptr(
   compressed_header* ch, u8** mem, u8* mem_end, void** v
@@ -72,7 +70,7 @@ static bl_err decode_compressed_ptr(
   return decode_compressed_64 (ch, mem, mem_end, (u64*) v);
 }
 /*----------------------------------------------------------------------------*/
-#elif !defined (MALC_NO_COMPRESSION) && BL_WORDSIZE == 32
+#elif MALC_COMPRESSION && BL_WORDSIZE == 32
 /*----------------------------------------------------------------------------*/
 static bl_err decode_compressed_ptr(
   compressed_header* ch, u8** mem, u8* mem_end, void** v
@@ -107,7 +105,7 @@ static inline bl_err DECODE_NAME_BUILD(_16)(
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-#ifdef MALC_NO_BUILTIN_COMPRESSION
+#if MALC_BUILTIN_COMPRESSION == 0
 static inline bl_err DECODE_NAME_BUILD(_32)(
   compressed_header* ch, u8** mem, u8* mem_end, u32* v
   )
@@ -132,7 +130,7 @@ static inline bl_err DECODE_NAME_BUILD(_64)(
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-#else /* MALC_NO_BUILTIN_COMPRESSION */
+#else /* MALC_BUILTIN_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_32)(
   compressed_header* ch, u8** mem, u8* mem_end, u32* v
@@ -148,7 +146,7 @@ static inline bl_err DECODE_NAME_BUILD(_64)(
   return decode_compressed_64 (ch, mem, mem_end, v);
 }
 /*----------------------------------------------------------------------------*/
-#endif /* MALC_NO_BUILTIN_COMPRESSION */
+#endif /* MALC_BUILTIN_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_float)(
   compressed_header* ch, u8** mem, u8* mem_end, float* v
@@ -174,7 +172,7 @@ static inline bl_err DECODE_NAME_BUILD(_double)(
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-#ifdef MALC_NO_PTR_COMPRESSION
+#if MALC_PTR_COMPRESSION == 0
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_ptr)(
   compressed_header* ch, u8** mem, u8* mem_end, void** v
@@ -188,7 +186,7 @@ static inline bl_err DECODE_NAME_BUILD(_ptr)(
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
-#else
+#else /* MALC_PTR_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_ptr)(
   compressed_header* ch, u8** mem, u8* mem_end, void** v
@@ -197,7 +195,7 @@ static inline bl_err DECODE_NAME_BUILD(_ptr)(
   return decode_compressed_ptr (ch, mem, mem_end, v);
 }
 /*----------------------------------------------------------------------------*/
-#endif
+#endif /* MALC_PTR_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_lit)(
   compressed_header* ch, u8** mem, u8* mem_end, malc_lit* v
@@ -292,7 +290,7 @@ static inline bl_err DECODE_NAME_BUILD(_refdtor)(
   ((ch), (mem), (mem_end), (val))
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef MALC_NO_COMPRESSION
+#if MALC_COMPRESSION == 0
 /*----------------------------------------------------------------------------*/
 void serializer_init(
   serializer* se, malc_const_entry const* entry, bool has_tstamp
@@ -307,7 +305,7 @@ void serializer_init(
   }
 }
 /*----------------------------------------------------------------------------*/
-#else /* MALC_NO_COMPRESSION */
+#else /* MALC_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 void serializer_init(
   serializer* se, malc_const_entry const* entry, bool has_tstamp
@@ -328,7 +326,7 @@ void serializer_init(
   se->ch        = &se->chval;
 }
 /*----------------------------------------------------------------------------*/
-#endif /* MALC_NO_COMPRESSION */
+#endif /* MALC_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 /* write the header and return it ready to serialize write the varargs*/
 malc_serializer serializer_prepare_external_serializer(
@@ -337,10 +335,10 @@ malc_serializer serializer_prepare_external_serializer(
 {
   malc_serializer s;
   s.node_mem = node_mem;
-#ifdef MALC_NO_COMPRESSION
+#if MALC_COMPRESSION == 0
   s.field_mem = mem;
   malc_serialize (&s, (void*) ser->entry);
-#else /* MALC_NO_COMPRESSION */
+#else /* MALC_COMPRESSION == 0 */
   /*first byte is the entry length, wastes one nibble*/
   s.compressed_header     = mem;
   s.field_mem             = mem + 1;
@@ -362,7 +360,7 @@ malc_serializer serializer_prepare_external_serializer(
 bl_err deserializer_init (deserializer* ds, alloc_tbl const* alloc)
 {
   memset (ds, 0, sizeof *ds);
-#ifdef MALC_NO_COMPRESSION
+#if MALC_COMPRESSION == 0
   ds->ch = nullptr;
 #else
   ds->ch = &ds->chval;
@@ -391,7 +389,7 @@ void deserializer_reset (deserializer* ds)
   ds->entry           = nullptr;
   ds->refdtor.func    = nullptr;
   ds->refdtor.context = nullptr;
-#ifndef MALC_NO_COMPRESSION
+#if MALC_COMPRESSION
   ds->ch->idx = 0;
   ds->ch->hdr = nullptr;
 #endif
@@ -405,7 +403,7 @@ bl_err deserializer_execute(
   alloc_tbl const* alloc
   )
 {
-#ifdef MALC_NO_COMPRESSION
+#if MALC_COMPRESSION == 0
   void* entry;
   bl_err err = decode (ds->ch, &mem, mem_end, &entry);
   if (unlikely (err)) {

@@ -16,12 +16,10 @@
 #include <malc/libexport.h>
 
 /*----------------------------------------------------------------------------*/
-#if defined (MALC_NO_BUILTIN_COMPRESSION) && defined (MALC_NO_PTR_COMPRESSION)
-  #define MALC_NO_COMPRESSION
-#endif
-#if defined (MALC_NO_COMPRESSION) &&\
-  (!defined (MALC_NO_BUILTIN_COMPRESSION) || !defined (MALC_NO_PTR_COMPRESSION))
-  #error "contradictory compression setup"
+#if MALC_BUILTIN_COMPRESSION == 0 && MALC_PTR_COMPRESSION == 0
+  #define MALC_COMPRESSION 0
+#else
+  #define MALC_COMPRESSION 1
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef __cplusplus
@@ -217,7 +215,7 @@ extern MALC_EXPORT void malc_log_entry_commit(
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
 /*----------------------------------------------------------------------------*/
-#ifdef MALC_NO_PTR_COMPRESSION
+#if MALC_PTR_COMPRESSION == 0
   #define malc_ptr_compress_count(x) 0
 #else
   #define malc_ptr_compress_count(x)\
@@ -229,7 +227,7 @@ extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
     )
 #endif
 
-#ifdef MALC_NO_BUILTIN_COMPRESSION
+#if MALC_BUILTIN_COMPRESSION == 0
   #define malc_builtin_compress_count(x) 0
 #else
   #define malc_builtin_compress_count(x)\
@@ -374,7 +372,7 @@ static inline u16        malc_transform_u16    (u16 v)        { return v; }
 static inline malc_strcp malc_transform_strcp  (malc_strcp v) { return v; }
 static inline malc_memcp malc_transform_memcp  (malc_memcp v) { return v; }
 
-#ifdef MALC_NO_BUILTIN_COMPRESSION
+#if MALC_BUILTIN_COMPRESSION == 0
   static inline i32 malc_transform_i32 (i32 v) { return v; }
   static inline u32 malc_transform_u32 (u32 v) { return v; }
   static inline i64 malc_transform_i64 (i64 v) { return v; }
@@ -398,7 +396,7 @@ static inline malc_memcp malc_transform_memcp  (malc_memcp v) { return v; }
   }
 #endif
 
-#ifdef MALC_NO_PTR_COMPRESSION
+#if MALC_PTR_COMPRESSION == 0
   static inline void*       malc_transform_ptr    (void* v)       { return v; }
   static inline void* const malc_transform_ptrc   (void* const v) { return v; }
   static inline malc_lit    malc_transform_lit    (malc_lit v)    { return v; }
@@ -503,7 +501,7 @@ template<> struct malc_type_traits<i16> : public malc_type_traits_base<i16> {
 template<> struct malc_type_traits<u16> : public malc_type_traits_base<u16> {
   static const char  code = malc_type_u16;
 };
-#ifdef MALC_NO_BUILTIN_COMPRESSION
+#if MALC_BUILTIN_COMPRESSION == 0
   template<> struct malc_type_traits<i32> : public malc_type_traits_base<i32> {
     static const char  code = malc_type_i32;
   };
@@ -546,7 +544,7 @@ template<> struct malc_type_traits<u16> : public malc_type_traits_base<u16> {
     }
   };
 #endif
-#ifdef MALC_NO_PTR_COMPRESSION
+#if MALC_PTR_COMPRESSION == 0
   template<> struct malc_type_traits<void*> :
     public malc_type_traits_base<void*> {
       static const char code = malc_type_ptr;

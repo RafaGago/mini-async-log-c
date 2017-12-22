@@ -18,7 +18,7 @@
 /*----------------------------------------------------------------------------*/
 typedef struct malc_serializer {
     u8*   node_mem;
-#ifndef MALC_NO_COMPRESSION
+#if MALC_COMPRESSION
     u8*   compressed_header;
     uword compressed_header_idx;
 #endif
@@ -97,7 +97,7 @@ static inline void MALC_SERIALIZER_FN_NAME(_comp32)(
   malc_serializer* s, malc_compressed_32 v
   )
 {
-#ifndef MALC_NO_COMPRESSION
+#if MALC_COMPRESSION
   uword size = malc_compressed_get_size (v.format_nibble);
   bl_assert (size <= sizeof (u32));
   u8* hdr   = s->compressed_header;
@@ -118,7 +118,7 @@ static inline void MALC_SERIALIZER_FN_NAME(_comp64)(
   malc_serializer* s, malc_compressed_64 v
   )
 {
-#ifndef MALC_NO_COMPRESSION
+#if MALC_COMPRESSION
   uword size = malc_compressed_get_size (v.format_nibble);
   u8* hdr   = s->compressed_header;
   uword idx = s->compressed_header_idx;
@@ -171,7 +171,7 @@ static inline void MALC_SERIALIZER_FN_NAME(_ptr) (malc_serializer* s, void* v)
   s->field_mem += sizeof v;
 }
 /*----------------------------------------------------------------------------*/
-/*lit come as compressed_ptr when !MALC_NO_PTR_COMPRESSION */
+/* lit comes as a compressed_ptr when MALC_PTR_COMPRESSION != 0 */
 static inline void MALC_SERIALIZER_FN_NAME(_lit)(
   malc_serializer* s, malc_lit v
   )
