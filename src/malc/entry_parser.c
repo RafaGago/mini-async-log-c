@@ -65,6 +65,7 @@ BL_EXPORT bl_err entry_parser_init(
 /*----------------------------------------------------------------------------*/
 BL_EXPORT void entry_parser_destroy (entry_parser* ep)
 {
+  dstr_destroy (&ep->fmt);
   dstr_destroy (&ep->str);
 }
 /*----------------------------------------------------------------------------*/
