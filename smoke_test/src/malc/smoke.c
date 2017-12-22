@@ -280,6 +280,11 @@ static void severity_two_destinations (void **state)
 
   bl_err err = malc_add_destination (c->l, &dst_id2, &malc_array_dst_tbl);
   assert_int_equal (err, bl_ok);
+  /* the instance pointers can only be retrieved after addind the last one,
+   otherwise they may be relocated. */
+  err = malc_get_destination_instance (c->l, (void**) &c->dst, c->dst_id);
+  assert_int_equal (err, bl_ok);
+
   err = malc_get_destination_instance (c->l, (void**) &dst2, dst_id2);
   assert_int_equal (err, bl_ok);
   malc_array_dst_set_array(
