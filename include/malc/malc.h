@@ -13,11 +13,12 @@
   #include <malc/config.h>
 #endif
 
+/* has to be the first, defines preprocessor macros */
+#include <malc/impl/malc_private.h>
 #include <malc/libexport.h>
 #include <malc/cfg.h>
 #include <malc/destination.h>
 #include <malc/impl/serializer.h>
-#include <malc/impl/malc_private.h>
 
 struct malc;
 typedef struct malc malc;
