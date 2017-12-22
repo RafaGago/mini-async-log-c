@@ -1,7 +1,10 @@
+/*----------------------------------------------------------------------------*/
+#define pp_add_line(name) pp_tokconcat(name, __LINE__)
+/*----------------------------------------------------------------------------*/
 #define SER_TEST_GET_ENTRY(var, sev, ...)\
   MALC_LOG_CREATE_CONST_ENTRY (sev, __VA_ARGS__); \
-  var = &pp_tokconcat(malc_const_entry_, __LINE__)
-
+  var = &pp_add_line(malc_const_entry_)
+/*----------------------------------------------------------------------------*/
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -99,28 +102,28 @@ static void entry_parser_test_severities (void **state)
 #define parser_run_integer_arg(c, fmtstr, arg) \
   memset (&c->le, 0, sizeof c->le); \
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_error, fmtstr, arg); \
-  log_argument pp_tokconcat(la, __LINE__); \
+  log_argument pp_add_line (la); \
   switch (c->le.entry->info[1]) { \
   case malc_type_i8: \
-    pp_tokconcat(la, __LINE__).vu8 = (u8) arg; break; \
+    pp_add_line(la).vu8 = (u8) arg; break; \
   case malc_type_u8: \
-    pp_tokconcat(la, __LINE__).vi8 = (i8) arg; break; \
+    pp_add_line(la).vi8 = (i8) arg; break; \
   case malc_type_i16: \
-    pp_tokconcat(la, __LINE__).vi16 = (i16) arg; break; \
+    pp_add_line(la).vi16 = (i16) arg; break; \
   case malc_type_u16: \
-    pp_tokconcat(la, __LINE__).vu16 = (u16) arg; break; \
+    pp_add_line(la).vu16 = (u16) arg; break; \
   case malc_type_i32: \
-    pp_tokconcat(la, __LINE__).vi32 = (i32) arg; break; \
+    pp_add_line(la).vi32 = (i32) arg; break; \
   case malc_type_u32: \
-    pp_tokconcat(la, __LINE__).vu32 = (u32) arg; break; \
+    pp_add_line(la).vu32 = (u32) arg; break; \
   case malc_type_i64: \
-    pp_tokconcat(la, __LINE__).vi64 = (i64) arg; break; \
+    pp_add_line(la).vi64 = (i64) arg; break; \
   case malc_type_u64: \
-    pp_tokconcat(la, __LINE__).vu64 = (u64) arg; break; \
+    pp_add_line(la).vu64 = (u64) arg; break; \
   default: \
     assert_false("bug"); \
   } \
-  c->le.args       = &pp_tokconcat(la, __LINE__); \
+  c->le.args       = &pp_add_line(la); \
   c->le.args_count = 1; \
   assert_int_equal( \
     bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs) \
@@ -129,14 +132,14 @@ static void entry_parser_test_severities (void **state)
 #define parser_run_ptr_arg(c, fmtstr, arg) \
   memset (&c->le, 0, sizeof c->le); \
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_error, fmtstr, arg); \
-  log_argument pp_tokconcat(la, __LINE__); \
+  log_argument pp_add_line(la); \
   switch (c->le.entry->info[1]) { \
   case malc_type_ptr: \
-    pp_tokconcat(la, __LINE__).vptr = (void*) arg; break; \
+    pp_add_line(la).vptr = (void*) arg; break; \
   default: \
     assert_false("bug"); \
   } \
-  c->le.args       = &pp_tokconcat(la, __LINE__); \
+  c->le.args       = &pp_add_line(la); \
   c->le.args_count = 1; \
   assert_int_equal( \
     bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs) \
@@ -145,16 +148,16 @@ static void entry_parser_test_severities (void **state)
 #define parser_run_float_arg(c, fmtstr, arg) \
   memset (&c->le, 0, sizeof c->le); \
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_error, fmtstr, arg); \
-  log_argument pp_tokconcat(la, __LINE__); \
+  log_argument pp_add_line(la); \
   switch (c->le.entry->info[1]) { \
   case malc_type_float: \
-    pp_tokconcat(la, __LINE__).vfloat = (float) arg; break; \
+    pp_add_line(la).vfloat = (float) arg; break; \
   case malc_type_double: \
-    pp_tokconcat(la, __LINE__).vdouble = (double) arg; break; \
+    pp_add_line(la).vdouble = (double) arg; break; \
   default: \
     assert_false("bug"); \
   } \
-  c->le.args       = &pp_tokconcat(la, __LINE__); \
+  c->le.args       = &pp_add_line(la); \
   c->le.args_count = 1; \
   assert_int_equal( \
     bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs) \
@@ -163,22 +166,23 @@ static void entry_parser_test_severities (void **state)
 #define parser_run_aggregate_arg(c, fmt, arg) \
   memset (&c->le, 0, sizeof c->le); \
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_error, fmt, arg); \
-  log_argument pp_tokconcat(la, __LINE__); \
+  log_argument pp_add_line(la); \
+  void* pp_add_line (arg) = (void*) &arg;\
   switch (c->le.entry->info[1]) { \
   case malc_type_lit: \
-    pp_tokconcat(la, __LINE__).vlit = *((malc_lit*) &arg); break; \
+    pp_add_line(la).vlit = *((malc_lit*) pp_add_line (arg)); break; \
   case malc_type_strcp: \
-    pp_tokconcat(la, __LINE__).vstrcp = *((malc_strcp*) &arg); break; \
+    pp_add_line(la).vstrcp = *((malc_strcp*) pp_add_line (arg)); break; \
   case malc_type_memcp: \
-    pp_tokconcat(la, __LINE__).vmemcp = *((malc_memcp*) &arg); break; \
+    pp_add_line(la).vmemcp = *((malc_memcp*) pp_add_line (arg)); break; \
   case malc_type_strref: \
-    pp_tokconcat(la, __LINE__).vstrref = *((malc_strref*) &arg); break; \
+    pp_add_line(la).vstrref = *((malc_strref*) pp_add_line (arg)); break; \
   case malc_type_memref: \
-    pp_tokconcat(la, __LINE__).vmemref = *((malc_memref*) &arg); break; \
+    pp_add_line(la).vmemref = *((malc_memref*) pp_add_line (arg)); break; \
   default: \
     assert_false("bug"); \
   } \
-  c->le.args       = &pp_tokconcat(la, __LINE__); \
+  c->le.args       = &pp_add_line(la); \
   c->le.args_count = 1; \
   assert_int_equal( \
     bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs) \
