@@ -60,7 +60,8 @@ malc_dst_cfg;
 /*------------------------------------------------------------------------------
 malc_dst:
 
-  Data table of a malc destination
+  Data table of a malc destination. All the functions here will be called from
+  the same thread (worker).
 
 size_of:
 
@@ -69,20 +70,24 @@ size_of:
 init:
 
   Initialization: instance will contain a raw memory chunk of "size_of"
-  bytes. "alloc" is a provided memory allocator in case it's necessary (it
-  will be the same one passed to malc on "malc_create"). The allocator can
-  be stored for later usage. It can be set to null if nothing relevant
-  happens on initialization.
+  bytes. "alloc" is a provided memory allocator in case it's necessary to
+  allocate more memory on the initialization phase. (it will be the same
+  instance passed to malc on "malc_create"). The allocator can be stored for
+  later usage. This value can be set to null if there is no initialization to
+  do.
 
 terminate:
 
   Termination before memory deallocation. can be set to null if there is no
-  termination required.
+  termination to do. Its call will be triggered by "malc_terminate" (or
+  "malc_destroy" when no "malc_terminate" call is made).
 
 flush:
 
-  Flush all data in case of the "write" function being buffered. It can be
-  set to null if there is no flush.
+  Flush all data. To be used in case of the "write" function being buffered.
+  Will always be trigered by "malc_flush" and can be called in some other
+  implementation defined states too (e.g. idle). It can be set to null if there
+  is no flush.
 
 idle_task:
 
@@ -92,7 +97,8 @@ idle_task:
 write:
 
   Log write. Mandatory.
-    now:  current timestamp, can be used internally.
+    now:      current timestamp, can be used internally.
+    sev_val:  severity.
     strs: log strings.
 ------------------------------------------------------------------------------*/
 typedef struct malc_dst {
