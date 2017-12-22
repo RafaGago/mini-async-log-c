@@ -319,13 +319,13 @@ int main (int argc, char const* argv[])
         bl_thread_join (&thrs[th]);
       }
       stop = bl_get_tstamp();
+      (void) malc_terminate (ilog, false);
+      end = bl_get_tstamp();
+
       /*Results*/
       for (uword th = 0; th < thread_count; ++th) {
         faults += tcontext[th].faults;
       }
-      (void) malc_terminate (ilog, false);
-      end = bl_get_tstamp();
-
       producer_sec  = (double) bl_tstamp_to_nsec (stop - start);
       consumer_sec  = (double) bl_tstamp_to_nsec (end - start);
       producer_sec /= (double) nsec_in_sec;
