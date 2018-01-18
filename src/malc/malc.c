@@ -10,6 +10,7 @@
 #include <bl/base/processor_pause.h>
 #include <bl/base/deadline.h>
 #include <bl/base/cache.h>
+#include <bl/base/static_assert.h>
 
 #include <bl/nonblock/mpsc_i.h>
 #include <bl/nonblock/backoff.h>
@@ -61,6 +62,7 @@ enum queue_command {
   q_cmd_tls_register,
   q_cmd_tls_dealloc_deregister,
   q_cmd_flush,
+  q_cmd_terminate,
   q_cmd_max,
 };
 /*----------------------------------------------------------------------------*/
@@ -70,6 +72,8 @@ typedef struct info_byte {
   u8 tag           : alloc_tag_bits;
 }
 info_byte;
+/*----------------------------------------------------------------------------*/
+static_assert_outside_func_ns (pow2_u (8 - 1 - alloc_tag_bits) >= q_cmd_max);
 /*----------------------------------------------------------------------------*/
 typedef struct qnode {
   mpsc_i_node hook;
@@ -290,18 +294,29 @@ MALC_EXPORT bl_err malc_flush (malc* l)
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
 {
+  qnode* n = bl_alloc (l->alloc, sizeof *n);
+  if (!n) {
+    return bl_alloc;
+  }
   /* force the the thread local storage destructor to run now (if any) instead
      of doing it when the thread goes out of scope */
   bl_err err = memory_tls_try_run_destructor (&l->mem);
   if (err) {
+    bl_dealloc (l->alloc, n);
     return err;
   }
   uword expected = st_running;
   if (!atomic_uword_strong_cas(
     &l->state, &expected, st_terminating, mo_release, mo_relaxed
     )) {
+    bl_dealloc (l->alloc, n);
     return bl_preconditions;
   }
+  n->slots = 0;
+  n->info.cmd = q_cmd_terminate;
+  mpsc_i_node_set (&n->hook, nullptr, 0, 0);
+  mpsc_i_produce_notag (&l->q, &n->hook);
+
   if (!is_consume_task_thread) {
     if (l->consumer.start_own_thread) {
       bl_thread_join (&l->thread);
@@ -341,9 +356,8 @@ MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, u32 bytes)
 MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
 {
   tstamp deadline;
-  tstamp now      = bl_get_tstamp();
-  bl_err err      = deadline_init_explicit (&deadline, now, timeout_us);
-  bool terminated = false;
+  tstamp now = bl_get_tstamp();
+  bl_err err = deadline_init_explicit (&deadline, now, timeout_us);
 
   if (unlikely (err)) {
     return err;
@@ -437,6 +451,37 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
         ++n->slots; /* poor-man's signalling to the caller */
         break;
 
+      case q_cmd_terminate:
+        bl_assert(
+          atomic_uword_load_rlx (&l->state) == st_terminating && "Malc BUG"
+          );
+        bl_assert(
+          mpsc_i_consume (&l->q, &qn, 0) == bl_empty &&
+          "client code BUG: sending messages after termination. May leak."
+          );
+        bl_dealloc (l->alloc, n);
+        destinations_terminate (&l->dst);
+        /*Destroy all registered TLS buffers. From now on all thread local
+        buffers from an hypothetical thread outliving the logger
+        ("bl_thread_local malc_tls") will be dangled. The docs say that threads
+        using TLS can't outlive the logger (reason on the next paragraph) so the
+        TLS buffers are dangled on purpose, forcing the user to investigate the
+        segfaults that doing this will (hopefully) trigger.
+
+        The reason why the threads with TLS buffers can't outlive the logger is
+        that a "thread local" variable can't be set from another thread (this
+        one), so there is no way to force a clean and safe shutdown sequence
+        (that I can think of) from inside the library (setting the pointer to
+        null + deallocating) without using heavyweight locking, which defeats
+        the purpose of this library. The user is forced to only use TLS on
+        threads that he owns, which is a good side effect IMO.*/
+        memory_tls_destroy_all (&l->mem, l->alloc);
+        /* release fence here to ensure that all the actions done on
+        "destinations_terminate" are visibile to the thread that called
+        "malc_terminate" */
+        atomic_uword_store (&l->state, st_stopped, mo_release);
+        return bl_ok;
+
       default:
         bl_assert (0 && "bug or malicious code");
       }
@@ -452,44 +497,13 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
         nonblock_backoff_run (&l->cbackoff);
         /* no timer updates on spin/yield phase of the backoff (expensive?) */
         now = next_sleep_us ? bl_get_tstamp() : now;
-        if (!terminated) {
-          terminated = atomic_uword_load (&l->state, mo_acquire) ==
-            st_terminating;
-          if (terminated) {
-            /* only exit with an empty queue. Force one more iteration */
-            continue;
-          }
-
-        }
       }
     }
     else {
       break;
     }
   }
-  while (!deadline_expired_explicit (deadline, now) || (terminated && qn));
-  if (terminated) {
-    destinations_terminate (&l->dst);
-    /*Destroy all registered TLS buffers. From now on all thread local buffers
-    from an hypothetical thread outliving the logger ("bl_thread_local
-    malc_tls") will be dangled. The docs say that threads using TLS can't
-    outlive the logger (reason on the next paragraph) so the TLS buffers are
-    dangled on purpose, forcing the user to investigate the segfaults that doing
-    this will (hopefully) trigger.
-
-    The reason why the threads with TLS buffers can't outlive the logger is
-    that a "thread local" variable can't be set from another thread (this one),
-    so there is no way to force a clean and safe shutdown sequence (that I can
-    think of) from inside the library (setting the pointer to null +
-    deallocating) without using heavyweight locking, which defeats the purpose
-    of this library. The user is forced to only use TLS on threads that he owns,
-    which is a good side effect IMO.*/
-    memory_tls_destroy_all (&l->mem, l->alloc);
-    /* release fence here to ensure that all the actions done on
-    "destinations_terminate" are visibile to the thread that called
-    "malc_terminate" */
-    atomic_uword_store (&l->state, st_stopped, mo_release);
-  }
+  while (!deadline_expired_explicit (deadline, now));
   return count ? bl_ok : bl_nothing_to_do;;
 }
 /*----------------------------------------------------------------------------*/
