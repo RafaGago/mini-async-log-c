@@ -28,7 +28,6 @@
 enum state {
   st_stopped,
   st_initializing,
-  st_first_consume_run,
   st_running,
   st_terminating,
   st_destructing,
@@ -200,8 +199,19 @@ MALC_EXPORT bl_err malc_get_cfg (malc const* l, malc_cfg* cfg)
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
+static void malc_producer_thread_env_init(malc* l)
+{
+    tstamp now = bl_get_tstamp();
+    nonblock_backoff_init_default (&l->cbackoff, l->consumer.backoff_max_us);
+    l->idle_deadline = now;
+    malc_try_run_idle_task (l, now);
+    l->idle_boundary_us = bl_min (l->consumer.backoff_max_us, 1000);
+    atomic_uword_store (&l->state, st_running, mo_release);
+}
+/*----------------------------------------------------------------------------*/
 static int malc_thread (void* d)
 {
+  malc_producer_thread_env_init ((malc*) d);
   bl_err err;
   do {
     err = malc_run_consume_task ((malc*) d, 200000);
@@ -249,9 +259,16 @@ MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg_readonly)
   if (err) {
     goto finish;
   }
-  atomic_uword_store (&l->state, st_first_consume_run, mo_release);
   if (l->consumer.start_own_thread) {
     err = bl_thread_init (&l->thread, malc_thread, l);
+    if (!err) {
+      while (atomic_uword_load_rlx (&l->state) == st_initializing) {
+        bl_thread_yield();
+      }
+    }
+  }
+  else {
+    malc_producer_thread_env_init (l);
   }
 finish:
   if (err) {
@@ -264,7 +281,7 @@ MALC_EXPORT bl_err malc_flush (malc* l)
 {
   uword current = st_get_updated_state_val;
   (void) atomic_uword_strong_cas_rlx (&l->state, &current, st_invalid);
-  if (current != st_running && current != st_first_consume_run) {
+  if (current != st_running) {
     return bl_preconditions;
   }
   malc_send_blocking_flush (l);
@@ -332,19 +349,8 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
     return err;
   }
   uword state = atomic_uword_load (&l->state, mo_acquire);
-  if (unlikely(
-    state != st_first_consume_run &&
-    state != st_running &&
-    state != st_terminating
-    )) {
+  if (unlikely (state != st_running && state != st_terminating)) {
     return bl_preconditions;
-  }
-  if (state == st_first_consume_run) {
-    nonblock_backoff_init_default (&l->cbackoff, l->consumer.backoff_max_us);
-    l->idle_deadline = now;
-    malc_try_run_idle_task (l, now);
-    atomic_uword_store_rlx (&l->state, st_running);
-    l->idle_boundary_us = bl_min (l->consumer.backoff_max_us, 1000);
   }
   mpsc_i_node* qn;
   uword count = 0;
@@ -551,7 +557,7 @@ MALC_EXPORT bl_err malc_log_entry_prepare(
     );
 #endif
   uword state = atomic_uword_load_rlx (&l->state);
-  if (unlikely (state != st_running && state != st_first_consume_run)) {
+  if (unlikely (state != st_running)) {
     return bl_preconditions;
   }
   serializer se;

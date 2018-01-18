@@ -60,8 +60,9 @@ malc_dst_cfg;
 /*------------------------------------------------------------------------------
 malc_dst:
 
-  Data table of a malc destination. All the functions here will be called from
-  the same thread (worker).
+  Data table of a malc destination. All the functions here will be called
+  non-concurrently (single threaded fashion) with guaranteed memory visibility
+  (the thead may be swapped though).
 
 size_of:
 
