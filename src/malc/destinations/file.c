@@ -99,11 +99,16 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
       d->f = fopen (dstr_get (&name), "r");
     }
     while (d->f);
+    if (errno != ENOENT) {
+      err = bl_mkerr_sys (bl_file, errno);
+      dstr_destroy (&name);
+      return err;
+    }
   }
   char* fname = dstr_steal_ownership (&name);
   d->f = fopen (fname, "w");
   if (!d->f) {
-    err.bl  = (bl_err_uint) bl_error;
+    err.bl  = (bl_err_uint) bl_file;
     err.sys = (bl_err_uint) errno;
     bl_dealloc (d->alloc, fname);
     return err;
