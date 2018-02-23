@@ -37,7 +37,7 @@ static int tls_test_init_setup (void **state)
   bl_err err = tls_buffer_init(
     &c->t, tls_buff_slot_size, tls_buff_slots, &c->alloc.alloc, nullptr, nullptr
     );
-  assert_true (!err);
+  assert_true (!err.bl);
   tls_buffer_thread_local_set (c->t);
   return 0;
 }
@@ -50,7 +50,7 @@ static void tls_init_test (void **state)
   bl_err err = tls_buffer_init(
     &t, tls_buff_slot_size, tls_buff_slots, &c->alloc.alloc, nullptr, nullptr
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   assert_true (t->destructor_fn == nullptr);
   assert_true (t->destructor_context == nullptr);
   assert_true (t->mem >= ((u8*) t) + sizeof (*t));
@@ -64,7 +64,7 @@ static void tls_single_alloc_test (void **state)
   tls_context* c = (tls_context*) *state;
   u8* mem;
   bl_err err = tls_buffer_alloc (&mem, 1);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   assert_ptr_equal (mem, c->t->mem);
 }
 /*----------------------------------------------------------------------------*/
@@ -73,11 +73,11 @@ static void tls_double_alloc_test (void **state)
   tls_context* c = (tls_context*) *state;
   u8* mem;
   bl_err err = tls_buffer_alloc (&mem, 1);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   assert_ptr_equal (mem, c->t->mem);
   *((uword*) mem) = DUMMY_POINTER_VALUE;
   err = tls_buffer_alloc (&mem, 1);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   assert_ptr_equal (mem, c->t->mem + tls_buff_slot_size);
 }
 /*----------------------------------------------------------------------------*/
@@ -85,7 +85,7 @@ static void tls_single_alloc_too_big_test (void **state)
 {
   u8* mem;
   bl_err err = tls_buffer_alloc (&mem, tls_buff_slots + 1);
-  assert_int_equal (err, bl_alloc);
+  assert_int_equal (err.bl, bl_alloc);
 }
 /*----------------------------------------------------------------------------*/
 static void tls_double_alloc_too_big_test (void **state)
@@ -93,11 +93,11 @@ static void tls_double_alloc_too_big_test (void **state)
   tls_context* c = (tls_context*) *state;
   u8* mem;
   bl_err err = tls_buffer_alloc (&mem, tls_buff_slots);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   assert_ptr_equal (mem, c->t->mem);
   *((uword*) mem) = DUMMY_POINTER_VALUE;
   err = tls_buffer_alloc (&mem, 1);
-  assert_int_equal (err, bl_alloc);
+  assert_int_equal (err.bl, bl_alloc);
 }
 /*----------------------------------------------------------------------------*/
 static void tls_dealloc_test (void **state)
@@ -105,12 +105,12 @@ static void tls_dealloc_test (void **state)
   tls_context* c = (tls_context*) *state;
   u8* mem;
   bl_err err = tls_buffer_alloc (&mem, tls_buff_slots);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   assert_ptr_equal (mem, c->t->mem);
   *((uword*) mem) = DUMMY_POINTER_VALUE;
   tls_buffer_dealloc (mem, tls_buff_slots, tls_buff_slot_size);
   err = tls_buffer_alloc (&mem, tls_buff_slots);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   assert_ptr_equal (mem, c->t->mem);
 }
 /*----------------------------------------------------------------------------*/
@@ -119,12 +119,12 @@ static void tls_single_wrap_test (void **state)
   tls_context* c = (tls_context*) *state;
   u8* mem;
   bl_err err = tls_buffer_alloc (&mem, tls_buff_slots - 1);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   assert_ptr_equal (mem, c->t->mem);
   *((uword*) mem) = DUMMY_POINTER_VALUE;
   u8* mem2;
   err = tls_buffer_alloc (&mem2, 1);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   assert_ptr_equal(
     mem2, c->t->mem + (tls_buff_slot_size * (tls_buff_slots - 1))
     );
@@ -132,7 +132,7 @@ static void tls_single_wrap_test (void **state)
   tls_buffer_dealloc (mem, tls_buff_slots, tls_buff_slot_size);
 
   err = tls_buffer_alloc (&mem, tls_buff_slots);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   assert_ptr_equal (mem, c->t->mem);
 }
 /*----------------------------------------------------------------------------*/
@@ -141,12 +141,12 @@ static void tls_multiple_wrap_test (void **state)
   tls_context* c = (tls_context*) *state;
   u8* mem;
   bl_err err = tls_buffer_alloc (&mem, tls_buff_slots - 1);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   assert_ptr_equal (mem, c->t->mem);
   *((uword*) mem) = DUMMY_POINTER_VALUE;
   tls_buffer_dealloc (mem, tls_buff_slots - 1, tls_buff_slot_size);
   err = tls_buffer_alloc (&mem, tls_buff_slots - 1);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   assert_ptr_equal (mem, c->t->mem);
 }
 /*----------------------------------------------------------------------------*/

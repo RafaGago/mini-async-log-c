@@ -34,16 +34,16 @@ static int setup (void **state)
     return 1;
   }
   bl_err err = malc_create (c->l, &c->alloc);
-  if (err) {
-    return err;
+  if (err.bl) {
+    return err.bl;
   }
   err = malc_add_destination (c->l, &c->dst_id, &malc_array_dst_tbl);
-  if (err) {
-    return err;
+  if (err.bl) {
+    return err.bl;
   }
   err = malc_get_destination_instance (c->l, (void**) &c->dst, c->dst_id);
-  if (err) {
-    return err;
+  if (err.bl) {
+    return err.bl;
   }
   malc_array_dst_set_array(
     c->dst, (char*) c->lines, arr_elems (c->lines), arr_elems (c->lines[0])
@@ -57,26 +57,26 @@ static int setup (void **state)
   dcfg.severity_file_path   = nullptr;
 
   err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
-  return err;
+  return err.bl;
 }
 /*----------------------------------------------------------------------------*/
 static void termination_check (context* c)
 {
   bl_err err = malc_run_consume_task (c->l, 10000);
-  assert_int_equal (err, bl_nothing_to_do); /* test left work to do...*/
+  assert_int_equal (err.bl, bl_nothing_to_do); /* test left work to do...*/
   err = malc_terminate (c->l, true);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   err = malc_run_consume_task (c->l, 10000);
-  assert_true (err == bl_ok || err == bl_nothing_to_do);
+  assert_true (err.bl == bl_ok || err.bl == bl_nothing_to_do);
   err = malc_run_consume_task (c->l, 10000);
-  assert_true (err == bl_preconditions);
+  assert_true (err.bl == bl_preconditions);
 }
 /*----------------------------------------------------------------------------*/
 static int teardown (void **state)
 {
   context* c = (context*) *state;
   bl_err err = malc_destroy (c->l);
-  if (err == bl_preconditions) {
+  if (err.bl == bl_preconditions) {
     (void) malc_terminate (c->l, true);
     (void) malc_run_consume_task (c->l, 10000);
     (void) malc_destroy (c->l);
@@ -90,12 +90,12 @@ static void init_terminate (void **state)
   context* c = (context*) *state;
   malc_cfg cfg;
   bl_err err = malc_get_cfg (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   cfg.consumer.start_own_thread   = false;
 
   err = malc_init (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   termination_check (c);
 }
@@ -107,29 +107,29 @@ static void tls_allocation (void **state)
   context* c = (context*) *state;
   malc_cfg cfg;
   bl_err err = malc_get_cfg (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   err = malc_producer_thread_local_init (c->l, tls_size);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   cfg.consumer.start_own_thread   = false;
   cfg.alloc.fixed_allocator_bytes = 0; /* No bounded queue */
   cfg.alloc.msg_allocator = nullptr; /* No dynamic allocation */
 
   err = malc_init (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   log_warning (err, "msg1: {}", 1);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   assert_int_equal (malc_array_dst_size (c->dst), 1);
   assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
 
   log_warning (err, "msg2: {}", logmemcpy ((void*) &err, tls_size * 8));
-  assert_int_equal (err, bl_alloc);
+  assert_int_equal (err.bl, bl_alloc);
 
   termination_check (c);
 }
@@ -141,7 +141,7 @@ static void bounded_allocation (void **state)
   context* c = (context*) *state;
   malc_cfg cfg;
   bl_err err = malc_get_cfg (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   cfg.consumer.start_own_thread = false;
   cfg.alloc.fixed_allocator_bytes = bounded_size; /* bounded queue */
@@ -150,19 +150,19 @@ static void bounded_allocation (void **state)
   cfg.alloc.msg_allocator = nullptr; /* No dynamic allocation */
 
   err = malc_init (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   log_warning (err, "msg1: {}", 1);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   assert_int_equal (malc_array_dst_size (c->dst), 1);
   assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
 
   log_warning (err, "msg2: {}", logmemcpy ((void*) &err, bounded_size * 8));
-  assert_int_equal (err, bl_alloc);
+  assert_int_equal (err.bl, bl_alloc);
 
   termination_check (c);
 }
@@ -172,20 +172,20 @@ static void dynamic_allocation (void **state)
   context* c = (context*) *state;
   malc_cfg cfg;
   bl_err err = malc_get_cfg (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   cfg.consumer.start_own_thread   = false;
   cfg.alloc.fixed_allocator_bytes = 0; /* No TLS, No bounded queue */
   assert_non_null (cfg.alloc.msg_allocator);
 
   err = malc_init (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   log_warning (err, "msg1: {}", 1);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   assert_int_equal (malc_array_dst_size (c->dst), 1);
   assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
@@ -198,21 +198,21 @@ static void own_thread_and_flush (void **state)
   context* c = (context*) *state;
   malc_cfg cfg;
   bl_err err = malc_get_cfg (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   cfg.consumer.start_own_thread   = true;
   cfg.alloc.fixed_allocator_bytes = 0; /* No TLS, No bounded queue */
   assert_non_null (cfg.alloc.msg_allocator);
 
   err = malc_init (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   log_warning (err, "msg1: {}", 1);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   /* flush, so the entry is processed by the consumer thread */
   err = malc_flush (c->l);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   /* this isn't actually thread-safe, it's just the yield that makes it
   succeed */
@@ -221,7 +221,7 @@ static void own_thread_and_flush (void **state)
   assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
 
   err = malc_terminate (c->l, false);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 }
 /*----------------------------------------------------------------------------*/
 static void severity_change (void **state)
@@ -229,7 +229,7 @@ static void severity_change (void **state)
   context* c = (context*) *state;
   malc_cfg cfg;
   bl_err err = malc_get_cfg (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   cfg.consumer.start_own_thread = false;
 
@@ -241,29 +241,29 @@ static void severity_change (void **state)
   dcfg.severity_file_path   = nullptr;
 
   err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   err = malc_init (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   log_debug (err, "unfiltered");
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   assert_int_equal (malc_array_dst_size (c->dst), 1);
   assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "unfiltered");
 
   dcfg.severity = malc_sev_warning;
   err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   log_debug (err, "filtered");
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
-  assert_int_equal (err, bl_nothing_to_do); /*filtered out at the call site*/
+  assert_int_equal (err.bl, bl_nothing_to_do); /*filtered out at the call site*/
 
   assert_int_equal (malc_array_dst_size (c->dst), 1);
 
@@ -279,14 +279,14 @@ static void severity_two_destinations (void **state)
   context* c = (context*) *state;
 
   bl_err err = malc_add_destination (c->l, &dst_id2, &malc_array_dst_tbl);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   /* the instance pointers can only be retrieved after addind the last one,
    otherwise they may be relocated. */
   err = malc_get_destination_instance (c->l, (void**) &c->dst, c->dst_id);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   err = malc_get_destination_instance (c->l, (void**) &dst2, dst_id2);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   malc_array_dst_set_array(
     dst2, (char*) lines, arr_elems (lines), arr_elems (lines[0])
     );
@@ -299,26 +299,26 @@ static void severity_two_destinations (void **state)
   dcfg.severity_file_path   = nullptr;
 
   err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   dcfg.severity = malc_sev_error;
   err = malc_set_destination_cfg (c->l, &dcfg, dst_id2);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   malc_cfg cfg;
   err = malc_get_cfg (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   cfg.consumer.start_own_thread = false;
 
   err = malc_init (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   log_debug (err, "filtered");
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   assert_int_equal (malc_array_dst_size (c->dst), 1);
   assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "filtered");
@@ -326,10 +326,10 @@ static void severity_two_destinations (void **state)
   assert_int_equal (malc_array_dst_size (dst2), 0);
 
   log_error (err, "unfiltered");
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   assert_int_equal (malc_array_dst_size (c->dst), 2);
   assert_string_equal (malc_array_dst_get_entry (c->dst, 1), "unfiltered");
@@ -345,12 +345,12 @@ static void integer_formats (void **state)
   context* c = (context*) *state;
   malc_cfg cfg;
   bl_err err = malc_get_cfg (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   cfg.consumer.start_own_thread = false;
 
   err = malc_init (c->l, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   log_warning(
     err,
@@ -364,10 +364,10 @@ static void integer_formats (void **state)
     (u64) 1,
     (i64) -1,
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   assert_int_equal (malc_array_dst_size (c->dst), 1);
   assert_string_equal(
@@ -382,10 +382,10 @@ static void integer_formats (void **state)
     (u32) 0x0ffffffe,
     (u64) 0x0ffffffffffffffe,
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   assert_int_equal (malc_array_dst_size (c->dst), 2);
   assert_string_equal(

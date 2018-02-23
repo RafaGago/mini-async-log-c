@@ -38,7 +38,7 @@ static int ser_test_setup (void **state)
   static ser_deser_context c;
   memset (c.buff, -1, sizeof c.buff);
   c.alloc = get_default_alloc();
-  assert_int_equal (deserializer_init (&c.deser, &c.alloc), bl_ok);
+  assert_int_equal (deserializer_init (&c.deser, &c.alloc).bl, bl_ok);
   *state = &c;
   return 0;
 }
@@ -63,7 +63,7 @@ static void serialization_test_float (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -84,7 +84,7 @@ static void serialization_test_double (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -105,7 +105,7 @@ static void serialization_test_i8 (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -126,7 +126,7 @@ static void serialization_test_i16 (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -148,7 +148,7 @@ static void serialization_test_i32 (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -170,7 +170,7 @@ static void serialization_test_i64 (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -191,7 +191,7 @@ static void serialization_test_u8 (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -212,7 +212,7 @@ static void serialization_test_u16 (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -234,7 +234,7 @@ static void serialization_test_u32 (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -256,7 +256,7 @@ static void serialization_test_u64 (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -278,7 +278,7 @@ static void serialization_test_ptr (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -300,7 +300,7 @@ static void serialization_test_lit (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -322,7 +322,7 @@ static void serialization_test_strcp (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -347,7 +347,7 @@ static void serialization_test_strref (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -373,7 +373,7 @@ static void serialization_test_memcp (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -398,7 +398,7 @@ static void serialization_test_memref (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   assert_int_equal (1, le.args_count);
@@ -500,7 +500,7 @@ static void serialization_test_all (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof c->buff, false, &c->alloc
     );
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
   uword idx = 0;
@@ -559,7 +559,7 @@ static void serialization_test_small_buffer (void **state)
   bl_err err = deserializer_execute(
     &c->deser, c->buff, c->buff + sizeof v, false, &c->alloc
     );
-  assert_int_equal (err, bl_invalid);
+  assert_int_equal (err.bl, bl_invalid);
 }
 /*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {

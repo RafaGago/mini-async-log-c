@@ -40,7 +40,7 @@ static int file_dst_test_setup (void **state)
   c.fd       = (malc_file_dst*) c.instance_buff;
   c.alloc    = get_default_alloc();
   bl_err err = malc_file_dst_tbl.init ((void*) c.fd, &c.alloc);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
   *state = (void*) &c;
   return 0;
 }
@@ -76,11 +76,11 @@ static void file_dst_basic (void **state)
   cfg.time_based_name = false;
   cfg.can_remove_old_data_on_full_disk = true;
   bl_err err = malc_file_set_cfg (c->fd, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   malc_log_strings s = MALC_LOG_STRS_INITIALIZER ("1", "2", "3");
   err = malc_file_dst_tbl.write ((void*) c->fd, 0, 0, &s);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
   malc_file_dst_tbl.terminate ((void*) c->fd); /* force file creation*/
 
   cmp_file_content (FILE_PREFIX"_0", "123\n");
@@ -98,12 +98,12 @@ static void file_dst_segments (void **state)
   cfg.time_based_name = false;
   cfg.can_remove_old_data_on_full_disk = true;
   bl_err err = malc_file_set_cfg (c->fd, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   for (uword i = 0; i < 3; ++i) {
     malc_log_strings s = MALC_LOG_STRS_INITIALIZER ("1", "2", "3");
     err = malc_file_dst_tbl.write ((void*) c->fd, 0, 0, &s);
-    assert_int_equal (err, bl_ok);
+    assert_int_equal (err.bl, bl_ok);
   }
   malc_file_dst_tbl.terminate ((void*) c->fd); /* force file creation*/
 
@@ -124,12 +124,12 @@ static void file_dst_rotation (void **state)
   cfg.time_based_name = false;
   cfg.can_remove_old_data_on_full_disk = true;
   bl_err err = malc_file_set_cfg (c->fd, &cfg);
-  assert_int_equal (err, bl_ok);
+  assert_int_equal (err.bl, bl_ok);
 
   for (uword i = 0; i < 3; ++i) {
     malc_log_strings s = MALC_LOG_STRS_INITIALIZER ("1", "2", "3");
     err = malc_file_dst_tbl.write ((void*) c->fd, 0, 0, &s);
-    assert_int_equal (err, bl_ok);
+    assert_int_equal (err.bl, bl_ok);
   }
   malc_file_dst_tbl.terminate ((void*) c->fd); /* force file creation*/
 

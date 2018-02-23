@@ -84,14 +84,14 @@ bl_err destinations_add (destinations* d, u32* dest_id, malc_dst const* dst)
 {
   bl_assert (dest_id && dst);
   if (unlikely (!dst || !dst->write)) {
-    return bl_invalid;
+    return bl_mkerr (bl_invalid);
   }
   uword size = SIZEOF_DEST_MAX_ALIGN +
     round_to_next_multiple (dst->size_of, MAX_ALIGN);
   /* stored contiguosly because "write" is going to be called at data-rate */
   void* mem  = bl_realloc (d->alloc, d->mem, d->size + size);
   if (!mem) {
-    return bl_alloc;
+    return bl_mkerr (bl_alloc);
   }
   d->mem = mem;
   destination* dest = (destination*) (((u8*) d->mem) + d->size);
@@ -106,7 +106,7 @@ bl_err destinations_add (destinations* d, u32* dest_id, malc_dst const* dst)
 
   if (dst->init) {
     bl_err err = dst->init (destination_get_instance (dest), d->alloc);
-    if (err) {
+    if (err.bl) {
       /* memory chunk is left as-is without shrinking it */
       return err;
     }
@@ -122,7 +122,7 @@ bl_err destinations_add (destinations* d, u32* dest_id, malc_dst const* dst)
   *dest_id = d->count;
   ++d->count;
   d->size += size;
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static bl_err destinations_set_rate_limit_settings_impl(
@@ -144,18 +144,18 @@ static bl_err destinations_set_rate_limit_settings_impl(
   if (enabled) {
     wc = round_next_pow2_u32 (sec->log_rate_filter_watch_count);
     if (wc > arr_elems_member (destinations, pe_buffer)) {
-      return bl_invalid;
+      return bl_mkerr (bl_invalid);
     }
     if (!malc_is_valid_severity (sec->log_rate_filter_min_severity)) {
-      return bl_invalid;
+      return bl_mkerr (bl_invalid);
     }
   }
   if (validate_only) {
-    return bl_ok;
+    return bl_mkok();
   }
   if (!enabled) {
     d->filter_watch_count = 0;
-    return bl_ok;
+    return bl_mkok();
   }
   d->filter_watch_count  = wc;
   d->filter_max_time     = 0;
@@ -321,11 +321,11 @@ bl_err destinations_get_instance(
   FOREACH_DESTINATION (d->mem, dest) {
     if (id == dest_id) {
       *instance = destination_get_instance (dest);
-      return bl_ok;
+      return bl_mkok();
     }
     ++id;
   }
-  return bl_invalid;
+  return bl_mkerr (bl_invalid);
 }
 /*----------------------------------------------------------------------------*/
 bl_err destinations_get_cfg(
@@ -337,11 +337,11 @@ bl_err destinations_get_cfg(
   FOREACH_DESTINATION (d->mem, dest) {
     if (id == dest_id) {
       *cfg = dest->cfg;
-      return bl_ok;
+      return bl_mkok();
     }
     ++id;
   }
-  return bl_invalid;
+  return bl_mkerr (bl_invalid);
 }
 /*----------------------------------------------------------------------------*/
 bl_err destinations_set_cfg (
@@ -358,7 +358,7 @@ bl_err destinations_set_cfg (
     ++id;
   }
   if (unlikely (!dest)) {
-    return bl_invalid;
+    return bl_mkerr (bl_invalid);
   }
   d->min_severity    = (uword) -1;
   d->filter_max_time = 0;
@@ -367,6 +367,6 @@ bl_err destinations_set_cfg (
     d->filter_max_time =
       bl_max (d->filter_max_time, dest->cfg.log_rate_filter_time);
   }
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/

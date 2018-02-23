@@ -42,12 +42,12 @@ static bl_err stress_dst_init (void* dst, alloc_tbl const* alloc)
   d->alloc = alloc;
   d->arr   = (malc_array_dst*) bl_alloc (alloc, malc_array_dst_tbl.size_of);
   if (!d->arr) {
-    return bl_alloc;
+    return bl_mkerr (bl_alloc);
   }
-  bl_err err = bl_ok;
+  bl_err err = bl_mkok();
   if (malc_array_dst_tbl.init) {
     err = malc_array_dst_tbl.init (d->arr, alloc);
-    if (err) {
+    if (err.bl) {
       bl_dealloc (alloc, d->arr);
       d->arr = nullptr;
       return err;
@@ -56,7 +56,7 @@ static bl_err stress_dst_init (void* dst, alloc_tbl const* alloc)
   malc_array_dst_set_array(
     d->arr, (char*) d->lines, arr_elems (d->lines), arr_elems (d->lines[0])
     );
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static void stress_dst_terminate (void* dst)
@@ -74,7 +74,7 @@ static bl_err stress_dst_flush (void* dst)
   if (malc_array_dst_tbl.flush) {
     return malc_array_dst_tbl.flush (d->arr);
   }
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static bl_err stress_dst_idle_task (void* dst)
@@ -83,7 +83,7 @@ static bl_err stress_dst_idle_task (void* dst)
   if (malc_array_dst_tbl.idle_task) {
     return malc_array_dst_tbl.idle_task (d->arr);
   }
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static bl_err stress_dst_write(
@@ -133,7 +133,7 @@ static int througput_thread (void* ctx)
     c->err = malc_producer_thread_local_init(
       get_malc_logger_instance(), c->tls_bytes
       );
-    if (c->err) {
+    if (c->err.bl) {
       return 1;
     }
   }
@@ -145,7 +145,7 @@ static int througput_thread (void* ctx)
   }
   for (uword i = 0; i < c->msgs; ++i) {
     log_error (err, "Hello malc, testing {}, {}, {.1}", i, 2, 3.f);
-    c->faults += err != bl_ok;
+    c->faults += err.bl != bl_ok;
   }
   atomic_uword_store (&c->ready, 3, mo_release);
   return 0;
@@ -220,10 +220,10 @@ int main (int argc, char const* argv[])
   thr_context         tcontext[MAX_THREADS];
   bl_thread           thrs[MAX_THREADS];
 
-  if ((err = parse_args (&args, argc, argv))) {
-    return err;
+  err.bl = parse_args (&args, argc, argv);
+  if (err.bl) {
+    return err.bl;
   }
-
   for (uword i = 0; i < args.iterations; ++i) {
     for (uword thread_idx = 0; thread_idx < arr_elems(threads); ++thread_idx) {
       /* logger allocation/initialization */
@@ -241,27 +241,27 @@ int main (int argc, char const* argv[])
         return bl_alloc;
       }
       err = malc_create (ilog, &alloc);
-      if (err) {
+      if (err.bl) {
         fprintf (stderr, "Error creating the malc instance\n");
         goto dealloc;
       }
       /* destination register */
       u32 dst_id;
       err = malc_add_destination (ilog, &dst_id, &stress_dst_tbl);
-      if (err) {
+      if (err.bl) {
         fprintf (stderr, "Error creating the stress destination\n");
         goto destroy;
       }
       err = malc_get_destination_instance (ilog, (void**) &sdst, dst_id);
-      if (err) {
+      if (err.bl) {
         fprintf (stderr, "Error getting the destination instance\n");
-        return err;
+        return err.bl;
       }
       stress_dst_set_msg_count_ptr (sdst, &msgs);
       /* logger startup */
       malc_cfg cfg;
       err = malc_get_cfg (ilog, &cfg);
-      if (err) {
+      if (err.bl) {
         fprintf (stderr, "bug when retrieving the logger configuration\n");
         goto destroy;
       }
@@ -282,7 +282,7 @@ int main (int argc, char const* argv[])
         cfg.alloc.fixed_allocator_per_cpu = (args.alloc_mode == cfg_queue_cpu);
       }
       err = malc_init (ilog, &cfg);
-      if (err) {
+      if (err.bl) {
         fprintf (stderr, "unable to start logger\n");
         goto destroy;
       }
@@ -294,7 +294,7 @@ int main (int argc, char const* argv[])
           tcontext[th].tls_bytes = QSIZE / thread_count;
         }
         err = bl_thread_init (&thrs[th], througput_thread, &tcontext[th]);
-        if (err) {
+        if (err.bl) {
           fprintf (stderr, "unable to start a log thread\n");
           /* too lazy now write proper deinitialization for this _test_ program
           under such weird conditions now */
@@ -341,7 +341,7 @@ int main (int argc, char const* argv[])
       (void) malc_destroy (ilog);
     dealloc:
       bl_dealloc (&alloc, ilog);
-      if (!err && msgs != (expected_msgs - faults)) {
+      if (!err.bl && msgs != (expected_msgs - faults)) {
         fprintf(
           stderr,
           "BUG! %" FMT_UW " messages were lost\n",
@@ -352,6 +352,6 @@ int main (int argc, char const* argv[])
       }
     }
   }
-  return err;
+  return err.bl;
 }
 /*----------------------------------------------------------------------------*/

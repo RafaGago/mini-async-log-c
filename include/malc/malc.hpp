@@ -148,7 +148,7 @@ public:
   {
     if (m_ptr) {
       if (do_throw) {
-        return bl_invalid;
+        return bl_mkerr (bl_invalid);
       }
       else {
         throw std::runtime_error ("malc_owner already constructed");
@@ -165,12 +165,12 @@ public:
         throw std::bad_alloc();
       }
       else {
-        return bl_alloc;
+        return bl_mkerr (bl_alloc);
       }
     }
     *get_alloc_tbl() = alloc;
     bl_err err = malc_create (handle(), get_alloc_tbl());
-    if (err) {
+    if (err.bl) {
       bl_dealloc (get_alloc_tbl(), m_ptr);
       m_ptr = nullptr;
       if (do_throw) {

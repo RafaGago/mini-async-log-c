@@ -17,7 +17,7 @@ declare_dynarray_funcs (mem_array, void*)
 bl_err memory_init (memory* m, alloc_tbl const* alloc)
 {
   bl_err err = bl_tss_init (&m->tss_key, &tls_buffer_out_of_scope_destroy);
-  if (err) {
+  if (err.bl) {
     return err;
   }
   m->cfg.msg_allocator             = alloc;
@@ -28,7 +28,7 @@ bl_err memory_init (memory* m, alloc_tbl const* alloc)
   boundedb_init (&m->bb);
   mem_array_init_empty (&m->tss_list);
   tls_buffer_thread_local_set (nullptr); /* for smoke testing mostly */
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 void memory_destroy (memory* m, alloc_tbl const* alloc)
@@ -48,24 +48,24 @@ bl_err memory_tls_init_unregistered(
   )
 {
   if (tls_buffer_thread_local_get ()) {
-    return bl_locked;
+    return bl_mkerr (bl_locked);
   }
   tls_buffer* t;
   u32 slots  = div_ceil (bytes, (u32) m->cfg.slot_size);
   bl_err err = tls_buffer_init(
     &t, m->cfg.slot_size, slots, alloc, destructor_fn, destructor_context
     );
-  if (err) {
+  if (err.bl) {
     return err;
   }
   err = bl_tss_set (m->tss_key, t);
-  if (err) {
+  if (err.bl) {
     bl_dealloc (alloc, t);
     return err;
   }
   *tls_buffer_addr = (void*) t;
   tls_buffer_thread_local_set ((void*) t);
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 bl_err memory_bounded_buffer_init (memory* m, alloc_tbl const* alloc)
@@ -85,11 +85,11 @@ bl_err memory_tls_register (memory* m, void* mem, alloc_tbl const* alloc)
   dynarray_foreach (mem_array, void*, &m->tss_list, it) {
     if (*it == nullptr) {
       *it = mem;
-      return bl_ok;
+      return bl_mkok();
     }
   }
   bl_err err = mem_array_grow (&m->tss_list, 1, alloc);
-  if (err) {
+  if (err.bl) {
     return err;
   }
   *mem_array_last (&m->tss_list) = mem;
@@ -121,28 +121,28 @@ void memory_tls_destroy_all (memory* m, alloc_tbl const* alloc)
 extern bl_err memory_tls_try_run_destructor (memory* m)
 {
   tls_buffer_out_of_scope_destroy (tls_buffer_thread_local_get());
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
 {
   bl_assert (m && mem && tag && slots);
   bl_err err = tls_buffer_alloc (mem, slots);
-  if (likely (!err)) {
+  if (likely (!err.bl)) {
     *tag = alloc_tag_tls;
-    return bl_ok;
+    return bl_mkok();
   }
   if (m->cfg.fixed_allocator_bytes > 0) {
     err = boundedb_alloc (&m->bb, mem, slots);
     *tag = alloc_tag_bounded;
-    if (likely (!err)) {
-      return bl_ok;
+    if (likely (!err.bl)) {
+      return bl_mkok();
     }
   }
   if (m->cfg.msg_allocator) {
     *mem = bl_alloc (m->cfg.msg_allocator, slots * m->cfg.slot_size);
     *tag = alloc_tag_heap;
-    return *mem ? bl_ok : bl_alloc;
+    return bl_mkerr (*mem ? bl_ok : bl_alloc);
   }
   return err;
 }

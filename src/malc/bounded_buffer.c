@@ -34,27 +34,27 @@ bl_err boundedb_reset(
   )
 {
   bl_assert (b && alloc);
-  bl_err err  = bl_ok;
+  bl_err err  = bl_mkok();
   uword slot_count = div_ceil (bytes, slot_size);
   if (slot_count == 0) {
-    err = bl_ok;
+    err = bl_mkok();
     goto do_destroy;
   }
   if (max_slots == 0) {
-    return bl_invalid;
+    return bl_mkerr (bl_invalid);
   }
   boundedb_destroy (b, alloc);
   uword count = per_cpu ? bl_get_cpu_count() : 1;
   for (uword i = 0; i < count; ++i) {
     err = cpuq_grow (&b->queues, 1, alloc);
-    if (err) {
+    if (err.bl) {
       goto do_destroy;
     }
     mpmc_bpm* q = cpuq_at (&b->queues, i);
     err  = mpmc_bpm_init(
       q, alloc, slot_count, max_slots, slot_size, 16, false
       );
-    if (err) {
+    if (err.bl) {
       goto do_destroy;
     }
   }
@@ -85,7 +85,7 @@ bl_err boundedb_alloc (boundedb* b, u8** mem, u32 slots)
     qidx = b_cpu.cpu;
   }
   *mem = mpmc_bpm_alloc (cpuq_at (&b->queues, qidx), slots);
-  return *mem ? bl_ok : bl_alloc;
+  return bl_mkerr (*mem ? bl_ok : bl_alloc);
 }
 /*---------------------------------------------------------------------------*/
 void boundedb_dealloc (boundedb* b, u8* mem, u32 slots)

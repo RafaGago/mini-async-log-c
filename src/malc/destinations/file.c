@@ -37,11 +37,11 @@ static bl_err malc_file_dst_init (void* instance, alloc_tbl const* alloc)
   d->time_based_name = true;
   d->can_remove_old_data_on_full_disk = false;
   bl_err err = dstr_set_lit (&d->suffix, ".log");
-  if (err) {
+  if (err.bl) {
     return err;
   }
   err = past_files_init (&d->files, 1, alloc);
-  if (err) {
+  if (err.bl) {
     dstr_destroy (&d->suffix);
   }
   return err;
@@ -71,18 +71,22 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
   bl_err err = dstr_set_capacity(
       &name, dstr_len (&d->prefix) + 1 + 16 + 1 + 16 + dstr_len (&d->suffix)
       );
-  if (err) {
+  if (err.bl) {
       return err;
   }
   if (d->time_based_name) {
     /* no dstr error check: it has already the required space allocated */
     (void) dstr_set_o (&name, &d->prefix);
     (void) dstr_append_va(
-      &name, "_%016"FMT_X64"_%016"FMT_X64, bl_get_sysclock_tstamp(), bl_get_tstamp()
+      &name,
+      "_%016"FMT_X64"_%016"FMT_X64,
+      bl_get_sysclock_tstamp(),
+      bl_get_tstamp()
       );
     (void) dstr_append_o (&name, &d->suffix);
   }
   else {
+    /* find a filename that doesn't exist */
     do {
       if (d->f) {
         fclose (d->f);
@@ -99,11 +103,13 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
   char* fname = dstr_steal_ownership (&name);
   d->f = fopen (fname, "w");
   if (!d->f) {
+    err.bl  = (bl_err_uint) bl_error;
+    err.sys = (bl_err_uint) errno;
     bl_dealloc (d->alloc, fname);
-    return bl_error;
+    return err;
   }
   past_files_insert_tail (&d->files, &fname);
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static void malc_file_dst_drop_last_file (malc_file_dst* d, bool do_remove)
@@ -140,7 +146,7 @@ static bl_err malc_fwrite (malc_file_dst* d, char const* s, uword slen)
           d->file_size = 0;
           malc_file_dst_drop_last_file (d, true);
           bl_err err   = malc_file_dst_open_new_file (d);
-          if (err) {
+          if (err.bl) {
             return err;
           }
         }
@@ -150,19 +156,19 @@ static bl_err malc_fwrite (malc_file_dst* d, char const* s, uword slen)
           bytes = LIT_fwrite (d->f, ENOSPC_ERRSTR);
           d->file_size += bytes;
           if (bytes != lit_len (ENOSPC_ERRSTR)) {
-            return bl_error;
+            return bl_mkerr (bl_error);
           }
         }
         continue;
       }
       else {
         /*handle other type of errors?*/
-        return bl_error;
+        return bl_mkerr_sys (bl_error, errno);
       }
     }
     break;
   }
-  return i < max_retries ? bl_ok : bl_error;
+  return bl_mkerr (i < max_retries ? bl_ok : bl_error);
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_file_dst_write(
@@ -192,20 +198,20 @@ static bl_err malc_file_dst_write(
   bl_err err;
   if (!d->f) {
     err = malc_file_dst_open_new_file (d);
-    if (err) {
+    if (err.bl) {
       return err;
     }
   }
   err = malc_fwrite (d, strs->tstamp, strs->tstamp_len);
-  if (err) {
+  if (err.bl) {
     return err;
   }
   err = malc_fwrite (d, strs->sev, strs->sev_len);
-  if (err) {
+  if (err.bl) {
     return err;
   }
   malc_fwrite (d, strs->text, strs->text_len);
-  if (err) {
+  if (err.bl) {
     return err;
   }
   return malc_fwrite (d, "\n", lit_len ("\n"));
@@ -215,9 +221,9 @@ static bl_err malc_file_dst_flush (void* instance)
 {
   malc_file_dst* d = (malc_file_dst*) instance;
   if (d->f) {
-    return fflush (d->f) == 0 ? bl_ok : bl_error;
+    return bl_mkerr_sys (fflush (d->f) == 0 ? bl_ok : bl_error, errno);
   }
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT const struct malc_dst malc_file_dst_tbl = {
@@ -232,7 +238,7 @@ MALC_EXPORT const struct malc_dst malc_file_dst_tbl = {
 MALC_EXPORT bl_err malc_file_get_cfg (malc_file_dst* d, malc_file_cfg* cfg)
 {
   if (!d || !cfg) {
-    return bl_invalid;
+    return bl_mkerr (bl_invalid);
   }
   cfg->prefix = dstr_get (&d->prefix);
   cfg->suffix = dstr_get (&d->suffix);
@@ -240,7 +246,7 @@ MALC_EXPORT bl_err malc_file_get_cfg (malc_file_dst* d, malc_file_cfg* cfg)
   cfg->max_log_files = d->max_log_files;
   cfg->time_based_name = d->time_based_name;
   cfg->can_remove_old_data_on_full_disk = d->can_remove_old_data_on_full_disk;
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_file_set_cfg(
@@ -248,10 +254,10 @@ MALC_EXPORT bl_err malc_file_set_cfg(
   )
 {
   if (!d || !cfg) {
-    return bl_invalid;
+    return bl_mkerr (bl_invalid);
   }
   if (past_files_size (&d->files)) {
-    return bl_preconditions;
+    return bl_mkerr (bl_preconditions);
   }
   past_files_destroy (&d->files, d->alloc);
   d->max_file_size = cfg->max_file_size;
@@ -259,11 +265,11 @@ MALC_EXPORT bl_err malc_file_set_cfg(
   d->time_based_name = cfg->time_based_name;
   d->can_remove_old_data_on_full_disk = cfg->can_remove_old_data_on_full_disk;
   bl_err err = dstr_set (&d->prefix, cfg->prefix);
-  if (err) {
+  if (err.bl) {
     return err;
   }
   err = dstr_set (&d->suffix, cfg->suffix);
-  if (err) {
+  if (err.bl) {
     return err;
   }
   uword pfcount = d->max_log_files ? round_next_pow2_u (d->max_log_files) : 1;

@@ -51,12 +51,12 @@ BL_EXPORT bl_err entry_parser_init(
 {
   dstr_init (&ep->str, alloc);
   bl_err err = dstr_set_capacity (&ep->str, 1024);
-  if (err) {
+  if (err.bl) {
     return err;
   }
   dstr_init (&ep->fmt, alloc);
   err = dstr_set_capacity (&ep->fmt, 32);
-  if (err) {
+  if (err.bl) {
     dstr_destroy (&ep->str);
   }
   ep->sanitize_log_entries = false;
@@ -84,7 +84,7 @@ static bl_err append_int(
 {
   dstr_append_char (&ep->fmt, '%');
   char order = 'a' - 1;
-  bl_err err = bl_ok;
+  bl_err err = bl_mkok();
   /*this is just intended add functionality and avoid the most harmful things
     that a malicious user could do to printf ("%" ".*" and "."). printf should
     have its own very hardened parser, no need to do it twice." */
@@ -121,7 +121,7 @@ static bl_err append_int(
       default: /* deliberate fall-through */
         goto done;
       }
-      if (err) {
+      if (err.bl) {
         return err;
       }
     }
@@ -129,11 +129,11 @@ static bl_err append_int(
   }
 done:
   err = dstr_append (&ep->fmt, printf_length);
-  if (err) {
+  if (err.bl) {
     return err;
   }
   err = dstr_append_char (&ep->fmt, printf_type);
-  if (err) {
+  if (err.bl) {
     return err;
   }
   switch (type) {
@@ -150,7 +150,7 @@ done:
   case malc_type_u64:
     return dstr_append_va (&ep->str, dstr_get (&ep->fmt), arg->vi64);
   default:
-    return bl_invalid;
+    return bl_mkerr (bl_invalid);
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -167,7 +167,7 @@ static bl_err append_float(
 {
   dstr_append_char (&ep->fmt, '%');
   char order       = 'a' - 1;
-  bl_err err       = bl_ok;
+  bl_err err       = bl_mkok();
   char printf_type = 'f';
   /*this is just intended add functionality and avoid the most harmful things
     that a malicious user could do to printf ("%" ".*" and "."). printf should
@@ -198,7 +198,7 @@ static bl_err append_float(
       default: /* deliberate fall-through */
         goto done;
       }
-      if (err) {
+      if (err.bl) {
         return err;
       }
     }
@@ -206,7 +206,7 @@ static bl_err append_float(
   }
 done:
   err = dstr_append_char (&ep->fmt, printf_type);
-  if (err) {
+  if (err.bl) {
     return err;
   }
   if (type == malc_type_float) {
@@ -224,7 +224,7 @@ static bl_err append_mem (entry_parser* ep, u8 const* mem, uword size)
   uword last = size % ((sizeof buff - 1) / 2);
 
   bl_err err = dstr_set_capacity (&ep->str, dstr_len (&ep->str) + (size * 2));
-  if (unlikely (err)) {
+  if (unlikely (err.bl)) {
       return err;
   }
   for (uword i = 0; i < runs; ++i) {
@@ -232,7 +232,7 @@ static bl_err append_mem (entry_parser* ep, u8 const* mem, uword size)
       bl_bytes_to_hex_string (buff, sizeof buff, mem, (sizeof buff - 1) / 2) > 0
       );
     err = dstr_append_l (&ep->str, buff, sizeof buff - 1);
-    if (unlikely (err)) {
+    if (unlikely (err.bl)) {
       return err;
     }
     mem += (sizeof buff - 1) / 2;
@@ -286,7 +286,7 @@ static bl_err append_arg(
   case malc_type_memref:
     return append_mem (ep, arg->vmemref.mem, arg->vmemref.size);
   }
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 /*TODO: cfg: silent sanitize, etc.*/
@@ -303,7 +303,7 @@ static bl_err parse_text(
   char const* text_beg = fmt;
   char const* fmt_beg  = nullptr;
   //char const* value_modif = nullptr;
-  bl_err err = bl_ok;
+  bl_err err = bl_mkok();
   dstr_clear (&ep->str);
 
   while (true) {
@@ -311,12 +311,12 @@ static bl_err parse_text(
     if (*it == 0) {
       if (unlikely (fmt_beg)) {
         err = dstr_append_lit (&ep->str, MALC_EP_UNCLOSED_FMT);
-        if (err) {
+        if (err.bl) {
          return err;
         }
       }
       err = dstr_append_l (&ep->str, text_beg, it - text_beg);
-      if (err) {
+      if (err.bl) {
         return err;
       }
       break;
@@ -325,7 +325,7 @@ static bl_err parse_text(
     if ((it[0] == '{' && it[1] == '{')) {
       if (likely (!fmt_beg)) {
         err = dstr_append_l (&ep->str, text_beg, it - text_beg + 1);
-        if (err) {
+        if (err.bl) {
           return err;
         }
         it      += 2;
@@ -333,7 +333,7 @@ static bl_err parse_text(
       }
       else {
         err = dstr_append_lit (&ep->str, MALC_EP_ESC_BRACES_IN_FMT);
-        if (err) {
+        if (err.bl) {
           return err;
         }
         it += 2;
@@ -345,14 +345,14 @@ static bl_err parse_text(
       if (likely (!fmt_beg)) {
         fmt_beg = it + 1;
         err = dstr_append_l (&ep->str, text_beg, it - text_beg);
-        if (err) {
+        if (err.bl) {
           return err;
         }
         text_beg = fmt_beg;
       }
       else {
         err = dstr_append_lit (&ep->str, MALC_EP_MISPLACED_OPEN_BRACES);
-        if (err) {
+        if (err.bl) {
           return err;
         }
       }
@@ -367,7 +367,7 @@ static bl_err parse_text(
         else {
           err = dstr_append_lit (&ep->str, MALC_EP_MISSING_ARG);
         }
-        if (err) {
+        if (err.bl) {
           return err;
         }
         text_beg = it + 1;
@@ -396,7 +396,7 @@ BL_EXPORT bl_err entry_parser_get_log_strings(
     e->entry->info[0] > malc_sev_critical
     )) {
     bl_assert (false);
-    return bl_invalid;
+    return bl_mkerr (bl_invalid);
   }
   /* meson old versions ignored base library flags */
   static_assert_ns (sizeof e->timestamp == sizeof (u64));
@@ -425,11 +425,11 @@ BL_EXPORT bl_err entry_parser_get_log_strings(
 
   if (ep->sanitize_log_entries) {
     err = dstr_replace_lit (&ep->str, "\n", "", 0, 0);
-    if (unlikely (err)) {
+    if (unlikely (err.bl)) {
       return err;
     }
     err = dstr_replace_lit (&ep->str, "\r", "", 0, 0);
-    if (unlikely (err)) {
+    if (unlikely (err.bl)) {
       return err;
     }
   }

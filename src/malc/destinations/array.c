@@ -19,7 +19,7 @@ static bl_err malc_array_dst_init (void* instance, alloc_tbl const* alloc)
 {
   malc_array_dst* d = (malc_array_dst*) instance;
   memset (d, 0, sizeof *d);
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_array_dst_write(
@@ -47,7 +47,7 @@ static bl_err malc_array_dst_write(
   d->mem[d->tail * d->entry_chars] = 0;
   ++d->size;
   d->size = bl_min (d->size, d->mem_entries - 1);
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT const struct malc_dst malc_array_dst_tbl = {

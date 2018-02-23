@@ -41,7 +41,7 @@ bl_err tls_buffer_init(
 
   tls_buffer* t = (tls_buffer*) bl_alloc (alloc, allocsize);
   if (!t) {
-    return bl_alloc;
+    return bl_mkerr (bl_alloc);
   }
   t->destructor_fn      = destructor_fn;
   t->destructor_context = destructor_context;
@@ -55,7 +55,7 @@ bl_err tls_buffer_init(
   t->slot    = t->mem;
   tls_buffer_dealloc (t->mem, slot_count, t->slot_size);
   *out = t;
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque)
@@ -79,11 +79,11 @@ bl_err tls_buffer_alloc (u8** mem, u32 slots)
   /* Some GDB versions sefault on TLS var access, set breakpoints afterwards*/
   tls_buffer* t = malc_tls;
   if (unlikely (!t)) {
-    return bl_alloc;
+    return bl_mkerr (bl_alloc);
   }
   bl_assert (slots != 0 && mem && t);
   if (unlikely (slots > t->slot_count)) {
-    return bl_alloc;
+    return bl_mkerr (bl_alloc);
   }
   /* Segfaults here are most likely caused by a thread enqueueing after the
   termination function has been called, which is forbidded but not enforced
@@ -100,13 +100,13 @@ bl_err tls_buffer_alloc (u8** mem, u32 slots)
   while (check_iter < slot_end) {
     uword first_word = atomic_uword_load_rlx ((atomic_uword*) check_iter);
     if (unlikely (first_word != TLS_BUFFER_FREE_UWORD)) {
-      return bl_alloc;
+      return bl_mkerr (bl_alloc);
     }
     check_iter += t->slot_size;
   }
   t->slot = slot_end;
   *mem    = slot_start;
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 void tls_buffer_dealloc (void* mem, u32 slots, u32 slot_size)

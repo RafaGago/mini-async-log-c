@@ -22,7 +22,7 @@ static bl_err mock_dest_init (void* instance, alloc_tbl const* alloc)
 {
   mock_dest* d = (mock_dest*) instance;
   memset (d, 0, sizeof *d);
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static void mock_dest_terminate (void* instance)
@@ -35,14 +35,14 @@ static bl_err mock_dest_flush (void* instance)
 {
   mock_dest* d = (mock_dest*) instance;
   ++d->flush;
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static bl_err mock_dest_idle_task (void* instance)
 {
   mock_dest* d = (mock_dest*) instance;
   ++d->idle_task;
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static bl_err mock_dest_write(
@@ -51,7 +51,7 @@ static bl_err mock_dest_write(
 {
   mock_dest* d = (mock_dest*) instance;
   ++d->write;
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static const malc_dst mock_dst_tbl = {
@@ -95,14 +95,14 @@ static void destinations_do_add(
 {
   bl_err err;
   err = destinations_add (&c->d, &ids[0], &c->tbls[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
   err = destinations_add (&c->d, &ids[1], &c->tbls[1]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   err = destinations_get_instance (&c->d, (void*) &mock[0], ids[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
   err = destinations_get_instance (&c->d, (void*) &mock[1], ids[1]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 }
 /*----------------------------------------------------------------------------*/
 static void destinations_cfg_test (void **state)
@@ -115,24 +115,24 @@ static void destinations_cfg_test (void **state)
 
   malc_dst_cfg cfg[2];
   err = destinations_get_cfg (&c->d, &cfg[0], id[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
   err = destinations_get_cfg (&c->d, &cfg[1], id[1]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   cfg[0].severity = malc_sev_debug;
   cfg[1].severity = malc_sev_trace;
 
   err = destinations_set_cfg (&c->d, &cfg[1], id[1]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
   err = destinations_set_cfg (&c->d, &cfg[0], id[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   memset (cfg, 0, sizeof cfg);
 
   err = destinations_get_cfg (&c->d, &cfg[0], id[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
   err = destinations_get_cfg (&c->d, &cfg[1], id[1]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   assert_int_equal (malc_sev_debug, cfg[0].severity);
   assert_int_equal (malc_sev_trace, cfg[1].severity);
@@ -195,10 +195,10 @@ static void destinations_write_sev_test (void **state)
   destinations_do_add (c, id, mock);
 
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
   cfg.severity = malc_sev_critical;
   err = destinations_set_cfg (&c->d, &cfg, id[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   destinations_write (&c->d, 0, 0, malc_sev_error, &strings);
   assert_int_equal (mock[0]->write, 0);
@@ -233,22 +233,22 @@ static void destinations_write_rate_filter_test (void **state)
   destinations_do_add (c, id, mock);
 
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
   cfg.log_rate_filter_time = bl_usec_to_tstamp (2);
   err = destinations_set_cfg (&c->d, &cfg, id[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   err = destinations_get_cfg (&c->d, &cfg, id[1]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
   cfg.log_rate_filter_time = bl_usec_to_tstamp (2);
   err = destinations_set_cfg (&c->d, &cfg, id[1]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   malc_security sec;
   sec.log_rate_filter_watch_count  = 4;
   sec.log_rate_filter_min_severity = malc_sev_debug;
   err = destinations_set_rate_limit_settings (&c->d, &sec);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   tstamp t = 0;
   destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
@@ -281,24 +281,24 @@ static void destinations_write_rate_filter_severity_test (void **state)
   destinations_do_add (c, id, mock);
 
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
   cfg.log_rate_filter_time = bl_usec_to_tstamp (2);
   cfg.severity             = malc_sev_debug;
   err = destinations_set_cfg (&c->d, &cfg, id[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   err = destinations_get_cfg (&c->d, &cfg, id[1]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
   cfg.log_rate_filter_time = bl_usec_to_tstamp (2);
   cfg.severity             = malc_sev_debug;
   err = destinations_set_cfg (&c->d, &cfg, id[1]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   malc_security sec;
   sec.log_rate_filter_watch_count  = 4;
   sec.log_rate_filter_min_severity = malc_sev_warning;
   err = destinations_set_rate_limit_settings (&c->d, &sec);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   tstamp t = 0;
   destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
@@ -332,12 +332,12 @@ static void destinations_sev_file_test (void **state)
   destinations_do_add (c, id, mock);
 
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   cfg.severity_file_path = SEV_FILE_NAME;
   cfg.severity = malc_sev_debug;
   err = destinations_set_cfg (&c->d, &cfg, id[0]);
-  assert_int_equal (bl_ok, err);
+  assert_int_equal (bl_ok, err.bl);
 
   write_sev_file ("critical");
   destinations_idle_task (&c->d, 0);

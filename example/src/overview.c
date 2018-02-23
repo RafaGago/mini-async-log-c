@@ -107,14 +107,14 @@ int add_configure_destinations (void)
 
   /* destination register */
   err = malc_add_destination (ilog, &stdouterr_id, &malc_stdouterr_dst_tbl);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "Error creating the stdout/stderr destination\n");
-    return err;
+    return err.bl;
   }
   err = malc_add_destination (ilog, &file_id, &malc_file_dst_tbl);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "Error creating the file destination\n");
-    return err;
+    return err.bl;
   }
   /* from here and below it's just configuration when the defaults are not
   suitable */
@@ -128,51 +128,51 @@ int add_configure_destinations (void)
 
   dcfg.severity = malc_sev_warning;
   err = malc_set_destination_cfg (ilog, &dcfg, stdouterr_id);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "Unable to set generic stdout/stderr destination config\n");
-    return err;
+    return err.bl;
   }
   dcfg.severity = malc_sev_debug;
   err = malc_set_destination_cfg (ilog, &dcfg, file_id);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "Unable to set generic file destination config\n");
-    return err;
+    return err.bl;
   }
   /* destination specific cfg. */
   malc_stdouterr_dst* stdouterr;
   err = malc_get_destination_instance (ilog, (void**) &stdouterr, stdouterr_id);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "bug when retrieving the stdout/stderr destination\n");
-    return err;
+    return err.bl;
   }
   malc_file_dst* file;
   err = malc_get_destination_instance (ilog, (void**) &file, file_id);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "bug when retrieving the stdout/stderr destination\n");
-    return err;
+    return err.bl;
   }
   /* severities equal and above error will be output on stderr (just for demo
   purposes, as it's the default) */
   err = malc_stdouterr_set_stderr_severity (stdouterr, malc_sev_error);
-  if (err) {
+  if (err.bl) {
     fprintf(
       stderr, "Unable to set specific stdout/stderr destination config\n"
       );
-    return err;
+    return err.bl;
   }
   malc_file_cfg fcfg;
   err = malc_file_get_cfg (file, &fcfg);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "Unable to get specific file destination config\n");
-    return err;
+    return err.bl;
   }
   fcfg.prefix = "malc-overview";
   fcfg.suffix = ".log";
   err = malc_file_set_cfg (file, &fcfg);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "Unable to set specific file destination config\n");
   }
-  return err;
+  return err.bl;
 }
 /*----------------------------------------------------------------------------*/
 int main (int argc, char const* argv[])
@@ -186,31 +186,31 @@ int main (int argc, char const* argv[])
     return bl_alloc;
   }
   err = malc_create (ilog, &alloc);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "Error creating the malc instance\n");
     goto dealloc;
   }
-  err = add_configure_destinations();
-  if (err) {
+  err.bl = add_configure_destinations();
+  if (err.bl) {
     goto destroy;
   }
   /* logger startup */
   malc_cfg cfg;
   err = malc_get_cfg (ilog, &cfg);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "bug when retrieving the logger configuration\n");
     goto destroy;
   }
   cfg.consumer.start_own_thread = false;
   err = malc_init (ilog, &cfg);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "unable to start logger\n");
     goto destroy;
   }
   /* threads can start logging */
   bl_thread t;
   err = bl_thread_init (&t, log_thread, nullptr);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "unable to start a log thread\n");
     goto destroy;
   }
@@ -218,13 +218,13 @@ int main (int argc, char const* argv[])
   do {
     err = malc_run_consume_task (ilog, 10000);
   }
-  while (!err || err == bl_nothing_to_do);
-  err = bl_ok;
+  while (!err.bl || err.bl == bl_nothing_to_do);
+  err = bl_mkok();
 
 destroy:
   (void) malc_destroy (ilog);
 dealloc:
   bl_dealloc (&alloc, ilog);
-  return err;
+  return err.bl;
 }
 /*----------------------------------------------------------------------------*/

@@ -14,7 +14,7 @@ static bl_err malc_stdouterr_dst_init (void* instance, alloc_tbl const* alloc)
 {
   malc_stdouterr_dst* d = (malc_stdouterr_dst*) instance;
   d->stderr_sev = malc_sev_error;
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_stdouterr_dst_write(
@@ -27,7 +27,7 @@ static bl_err malc_stdouterr_dst_write(
   fwrite (strs->sev, 1, strs->sev_len, dst);
   fwrite (strs->text, 1, strs->text_len, dst);
   fwrite ("\n", 1, lit_len ("\n"), dst);
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_stdouterr_dst_flush (void* instance)
@@ -39,7 +39,7 @@ static bl_err malc_stdouterr_dst_flush (void* instance)
   if (d->stderr_sev != malc_sev_off) {
     fflush (stderr);
   }
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT const struct malc_dst malc_stdouterr_dst_tbl = {
@@ -56,9 +56,9 @@ MALC_EXPORT bl_err malc_stdouterr_set_stderr_severity(
   )
 {
   if (!malc_is_valid_severity (sev) && sev != malc_sev_off) {
-    return bl_invalid;
+    return bl_mkerr (bl_invalid);
   }
   d->stderr_sev = sev;
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/

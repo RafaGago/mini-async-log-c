@@ -19,8 +19,8 @@ int log_thread (void* ctx)
 {
   atomic_uword* alive = (atomic_uword*) ctx;
   bl_err err = malc_producer_thread_local_init (ilog, 128 * 1024);
-  if (err) {
-    log_error (err, "Error when starting thread local storage: {}", err);
+  if (err.bl) {
+    log_error (err, "Error when starting thread local storage: {}", err.bl);
   }
   log_error (err, "Hello from log thread");
   uword alive_prev = atomic_uword_fetch_sub_rlx (alive, 1);
@@ -46,7 +46,7 @@ int main (int argc, char const* argv[])
     return bl_alloc;
   }
   err = malc_create (ilog, &alloc);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "Error creating the malc instance\n");
     goto dealloc;
   }
@@ -55,12 +55,12 @@ int main (int argc, char const* argv[])
   u32    stdouterr_id;
   u32    file_id;
   err = malc_add_destination (ilog, &stdouterr_id, &malc_stdouterr_dst_tbl);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "Error creating the stdout/stderr destination\n");
     goto destroy;
   }
   err = malc_add_destination (ilog, &file_id, &malc_file_dst_tbl);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "Error creating the file destination\n");
     goto destroy;
   }
@@ -68,13 +68,13 @@ int main (int argc, char const* argv[])
   /* logger startup */
   malc_cfg cfg;
   err = malc_get_cfg (ilog, &cfg);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "bug when retrieving the logger configuration\n");
     goto destroy;
   }
   cfg.consumer.start_own_thread = false; /* main tread runs the event-loop*/
   err = malc_init (ilog, &cfg);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "unable to start logger\n");
     goto destroy;
   }
@@ -82,7 +82,7 @@ int main (int argc, char const* argv[])
   for (uword i = 0; i < thread_count; ++i) {
     bl_thread t;
     err = bl_thread_init (&t, log_thread, (void*) &alive_threads);
-    if (err) {
+    if (err.bl) {
       fprintf (stderr, "unable to start log thread 1\n");
       goto destroy;
     }
@@ -92,13 +92,13 @@ int main (int argc, char const* argv[])
     /* run event-loop to consume malc messages */
     err = malc_run_consume_task (ilog, 10000);
   }
-  while (!err || err == bl_nothing_to_do);
-  err = bl_ok;
+  while (!err.bl || err.bl == bl_nothing_to_do);
+  err = bl_mkok();
 
 destroy:
   (void) malc_destroy (ilog);
 dealloc:
   bl_dealloc (&alloc, ilog);
-  return err;
+  return err.bl;
 }
 /*----------------------------------------------------------------------------*/

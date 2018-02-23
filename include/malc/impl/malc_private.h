@@ -838,7 +838,7 @@ template<> struct malc_type_traits<malc_compressed_refdtor> {
           &pp_tokconcat (malc_const_entry_, __LINE__),\
           MALC_GET_SERIALIZED_TYPES_SIZE (pp_vargs_ignore_first (__VA_ARGS__))\
           );\
-        if (err) {\
+        if (err.bl) {\
           break;\
         }\
         /* passing all the variables on the serializer, which already knows */\
@@ -852,7 +852,7 @@ template<> struct malc_type_traits<malc_compressed_refdtor> {
           &pp_tokconcat (malc_const_entry_, __LINE__),\
           0\
           );\
-        if (err) {\
+        if (err.bl) {\
           break;\
         }\
       ) /*end if*/\
@@ -862,9 +862,9 @@ template<> struct malc_type_traits<malc_compressed_refdtor> {
         );\
     } \
     else { \
-      (err) = bl_ok; \
+      (err) = bl_mkok(); \
     } \
-    --(err); ++(err); /*remove unused variable warnings */ \
+    --(err.sys); ++(err.sys); /*remove unused variable warnings */ \
   } \
   while (0)
 
@@ -969,7 +969,7 @@ template<> struct malc_type_traits<malc_compressed_refdtor> {
     #define MALC_STRIP_LOG_CRITICAL
 #endif
 /*----------------------------------------------------------------------------*/
-static inline bl_err malc_warning_silencer() { return bl_ok; }
+static inline bl_err malc_warning_silencer() { return bl_mkok(); }
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_DEBUG
 
