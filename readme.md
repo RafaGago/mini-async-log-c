@@ -13,17 +13,16 @@ Features
   "mini-async-log" in most configurations.
 
 - Various memory (log entry) sources: Thread Local Storage buffer, common
-  bounded buffer (configurable to one buffer for each CPU) and custom allocators
+  bounded buffer (configurable to have one for each CPU) and custom allocators
   (defaults to the heap).
 
 - Type-safe format strings. Achieved through C11 type-generic expressions and
-  (unfortunately) preprocessor abusing.
+  (unfortunately) brutal preprocessor abusing.
 
 - C++ compatible/compilable.
 
-- No consumer logger thread ownership. The client application can run the
-  logger's consumer thread main loop from an existing (maybe shared for other
-  purposes) thread.
+- The client application can run the logger's consumer thread main loop from an
+  existing (maybe shared for other purposes) thread if desired.
 
 - Basic security features: Log entry rate limiting and newline removal.
 
@@ -32,8 +31,8 @@ Features
 - Compile-time removable severities.
 
 - Zero-copy logging of strings/memory ranges: achieved by just invoking a
-  callback from where manual deallocation or reference counting can be done on
-  the consumer side.
+  destruction callback from where manual deallocation or reference counting can
+  be done.
 
 - Decent test coverage.
 
@@ -47,7 +46,7 @@ The format strings have this form:
 These are like printf strings where the length related specifiers are detected
 automatically. So you never need to specify e.g hh, llu, d, etc.
 
-All the strings inside the braces will be passed internally to print as format
+All the strings inside the braces will be passed internally to printf as format
 modifiers, e.g.
 
 > "this is a fixed 8 char width zero padded integer: {08}"
@@ -62,7 +61,8 @@ bytes):
 
 > "full width zero padded integer: {0W}"
 
-The new "N" specifier is replaced by the number of nibbles of an integer:
+The new "N" specifier is replaced by the number of nibbles of an hexadecimal
+integer:
 
 > "full width hex zero padded integer: {0Nx}"
 
@@ -82,9 +82,9 @@ Meson 0.41 is used. Ubuntu:
 > sudo -H pip3 install meson
 
 > git submodule update --init --recursive
-> meson your_stage_dir  --buildtype=release
-> ninja -C your_stage_dir
-> ninja -C your_stage_dir test
+> meson <your_stage_dir>  --buildtype=release
+> ninja -C <your_stage_dir>
+> ninja -C <your_stage_dir> test
 
 Windows:
 
@@ -95,4 +95,9 @@ replaced with template hackery.
 TODO
 ==================
 
--Benchmark/optimize.
+-Investigate faster, platform-specific options for timestamping.
+
+-Implement in-place deallocation for failed entries with dynamic fields if
+sane/possible. No use case seems to be broken: refcount, no dealloc and
+malloc/free. Change the signature, so the called desctructor can know if it's an
+in-place deallocation. As this is new behavior it should be explicitly enabled.

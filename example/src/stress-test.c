@@ -16,16 +16,17 @@
 #include <malc/destinations/array.h>
 
 /* A program to test malc stability, basically the init/deinit sequence and the
-producer side. Thought out to be running for hours, so no file writing. */
+producer side. Thought out to be running for hours. It adds a destination on RAM
+with extra instrumentation. */
 
 malc* ilog = nullptr;
 
 /*----------------------------------------------------------------------------*/
 /* Stress destination: a wrapper around "array_dst". Its only purpose is to
-  expose externally the received message count at the consumer side.
+  expose externally the received message count at the consumer side at the end.
 
-  It's actually a decent example about how to define/work with own destinations
-  too */
+  "stree_dst" is actually a decent example about how to define/work with own
+  destinations*/
 /*----------------------------------------------------------------------------*/
 typedef struct stress_dst {
   malc_array_dst*  arr;
@@ -296,8 +297,9 @@ int main (int argc, char const* argv[])
         err = bl_thread_init (&thrs[th], througput_thread, &tcontext[th]);
         if (err.bl) {
           fprintf (stderr, "unable to start a log thread\n");
-          /* too lazy now write proper deinitialization for this _test_ program
-          under such weird conditions now */
+          /* too lazy now to write proper deinitialization for this _test_
+          program under such unlikely to happen conditions. Every thread should
+          be cleanly killed */
           (void) malc_destroy (ilog);
           bl_dealloc (&alloc, ilog);
           return 1;

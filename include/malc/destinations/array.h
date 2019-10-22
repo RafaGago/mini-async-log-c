@@ -9,15 +9,15 @@
 #endif
 
 /*----------------------------------------------------------------------------*/
-/* A memory logger designed for malc smoke testing. It might be used for
-multithreaded application debugging when printf affects behavior, but be aware
-of the asynchronous nature of malc: the last entries aren't guaranteed to be
-logged yet when you hit e.g. a breakpoint.
+/* A memory destination designed for malc smoke testing. It might be used for
+multithreaded application debugging when printf timings affect the behavior, but
+be aware of the asynchronous nature of malc: the last entries aren't guaranteed
+to be logged yet when you hit e.g. a breakpoint.
 
-It stores log entries in an external array of char arrays, so it wastes space on
-the tail of each entry but the entries can be easily indexed and seen with a
-debugger. It always keeps an empty entry at the tail to be able to see where the
-tail is located without (array rotates).
+This destination stores log entries in an external array of char arrays, so it
+wastes space on the tail of each fixed-size entry. The entries can be easily
+indexed and seen with a debugger. It always keeps an empty entry at the tail to
+be able to see where the tail is located by just looking at the array itself.
 */
 /*----------------------------------------------------------------------------*/
 typedef struct malc_array_dst malc_array_dst;

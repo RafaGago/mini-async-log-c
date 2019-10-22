@@ -21,8 +21,8 @@ time_based_name:
   Or this one when "time_based_name" is "false":
     "prefix"_"(number)""suffix"
 
-  Prefix can include a folder, but the folder won't be created, it has to exist
-  before.
+  "prefix" can include a folder, but the folder won't be created, it has to
+  exist before.
 
   "wall clock" and "monotonic clock" are the values of the clocks at file
   creation time written as an unsigned 64 bit integer coded as hexadecimal (16
@@ -34,12 +34,12 @@ time_based_name:
   simple script or program can convert them at log archivation/visualization
   time by using OS calendar primitives.
 
-
 max_file_size:
 
   The approximate maximum log file size in KB. It will be rounded to contain
-  full log entries. This size will never be surpassed except for single log
-  entries bigger than this size. 0 disables breaking log files in chunks.
+  full log entries. This size will never be surpassed except for files with a
+  single log entry bigger than this size. 0 disables splitting log files in
+  chunks.
 
 max_log_files:
 

@@ -36,7 +36,8 @@ log_rate_filter_time:
 
   It protects against malicious or involuntary loops logging the same entry (or
   set of entries) with a very high rate. Which can force the logs to rotate and
-  can lead to a potential lose of important information.
+  can lead to a potential loss of information, allowing an attacker to cover
+  tracks.
 
   This is to be used in with the global "log_rate_filter_watch_count" and
   "log_rate_filter_min_severity" on the "malc_security_cfg" struct.
@@ -47,7 +48,17 @@ log_rate_filter_time:
 
 severity_file_path:
 
-  null or a file to read the severity from.
+  null or a file (probably on a RAM filesystem) to read the severity from. If
+  not null the logger will read that file periodically (on the IDLE taks) to
+  update the logger severity. The file should contain one of the next values:
+
+  -debug
+  -trace
+  -note
+  -warning
+  -error
+  -critical
+
 ------------------------------------------------------------------------------*/
 typedef struct malc_dst_cfg {
   tstamp      log_rate_filter_time;
@@ -60,22 +71,23 @@ malc_dst_cfg;
 /*------------------------------------------------------------------------------
 malc_dst:
 
-  Data table of a malc destination. All the functions here will be called
-  non-concurrently (single threaded fashion) with guaranteed memory visibility
-  (the thead may be swapped though).
+  Resource table of a malc destination. All the functions here will be called
+  non-concurrently (in a single threaded fashion) with guaranteed memory
+  visibility (the thead may be swapped under the hood though).
 
 size_of:
 
-  sizeof the struct, will be used by malc to allocate the correct size.
+  "sizeof" the struct containing the implementation of an instance of this
+   destination.
 
 init:
 
   Initialization: instance will contain a raw memory chunk of "size_of"
-  bytes. "alloc" is a provided memory allocator in case it's necessary to
-  allocate more memory on the initialization phase. (it will be the same
-  instance passed to malc on "malc_create"). The allocator can be stored for
-  later usage. This value can be set to null if there is no initialization to
-  do.
+  bytes. "alloc" is a provided-by-malc memory allocator in case it's necessary
+  for the instance to allocate more memory on the initialization phase. (it will
+  be the same instance passed to malc on "malc_create"). The allocator can be
+  stored by instance implementations for later usage. This value can be set to
+  null if there is no initialization to do.
 
 terminate:
 

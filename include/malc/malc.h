@@ -72,11 +72,11 @@ in the terminated state.
 After calling this function no further log messages can be enqueued by any
 thread.
 
-The "is_consume_task_thread" bool parameter needs to be set to true when the
+The "is_consume_task_thread" bool parameter needs to be set to "true" when the
 thread doing the termination is the same one that runs "malc_run_consume_task".
 This is because in such case the command can't block until the consumer task
-processes the command (would deadlock). In this case the termination is complete
-when "malc_run_consume_task" returns "bl_preconditions".
+processes the termination command (it would deadlock). In this case the
+termination is complete when "malc_run_consume_task" returns "bl_preconditions".
 
 If "is_consume_task_thread" is "false" this call will block until the
 termination command has been processed by the consume task.
@@ -101,16 +101,16 @@ done for three reasons:
   thread goes out of scope its TLS/TSS destructor automatically sends the
   buffer memory to the consumer task as a deallocation command. Its memory is
   deallocated from the consume task thread to ensure that the TLS buffer isn't
-  deallocated before all the entries of the now dying thread have been
+  deallocated before all the entries of the now-dying thread have been
   processed.
 
   It is very likely that the user that manually calls this function has full
   control of the thread and can comply with this requirement. If not there are
   other log entry allocation methods available.
 
-  (*) Note that the thread that runs the "malc_terminate" function obviously
-  doesn't need to be joined. The "malc_terminate" function deallocates the
-  thread local storage buffer manually.
+  (*) Note that the thread that runs the "malc_terminate" function  doesn't need
+  to be joined. The "malc_terminate" function deallocates the thread local
+  storage buffer manually.
 
 3.There is no straightforward way to do it on C (which is a good thing, I
   would't do it anyways for the two reasons above).
@@ -154,7 +154,8 @@ Gets the allocated and initialized instance of a logger destination. E.g:
 
 Keep in mind that adding more destinations can make this destination instance to
 be reallocated elsewhere, so storing the pointer value is dangerous. It
-shouldn't happen until all the destinations have been added.
+is safe to separately store the pointer when all the destinations have been
+added.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_get_destination_instance(
   malc const* l, void** instance, u32 dest_id
@@ -168,11 +169,12 @@ extern MALC_EXPORT bl_err malc_set_destination_cfg(
   malc* l, malc_dst_cfg const* cfg, u32 dest_id
   );
 /*------------------------------------------------------------------------------
-Passes a literal to mal log. By using this function the logger interprets
-that this string is constant and will always outlive the data logger.
+Passes a literal to malc. By using this function you tell the logger that
+this string will outlive the data logger and doesn't need to be copied, it can
+be taken by reference/pointer.
 
-This is intended to be used for passing literals by pointer (no deep copy) but
-it can be used for non constant strings that are known to outlive the data
+This is mainly intended to be used for passing string literals, but it can be
+used (with caution) for non-literal strings that are known to outlive the data
 logger unmodified.
 ------------------------------------------------------------------------------*/
 static inline malc_lit loglit (char const* literal)
@@ -182,7 +184,7 @@ static inline malc_lit loglit (char const* literal)
   return l;
 }
 /*------------------------------------------------------------------------------
-Passes a string by value (deep copy) to mal log.
+Passes a string by value (deep copy) to malc.
 ------------------------------------------------------------------------------*/
 static inline malc_strcp logstrcpy (char const* str, u16 len)
 {
@@ -197,7 +199,7 @@ static inline malc_strcp logstrcpyl (char const* str)
   return logstrcpy (str, (u16) (len < 65536 ? len : 65535));
 }
 /*------------------------------------------------------------------------------
-Passes a memory area by value (deep copy) to mal log. It will be printed as hex.
+Passes a memory area by value (deep copy) to malc. It will be printed as hex.
 ------------------------------------------------------------------------------*/
 static inline malc_memcp logmemcpy (void const* mem, u16 size)
 {
@@ -206,8 +208,9 @@ static inline malc_memcp logmemcpy (void const* mem, u16 size)
   return b;
 }
 /*------------------------------------------------------------------------------
-Passes a string by reference to mal log. Needs a log entry cleanup callback
-(see "logrefdtor"). To be used to avoid copying big chunks of data.
+Passes a string by reference to malc. Needs that you provide a destructor for
+this dynamic string as the last parameter on the call (see "logrefdtor"). To be
+used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
 static inline malc_strref logstrref (char const* str, u16 len)
 {
@@ -222,8 +225,9 @@ static inline malc_strref logstrrefl (char const* str)
   return logstrref (str, (u16) (len < 65536 ? len : 65535));
 }
 /*------------------------------------------------------------------------------
-Passes a memory area by reference to mal log. Needs a log entry cleanup callback
-(see "logrefdtor"). To be used to avoid copying big chunks of data.
+Passes a memory area by reference to malc. Needs that you provide a destructor
+for this memory area as the last parameter on the call (see "logrefdtor"), To be
+used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
 static inline malc_memref logmemref (void const* mem, u16 size)
 {
@@ -248,9 +252,9 @@ so callbacks should be kept short, ideally doing an atomic reference count
 decrement, a deallocation or something similar. Thread safety issues should be
 considered too.
 
-Remember when using destructors to check the return error code of the log error
-function. If the log entry doesn't succeed the destructor will never be called
-by the library, so you may need to manually deallocate the resources in-place.
+Remember when using destructors to check the return error code of the logging
+function. If logging doesn't succeed the destructor will never be called, so you
+will need to manually deallocate the resources in-place.
 ------------------------------------------------------------------------------*/
 static inline malc_refdtor logrefdtor (malc_refdtor_fn func, void* context)
 {

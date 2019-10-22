@@ -16,13 +16,13 @@ static bl_thread_local void* malc_tls = nullptr;
 /*----------------------------------------------------------------------------*/
 void tls_buffer_thread_local_set (void* mem)
 {
-  /* Some GDB versions sefault on TLS var access, set breakpoints afterwards*/
+  /* Some GDB versions segfault on TLS var access, set breakpoints afterwards*/
   malc_tls = mem;
 }
 /*----------------------------------------------------------------------------*/
 void* tls_buffer_thread_local_get (void)
 {
-  /* Some GDB versions sefault on TLS var access, set breakpoints afterwards*/
+  /* Some GDB versions segfault on TLS var access, set breakpoints afterwards*/
   return malc_tls;
 }
 /*----------------------------------------------------------------------------*/
@@ -60,7 +60,7 @@ bl_err tls_buffer_init(
 /*----------------------------------------------------------------------------*/
 void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque)
 {
-  /* Some GDB versions sefault on TLS var access, set breakpoints afterwards*/
+  /* Some GDB versions segfault on TLS var access, set breakpoints afterwards*/
   if (malc_tls && (void*) malc_tls == opaque) {
     malc_tls      = nullptr;
     tls_buffer* t = (tls_buffer*) opaque;
@@ -68,7 +68,7 @@ void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque)
       t->destructor_fn (opaque, t->destructor_context);
     }
   }
-  /* Some GDB versions sefault on TLS var access, set breakpoints afterwards*/
+  /* Some GDB versions segfault on TLS var access, set breakpoints afterwards*/
   else if (malc_tls && (void*) malc_tls != opaque) {
     bl_assert (0 && "bad destruction (logger wrongly reinitialized)");
   }
@@ -76,7 +76,7 @@ void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque)
 /*----------------------------------------------------------------------------*/
 bl_err tls_buffer_alloc (u8** mem, u32 slots)
 {
-  /* Some GDB versions sefault on TLS var access, set breakpoints afterwards*/
+  /* Some GDB versions segfault on TLS var access, set breakpoints afterwards*/
   tls_buffer* t = malc_tls;
   if (unlikely (!t)) {
     return bl_mkerr (bl_alloc);
@@ -86,7 +86,7 @@ bl_err tls_buffer_alloc (u8** mem, u32 slots)
     return bl_mkerr (bl_alloc);
   }
   /* Segfaults here are most likely caused by a thread enqueueing after the
-  termination function has been called, which is forbidded but not enforced
+  termination function has been called, which is forbidden but not enforced
   (enforcing it would require heavyweight synchronization on the fast-path) */
   u8* slot_start = t->slot;
   u8* slot_end   = t->slot + (slots * t->slot_size);

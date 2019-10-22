@@ -19,7 +19,7 @@ int log_thread (void* ctx)
   bl_err err;
   log_error (err, "Hello malc, testing {}, {}, {.1}", 1, 2, 3.f);
   (void) log.terminate (true); /* terminating the logger. Will force the
-                                  event loop on main to exit */
+                                  event loop on main's thread to exit */
   return 0;
 }
 /*----------------------------------------------------------------------------*/
@@ -46,7 +46,7 @@ int main (int argc, char const* argv[])
     fprintf (stderr, "bug when retrieving the logger configuration\n");
     return err.bl;
   }
-  cfg.consumer.start_own_thread = false; /* main tread runs the event-loop*/
+  cfg.consumer.start_own_thread = false; /* this thread runs the event-loop */
   err = log.init (cfg);
   if (err.bl) {
     fprintf (stderr, "unable to start logger\n");

@@ -116,8 +116,8 @@ int add_configure_destinations (void)
     fprintf (stderr, "Error creating the file destination\n");
     return err.bl;
   }
-  /* from here and below it's just configuration when the defaults are not
-  suitable */
+  /* from here and below it's just sink/destination configuration when the
+  defaults are not suitable. Here is just done for demo purposes. */
 
   /* destination generic cfg, setting log severities */
   malc_dst_cfg dcfg;
@@ -152,7 +152,7 @@ int add_configure_destinations (void)
     return err.bl;
   }
   /* severities equal and above error will be output on stderr (just for demo
-  purposes, as it's the default) */
+  purposes, as it's already the default) */
   err = malc_stdouterr_set_stderr_severity (stdouterr, malc_sev_error);
   if (err.bl) {
     fprintf(

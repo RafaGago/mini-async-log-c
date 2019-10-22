@@ -440,7 +440,10 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
       case q_cmd_tls_dealloc_deregister:
         /* when a thread goes out of scope the TLS destructor runs. This
         destructor calls "malc_tls_destructor", which sends the whole TLS buffer
-        memory chunk as a queue node. See "malc_tls_destructor". */
+        memory chunk as a queue node, so it is deallocated from this (consumer)
+        thread. This is to guarantee that all pending entries originated on each
+        TLS buffer are consumed before deallocating the buffer itself. See
+        "malc_tls_destructor". */
         bl_assert_side_effect(
           memory_tls_destroy (&l->mem, (void*) n, l->alloc)
           );
@@ -448,7 +451,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, uword timeout_us)
 
       case q_cmd_flush:
         destinations_flush (&l->dst);
-        ++n->slots; /* poor-man's signalling to the caller */
+        ++n->slots; /* poor-man's signalling back to the caller */
         break;
 
       case q_cmd_terminate:

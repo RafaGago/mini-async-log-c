@@ -11,18 +11,6 @@
 #include <bl/base/default_allocator.h>
 
 /*----------------------------------------------------------------------------*/
-/* Note: logstrcpy and logstrref are not possible only with thin wrappers:
-
-   logstrcpy: Could send an rvalue, this would break the copying macro, as the
-     string would have been destructed before doing the copy operation. Support
-     for it would require a transform returning a std::string (with move&& and
-     reference overloads) a, check for size < 65536 and explicit serializer
-     support. It may be done as a seprate commit.
-
-   logstrref: Would need explicit support too as one can't get the std::string
-     object from its c string pointer (c_str()) */
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 /* Very thin wrapper without ownership. Constructors and destructors don't
    invoke malc_create / malc_destroy */
 /*----------------------------------------------------------------------------*/
@@ -209,3 +197,17 @@ typedef malc_owner_impl<false, true>  malc_owner_no_construct;
 typedef malc_owner_impl<false, false> malc_owner_no_construct_destruct;
 
 #endif
+
+/*----------------------------------------------------------------------------*/
+/* Note: An improved C++ version of "logstrcpy" and "logstrref" are not possible
+   only with thin wrappers:
+
+   logstrcpy: The user could send an rvalue, this would break the copying macro,
+     as the string would have been destructed before doing the copy operation.
+     Support for it would require a transform returning a std::string
+     (with move&& and reference overloads), a check for size < 65536 and
+     explicit serializer support. It may be done as a separate commit.
+
+   logstrref: Would need explicit support too as one can't get the std::string
+     object from its c string pointer (c_str()) */
+/*----------------------------------------------------------------------------*/
