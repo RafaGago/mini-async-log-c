@@ -10,8 +10,6 @@
 #include <bl/base/utility.h>
 #include <bl/base/static_integer_math.h>
 
-static const uword boundedb_buff_slots     = 4;
-static const uword boundedb_buff_slot_size = 32;
 /*----------------------------------------------------------------------------*/
 typedef struct boundedb_context {
   alloc_tbl alloc;
