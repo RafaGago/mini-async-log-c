@@ -252,9 +252,14 @@ so callbacks should be kept short, ideally doing an atomic reference count
 decrement, a deallocation or something similar. Thread safety issues should be
 considered too.
 
-Remember when using destructors to check the return error code of the logging
-function. If logging doesn't succeed the destructor will never be called, so you
-will need to manually deallocate the resources in-place.
+Note that in case of error or a filtered out severity the destructor will be run
+in-place by the calling thread. This can make the feature unusable for some use
+cases, e.g. when the deallocation is costly and blocking and the calling thread
+has to progress fast.
+
+The copy by value functions don't add any extra operations on failure or
+filtering out, so they can be considered an alternative for when the
+deallocation behavior described above is a problem.
 ------------------------------------------------------------------------------*/
 static inline malc_refdtor logrefdtor (malc_refdtor_fn func, void* context)
 {

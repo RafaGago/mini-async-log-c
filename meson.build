@@ -12,9 +12,9 @@ project(
         'default_library=static'
         ]
     )
+version_major = '1'
 version_minor = '0'
-version_major = '0'
-version_rev   = '1'
+version_rev   = '0'
 version       = version_minor + '.' + version_major + '.' + version_rev
 
 is_bare = get_option ('bare') ? 'true' : 'false'

@@ -452,6 +452,54 @@ static void dynargs_are_deallocated (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void dynargs_are_deallocated_for_filtered_out_severities (void **state)
+{
+  /*Testing that the deallocation happens on the caller thread.*/
+  context* c = (context*) *state;
+
+  malc_dst_cfg dcfg;
+  dcfg.log_rate_filter_time = 0;
+  dcfg.show_timestamp       = false;
+  dcfg.show_severity        = false;
+  dcfg.severity             = malc_sev_error;
+  dcfg.severity_file_path   = nullptr;
+
+  bl_err err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  assert_int_equal (err.bl, bl_ok);
+
+  malc_cfg cfg;
+  err = malc_get_cfg (c->l, &cfg);
+  assert_int_equal (err.bl, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = malc_init (c->l, &cfg);
+  assert_int_equal (err.bl, bl_ok);
+
+  smoke_refdtor_ctx dealloc;
+  dealloc.ptrs_count = 0;
+  char stringv[] = "paco";
+  u8* v1 = (u8*) malloc (sizeof stringv);
+  u8* v2 = (u8*) malloc (sizeof stringv);
+  memcpy(v1, stringv, sizeof stringv);
+  memcpy(v2, stringv, sizeof stringv);
+
+  log_warning(
+    err,
+    "streams from malloc: {} {}",
+    logstrref ((const char*) v1, sizeof stringv - 1),
+    logmemref (v2, sizeof stringv),
+    logrefdtor (smoke_refdtor, &dealloc)
+    );
+
+  assert_int_equal (err.bl, bl_ok);
+  assert_int_equal (dealloc.ptrs_count, 2);
+  assert_ptr_equal (dealloc.ptrs[0], v1);
+  assert_ptr_equal (dealloc.ptrs[1], v2);
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -462,6 +510,9 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (severity_two_destinations, setup, teardown),
   cmocka_unit_test_setup_teardown (integer_formats, setup, teardown),
   cmocka_unit_test_setup_teardown (dynargs_are_deallocated, setup, teardown),
+  cmocka_unit_test_setup_teardown(
+    dynargs_are_deallocated_for_filtered_out_severities, setup, teardown
+    ),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)

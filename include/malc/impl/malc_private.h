@@ -779,7 +779,6 @@ template<> struct malc_type_traits<malc_compressed_refdtor> {
 
 #define MALC_SERIALIZE_TMP_VALUES(...) \
   pp_apply_wid (MALC_APPLY_SERIALIZER, malc_pp_semicolon, __VA_ARGS__)
-
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_DECLARE_TMP_VARIABLES(...) \
   pp_apply_wid (malc_make_var_from_expression, pp_empty, __VA_ARGS__)
@@ -815,59 +814,319 @@ template<> struct malc_type_traits<malc_compressed_refdtor> {
     "_logrefcleanup_ must be the last function call parameter."\
     );
 /*----------------------------------------------------------------------------*/
-#define MALC_LOG_IF_PRIVATE(condition, err, malc_ptr, sev, ...) \
+static inline void malc_do_add_to_refarray(
+  malc_ref* a, uword* idx, malc_ref const* v
+  )
+{
+  a[*idx] = *v;
+  ++(*idx);
+}
+
+static inline void malc_do_run_refdtor(
+  malc_refdtor* d, malc_ref const* refs, uword refs_count
+  )
+{
+  d->func (d->context, refs, refs_count);
+}
+
+#if MALC_PTR_COMPRESSION != 0
+/*----------------------------------------------------------------------------*/
+/* We need to convert back from the structs prepared for compression */
+static inline void malc_do_add_to_refarray_compressed(
+  malc_ref* a, uword* idx, malc_compressed_ref const* v
+  )
+{
+  malc_ref r;
+  r.ref  = (void const*) v->ref.v;
+  r.size = v->size;
+  malc_do_add_to_refarray (a, idx, &r);
+}
+
+static inline void malc_do_run_refdtor_compressed(
+  malc_compressed_refdtor* d, malc_ref const* refs, uword refs_count
+  )
+{
+  malc_refdtor rd;
+  rd.func    = (malc_refdtor_fn) d->func.v;
+  rd.context = (void*) d->context.v;
+  malc_do_run_refdtor (&rd, refs, refs_count);
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifndef __cplusplus
+/*----------------------------------------------------------------------------*/
+#if MALC_PTR_COMPRESSION == 0
+
+static inline void malc_do_add_to_refarray_pass(
+    malc_ref* a, uword* idx, malc_ref const* v
+    )
+{}
+
+#define MALC_LOG_FILL_REF_ARRAY_VAR_IF_REF(expr, name)\
+  _Generic ((name), \
+    malc_strref: malc_do_add_to_refarray, \
+    malc_memref: malc_do_add_to_refarray, \
+    default:     malc_do_add_to_refarray_pass \
+    )( \
+      pp_tokconcat(malc_deallocrefs_, __LINE__), \
+      &pp_tokconcat(malc_deallocrefs_idx, __LINE__), \
+      (malc_ref const*) &(name) \
+    );
+
+static inline void malc_do_run_refdtor_pass(
+    malc_refdtor* d, malc_ref const* refs, uword refs_count
+    )
+{}
+
+#define MALC_LOG_REF_ARRAY_DEALLOC_SEARCH_EXEC(expr, name) \
+  _Generic ((name), \
+    malc_refdtor: malc_do_run_refdtor, \
+    default:      malc_do_run_refdtor_pass \
+    )( \
+      (malc_refdtor*) &name, \
+      pp_tokconcat(malc_deallocrefs_, __LINE__), \
+      pp_tokconcat(malc_deallocrefs_idx, __LINE__) \
+    );
+/*----------------------------------------------------------------------------*/
+#else /* MALC_PTR_COMPRESSION != 0 */
+
+static inline void malc_do_add_to_refarray_pass(
+    malc_ref* a, uword* idx, malc_compressed_ref const* v
+    )
+{}
+
+#define MALC_LOG_FILL_REF_ARRAY_VAR_IF_REF(expr, name)\
+  _Generic ((name), \
+    malc_compressed_ref: malc_do_add_to_refarray_compressed, \
+    default:             malc_do_add_to_refarray_pass \
+    )( \
+      pp_tokconcat(malc_deallocrefs_, __LINE__), \
+      &pp_tokconcat(malc_deallocrefs_idx, __LINE__), \
+      (malc_compressed_ref const*) &(name) \
+    );
+
+static inline void malc_do_run_refdtor_pass(
+    malc_compressed_refdtor* d, malc_ref const* refs, uword refs_count
+    )
+{}
+
+#define MALC_LOG_REF_ARRAY_DEALLOC_SEARCH_EXEC(expr, name) \
+  _Generic ((name), \
+    malc_compressed_refdtor: malc_do_run_refdtor_compressed, \
+    default:                 malc_do_run_refdtor_pass \
+    )( \
+      (malc_compressed_refdtor*) &name, \
+      pp_tokconcat(malc_deallocrefs_, __LINE__), \
+      pp_tokconcat(malc_deallocrefs_idx, __LINE__) \
+    );
+
+#endif /* MALC_PTR_COMPRESSION == 0 */
+/*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+#else /* __cplusplus is defined*/
+/*----------------------------------------------------------------------------*/
+template<typename T>
+inline void malc_do_add_to_refarray_cpp(
+  malc_ref* a, uword* idx, T const* v
+  )
+{}
+
+template <typename T>
+inline void malc_do_run_refdtor_cpp(
+  T* d, malc_ref const* refs, uword refs_count
+  )
+{}
+
+/*----------------------------------------------------------------------------*/
+#if MALC_PTR_COMPRESSION == 0
+
+template<>
+inline void malc_do_add_to_refarray_cpp(
+  malc_ref* a, uword* idx, malc_strref const* v
+  )
+{
+  malc_do_add_to_refarray (a, idx, (malc_ref const*) v);
+}
+
+template<>
+inline void malc_do_add_to_refarray_cpp(
+  malc_ref* a, uword* idx, malc_memref const* v
+  )
+{
+  malc_do_add_to_refarray (a, idx, (malc_ref const*) v);
+}
+
+template <>
+inline void malc_do_run_refdtor_cpp(
+  malc_refdtor* d, malc_ref const* refs, uword refs_count
+  )
+{
+  malc_do_run_refdtor (d, refs, refs_count);
+}
+#else /* MALC_PTR_COMPRESSION != 0 */
+
+template<>
+inline void malc_do_add_to_refarray_cpp(
+  malc_ref* a, uword* idx, malc_compressed_ref const* v
+  )
+{
+  malc_do_add_to_refarray_compressed (a, idx, v);
+}
+
+template <>
+inline void malc_do_run_refdtor_cpp(
+  malc_compressed_refdtor* d, malc_ref const* refs, uword refs_count
+  )
+{
+  malc_do_run_refdtor_compressed (d, refs, refs_count);
+}
+#endif /* MALC_PTR_COMPRESSION == 0 */
+/*----------------------------------------------------------------------------*/
+#define MALC_LOG_FILL_REF_ARRAY_VAR_IF_REF(expr, name)\
+  malc_do_add_to_refarray_cpp( \
+    pp_tokconcat(malc_deallocrefs_, __LINE__), \
+    &pp_tokconcat(malc_deallocrefs_idx, __LINE__), \
+    &(name) \
+    );
+
+#define MALC_LOG_REF_ARRAY_DEALLOC_SEARCH_EXEC(expr, name) \
+  malc_do_run_refdtor_cpp( \
+    &name, \
+    pp_tokconcat(malc_deallocrefs_, __LINE__), \
+    pp_tokconcat(malc_deallocrefs_idx, __LINE__) \
+    );
+
+#endif /* * __cplusplus */
+/*----------------------------------------------------------------------------*/
+#define MALC_LOG_FILL_REF_ARRAY(...) \
+  /* Iterates all the variables (I, II, III, etc) and only adds the reference*/\
+  /* type ones to the "malc_deallocrefs_LINE" array. It uses the variables by*/\
+  /* name (I, II, III) to avoid calling expressions twice (passed arguments) */\
+  pp_apply_wid (MALC_LOG_FILL_REF_ARRAY_VAR_IF_REF, pp_empty, __VA_ARGS__)
+
+#define MALC_LOG_REF_ARRAY_DEALLOC(...) \
+  /* Iterates all the variables (I, II, III, etc) until it finds the  */\
+  /* ref_dtor. Then deallocates the ref array. It does use the variables by*/\
+  /* name (I, II, III) to avoid calling expressions twice (passed arguments) */\
+  pp_apply_wid (MALC_LOG_REF_ARRAY_DEALLOC_SEARCH_EXEC, pp_empty, __VA_ARGS__)
+/*----------------------------------------------------------------------------*/
+#define MALC_LOG_IF_PRIVATE(cond, err, malc_ptr, sev, ...) \
   /* Reminder: The first __VA_ARG__ is the format string */\
   do { \
-    if ((condition) && ((sev) >= MALC_GET_MIN_SEVERITY_FNAME ((malc_ptr)))) { \
-      MALC_LOG_CREATE_CONST_ENTRY ((sev), __VA_ARGS__); \
-      pp_if_else (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))(\
-        /* The passed expressions (args) are stored into variables, this is */\
-        /* to keep function-like semantics (evaluating every expression */\
-        /* only once) and to do some data compression (if configured too). */\
-        /* A register optimizer will find unnecessary copies trivial to */\
-        /* remove. Variables are called I, II, III, IIII, IIIII, etc... by  */\
-        /* the preprocessor library.*/ \
-        MALC_LOG_DECLARE_TMP_VARIABLES (pp_vargs_ignore_first (__VA_ARGS__))\
-        /* Validating that the functions containing refs have a ref */\
-        /* desctructor as the last argument*/\
-        MALC_LOG_VALIDATE_REF_AND_CLEANUP (pp_vargs_ignore_first (__VA_ARGS__))\
-        malc_serializer pp_tokconcat(malc_serializer_, __LINE__);\
-        err = MALC_LOG_ENTRY_PREPARE_FNAME(\
+    pp_if (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))(\
+      /* Validating that the functions containing refs have a ref destructor*/\
+      /* as the last argument*/\
+      MALC_LOG_VALIDATE_REF_AND_CLEANUP (pp_vargs_ignore_first (__VA_ARGS__))\
+      /* The passed expressions (args) are stored into variables, this  */\
+      /* is to keep function-like semantics (evaluating every expression */\
+      /* only once) and to do some data compression (if configured to). */\
+      /* A register optimizer will find unnecessary copies trivial to */\
+      /* remove. Variables are called I, II, III, IIII, IIIII, etc... by */\
+      /* the preprocessor library.*/ \
+      MALC_LOG_DECLARE_TMP_VARIABLES (pp_vargs_ignore_first (__VA_ARGS__))\
+      /* In case we don't log we will have to deallocate in place the*/\
+      /* dynamic entries: "malc_strref" and "malc_memref". This is a*/\
+      /* boolean to trigger the deallocation.*/\
+      uword pp_tokconcat(malc_do_deallocate_, __LINE__) = 0; \
+    ) /*end if*/\
+    do { \
+      if ((cond) && ((sev) >= MALC_GET_MIN_SEVERITY_FNAME ((malc_ptr)))) { \
+        /* Create a static const data holder that saves data about this  */\
+        /* call: a pointer to the format literal, a string with the type  */\
+        /* of each field on each char and the number of compressed fields*/\
+        MALC_LOG_CREATE_CONST_ENTRY ((sev), __VA_ARGS__); \
+        pp_if_else (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))(\
+          malc_serializer pp_tokconcat(malc_serializer_, __LINE__);\
+          /* We prepare the serializer, MALC_GET_SERIALIZED_TYPES_SIZE */\
+          /* will contain the size of the payload to be written. This */\
+          /* function will make a single allocation that puts in a */\
+          /* contiguous cache-friendly memory chunk:*/\
+          \
+          /* -an intrusive linked list node. */\
+          /* -const info about the entry */\
+          /* -extra free space to be able to write the payload */\
+          \
+          /* These things are wrapped on the serializer object.*/\
+          err = MALC_LOG_ENTRY_PREPARE_FNAME(\
+            (malc_ptr),\
+            &pp_tokconcat (malc_serializer_, __LINE__),\
+            &pp_tokconcat (malc_const_entry_, __LINE__),\
+            MALC_GET_SERIALIZED_TYPES_SIZE( \
+              pp_vargs_ignore_first (__VA_ARGS__) \
+              )\
+            );\
+          if (err.bl) {\
+            /*enable in-place deallocation of dynamic variables after err*/ \
+            pp_tokconcat(malc_do_deallocate_, __LINE__) = 1; \
+            break;\
+          }\
+          /* passing all the variables on the serializer, which already */\
+          /* knows the total size. */\
+          MALC_SERIALIZE_TMP_VALUES (pp_vargs_ignore_first (__VA_ARGS__));\
+        , /*else: no args, just a plain format string*/\
+          malc_serializer pp_tokconcat(malc_serializer_, __LINE__);\
+          /* We prepare the serializer wit no payload to be written. This */\
+          /* function will make a single allocation that puts in a */\
+          /* contiguous cache-friendly memory chunk:*/\
+          \
+          /* -an intrusive linked list node. */\
+          /* -const info about the entry */\
+          \
+          /* These things are wrapped on the serializer object.*/\
+          err = MALC_LOG_ENTRY_PREPARE_FNAME(\
+            (malc_ptr),\
+            &pp_tokconcat (malc_serializer_, __LINE__),\
+            &pp_tokconcat (malc_const_entry_, __LINE__),\
+            0\
+            );\
+          if (err.bl) {\
+            /*no args, don't need to care about in-place deallocation of */ \
+            /* dynamic variables after err*/ \
+            break;\
+          }\
+        ) /*end if*/\
+        /* Once all the data is written we commit the data to the queue*/\
+        MALC_LOG_ENTRY_COMMIT_FNAME(\
           (malc_ptr),\
-          &pp_tokconcat (malc_serializer_, __LINE__),\
-          &pp_tokconcat (malc_const_entry_, __LINE__),\
-          MALC_GET_SERIALIZED_TYPES_SIZE (pp_vargs_ignore_first (__VA_ARGS__))\
+          &pp_tokconcat (malc_serializer_, __LINE__)\
           );\
-        if (err.bl) {\
-          break;\
-        }\
-        /* passing all the variables on the serializer, which already knows */\
-        /* the total size. */\
-        MALC_SERIALIZE_TMP_VALUES (pp_vargs_ignore_first (__VA_ARGS__));\
-      , /*else: no args, just a plain format string*/\
-        malc_serializer pp_tokconcat(malc_serializer_, __LINE__);\
-        err = MALC_LOG_ENTRY_PREPARE_FNAME(\
-          (malc_ptr),\
-          &pp_tokconcat (malc_serializer_, __LINE__),\
-          &pp_tokconcat (malc_const_entry_, __LINE__),\
-          0\
-          );\
-        if (err.bl) {\
-          break;\
-        }\
-      ) /*end if*/\
-      MALC_LOG_ENTRY_COMMIT_FNAME(\
-        (malc_ptr),\
-        &pp_tokconcat (malc_serializer_, __LINE__)\
-        );\
+      } \
+      else { \
+        (err) = bl_mkok(); \
+        pp_if (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))(\
+          /* enable in-place deallocation of dynamic variables after */\
+          /* filtering out an entry*/ \
+          pp_tokconcat(malc_do_deallocate_, __LINE__) = 1; \
+        ) /*end if*/\
+      } \
+      --(err.sys); ++(err.sys); /*remove unused variable warnings */ \
     } \
-    else { \
-      (err) = bl_mkok(); \
-    } \
-    --(err.sys); ++(err.sys); /*remove unused variable warnings */ \
+    while (0); \
+    pp_if (pp_has_vargs (pp_vargs_ignore_first (__VA_ARGS__)))( \
+      /* Dynamic entry deallocation code. Only generated when there are */ \
+      /* arguments other than the format literal*/\
+      \
+      /* Notice that the conditional below will (hopefully) get optimized */ \
+      /* away when "MALC_GET_REF_COUNT" is == 0, as it is a compile time */ \
+      /* constant*/ \
+      if (pp_tokconcat(malc_do_deallocate_, __LINE__) == 1 && \
+        (MALC_GET_REF_COUNT (pp_vargs_ignore_first (__VA_ARGS__))) > 0 \
+        ) { \
+        /* We create an array with reoom for all the dynamic entries and a */ \
+        /* counter*/ \
+        malc_ref pp_tokconcat(malc_deallocrefs_, __LINE__)[ \
+          MALC_GET_REF_COUNT (pp_vargs_ignore_first (__VA_ARGS__)) \
+          ]; \
+        uword pp_tokconcat(malc_deallocrefs_idx, __LINE__) = 0; \
+        /* We populate the array */ \
+        MALC_LOG_FILL_REF_ARRAY (pp_vargs_ignore_first (__VA_ARGS__)) \
+        /* run the destructor */ \
+        MALC_LOG_REF_ARRAY_DEALLOC (pp_vargs_ignore_first (__VA_ARGS__)) \
+      } \
+    ) /*end if*/\
   } \
   while (0)
-
+/*----------------------------------------------------------------------------*/
 #define MALC_LOG_PRIVATE(err, malc_ptr, sev, ...) \
   MALC_LOG_IF_PRIVATE (1, (err), (malc_ptr), (sev), __VA_ARGS__)
 /*----------------------------------------------------------------------------*/

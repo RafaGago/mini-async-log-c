@@ -96,8 +96,3 @@ TODO
 ==================
 
 -Investigate faster, platform-specific options for timestamping.
-
--Implement in-place deallocation for failed entries with dynamic fields if
-sane/possible. No use case seems to be broken: refcount, no dealloc and
-malloc/free. Change the signature, so the called desctructor can know if it's an
-in-place deallocation. As this is new behavior it should be explicitly enabled.
