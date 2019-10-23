@@ -395,6 +395,63 @@ static void integer_formats (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+typedef struct smoke_refdtor_ctx {
+  void* ptrs[8];
+  uword ptrs_count;
+}
+smoke_refdtor_ctx;
+/*----------------------------------------------------------------------------*/
+static void smoke_refdtor(void* context, malc_ref const* refs, uword refs_count)
+{
+  smoke_refdtor_ctx* c = (smoke_refdtor_ctx*) context;
+  for (uword i = 0; i < refs_count; ++i) {
+    c->ptrs[i] = (void*) refs[i].ref;
+    free (c->ptrs[i]);
+  }
+  c->ptrs_count = refs_count;
+}
+/*----------------------------------------------------------------------------*/
+static void dynargs_are_deallocated (void **state)
+{
+  context* c = (context*) *state;
+  malc_cfg cfg;
+  bl_err err = malc_get_cfg (c->l, &cfg);
+  assert_int_equal (err.bl, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = malc_init (c->l, &cfg);
+  assert_int_equal (err.bl, bl_ok);
+
+  smoke_refdtor_ctx dealloc;
+  dealloc.ptrs_count = 0;
+  char stringv[] = "paco";
+  u8* v1 = (u8*) malloc (sizeof stringv);
+  u8* v2 = (u8*) malloc (sizeof stringv);
+  memcpy(v1, stringv, sizeof stringv);
+  memcpy(v2, stringv, sizeof stringv);
+
+  log_warning(
+    err,
+    "streams from malloc: {} {}",
+    logstrref ((const char*) v1, sizeof stringv - 1),
+    logmemref (v2, sizeof stringv),
+    logrefdtor (smoke_refdtor, &dealloc)
+    );
+
+  assert_int_equal (err.bl, bl_ok);
+
+  err = malc_run_consume_task (c->l, 10000);
+  assert_int_equal (err.bl, bl_ok);
+
+  assert_int_equal (malc_array_dst_size (c->dst), 1);
+  assert_int_equal (dealloc.ptrs_count, 2);
+  assert_ptr_equal (dealloc.ptrs[0], v1);
+  assert_ptr_equal (dealloc.ptrs[1], v2);
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -404,6 +461,7 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (severity_change, setup, teardown),
   cmocka_unit_test_setup_teardown (severity_two_destinations, setup, teardown),
   cmocka_unit_test_setup_teardown (integer_formats, setup, teardown),
+  cmocka_unit_test_setup_teardown (dynargs_are_deallocated, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)
