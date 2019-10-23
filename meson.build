@@ -158,7 +158,7 @@ pkg_mod.generate(
 
 if not get_option ('bare')
     test(
-        'malc',
+        'malc-test',
         executable(
             'malc-test',
             malc_test_srcs,
@@ -169,7 +169,7 @@ if not get_option ('bare')
             dependencies        : threads
         ))
     test(
-        'malc',
+        'malc-smoke',
         executable(
             'malc-smoke',
             malc_smoke_test_srcs,
@@ -224,7 +224,7 @@ if not get_option ('bare')
             copy: true
             )
         test(
-            'malc',
+            'malc-smoke-cpp',
             executable(
                 'malc-smoke-cpp',
                 [ meson.build_root() + '/smoke.cpp' ],
@@ -235,7 +235,7 @@ if not get_option ('bare')
                 dependencies        : threads
             ))
         test(
-            'malc',
+            'malc-cpp-wrapper',
             executable(
                 'malc-example-cpp-wrapper',
                 [ 'example/src/cpp-wrapper.cpp' ],
