@@ -10,7 +10,7 @@
 #include <bl/base/utility.h>
 #include <bl/base/integer_printf_format.h>
 /*----------------------------------------------------------------------------*/
-static const char const* full_width_table[] = {
+static const char* const full_width_table[] = {
   "3",     /* malc_type_i8     */
   "3",     /* malc_type_u8     */
   "5",     /* malc_type_i16    */
@@ -23,7 +23,7 @@ static const char const* full_width_table[] = {
   nullptr, /* malc_type_double */
 };
 /*----------------------------------------------------------------------------*/
-static const char const* nibbles_width_table[] = {
+static const char* const nibbles_width_table[] = {
   "2",  /* malc_type_i8     */
   "2",  /* malc_type_u8     */
   "4",  /* malc_type_i16    */
@@ -36,7 +36,7 @@ static const char const* nibbles_width_table[] = {
   "16", /* malc_type_double */
 };
 /*----------------------------------------------------------------------------*/
-static const char const* sev_strings[] = {
+static const char* const sev_strings[] = {
   MALC_EP_DEBUG,
   MALC_EP_TRACE,
   MALC_EP_NOTE,
