@@ -207,7 +207,7 @@ if not get_option ('bare')
             c_args              : cflags,
             dependencies        : threads
         )
-    executable(
+    st = executable(
             'malc-example-stress-test',
             [ 'example/src/stress-test.c' ],
             include_directories : smoke_test_include_dirs,
@@ -216,6 +216,10 @@ if not get_option ('bare')
             c_args              : cflags,
             dependencies        : threads
         )
+    test ('malc-stress-test-tls', st, args : [ 'tls', '30', '1' ])
+    test ('malc-stress-test-heap', st, args : [ 'heap', '30', '1' ])
+    test ('malc-stress-test-queue', st, args : [ 'queue', '30', '1' ])
+    test ('malc-stress-test-queue-cpu', st, args : [ 'queue-cpu', '30', '1' ])
 
     if cc.get_id() == 'gcc' or cc.get_id() == 'clang' # C++ compiler assumed if not
         configure_file(
