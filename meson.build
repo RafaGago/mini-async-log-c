@@ -242,7 +242,7 @@ if not get_option ('bare')
                 include_directories : smoke_test_include_dirs,
                 link_with           : malc_lib,
                 link_args           : test_link_args,
-                c_args              : cflags,
+                cpp_args            : cflags,
                 dependencies        : threads
             ))
         configure_file(
@@ -256,7 +256,7 @@ if not get_option ('bare')
             include_directories : smoke_test_include_dirs,
             link_with           : malc_lib,
             link_args           : test_link_args,
-            c_args              : cflags,
+            cpp_args            : cflags,
             dependencies        : threads
         )
     endif
