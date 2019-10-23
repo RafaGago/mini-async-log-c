@@ -221,7 +221,7 @@ if not get_option ('bare')
         configure_file(
             input : 'smoke_test/src/malc/smoke.c',
             output : 'smoke.cpp',
-            configuration : configuration_data()
+            copy: true
             )
         test(
             'malc',
@@ -248,7 +248,7 @@ if not get_option ('bare')
         configure_file(
             input : 'example/src/stress-test.c',
             output : 'stress-test.cpp',
-            configuration : configuration_data()
+            copy: true
             )
         executable(
             'malc-example-stress-test-cpp',
