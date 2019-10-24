@@ -24,15 +24,19 @@ time_based_name:
   "prefix" can include a folder, but the folder won't be created, it has to
   exist before.
 
-  "wall clock" and "monotonic clock" are the values of the clocks at file
-  creation time written as an unsigned 64 bit integer coded as hexadecimal (16
-  chars). They are get through "bl_get_timestamp" and
-  "bl_get_sysclock_timestamp". You can check <bl/base/time.h> for more details
-  on how they map together depending on the platform.
+  "system clock" is the value of the system clock in nanoseconds coded as a
+  64bit zero-filled hexadecimal number.
 
-  All the log entries inside a file are relative to the monotonic clock. A
-  simple script or program can convert them at log archivation/visualization
-  time by using OS calendar primitives.
+  "monotonic clock" is the value of a clock that always goes forward, is not
+  affected by DST or wall clock time changes and starts at some arbitrary point
+  of time. It is in nanoseconds units too, coded as a 64bit zero-filled
+  hexadecimal number.
+
+  All the log entries inside a file are relative to the monotonic clock.
+  Expressed in seconds as floating point numbers.
+
+  For a demo on how to convert the dates to calendar, see
+  "scripts/malc-overview-date-converter.sh"
 
 max_file_size:
 
