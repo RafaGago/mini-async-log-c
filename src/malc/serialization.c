@@ -4,6 +4,8 @@
 #include <bl/base/static_integer_math.h>
 #include <bl/base/preprocessor_basic.h>
 
+#include <bl/time_extras/time_extras.h>
+
 #include <malc/malc.h>
 #include <malc/serialization.h>
 #include <malc/impl/serializer.h>
@@ -301,7 +303,7 @@ void serializer_init(
   se->extra_size = sizeof se->entry + has_tstamp ? sizeof se->t : 0;
   se->ch         = nullptr;
   if (has_tstamp) {
-    se->t = bl_get_tstamp();
+    se->t = bl_get_ftstamp_fast();
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -315,7 +317,7 @@ void serializer_init(
   se->has_tstamp = has_tstamp;
   se->comp_entry = malc_get_compressed_ptr ((void*) entry);
   if (has_tstamp) {
-    se->t = malc_get_compressed_u64 ((u64) bl_get_tstamp());
+    se->t = malc_get_compressed_u64 ((u64) bl_get_ftstamp_fast());
   }
   se->hdr_size   = div_ceil (has_tstamp + entry->compressed_count, 2);
   /* first "1 +" is for the formatting nibble of "comp_entry" */
@@ -432,8 +434,9 @@ bl_err deserializer_execute(
     }
   }
   else {
-    ds->t = bl_get_tstamp();
+    ds->t = bl_get_ftstamp_fast();
   }
+  ds->t = bl_fstamp_to_nsec (ds->t);
   char const* partype = &ds->entry->info[1];
   log_argument larg;
 

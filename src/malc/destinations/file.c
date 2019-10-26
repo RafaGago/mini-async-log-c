@@ -8,6 +8,8 @@
 #include <bl/base/ringbuffer.h>
 #include <bl/base/integer_printf_format.h>
 
+#include <bl/time_extras/time_extras.h>
+
 #include <malc/malc.h>
 #include <malc/destinations/file.h>
 
@@ -77,11 +79,12 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
   if (d->time_based_name) {
     /* no dstr error check: it has already the required space allocated */
     (void) dstr_set_o (&name, &d->prefix);
+    toffset tns = bl_fstamp_to_nsec (bl_get_ftstamp());
     (void) dstr_append_va(
       &name,
       "_%016"FMT_X64"_%016"FMT_X64,
-      bl_get_sysclock_tstamp(),
-      bl_get_tstamp()
+      tns + bl_ftstamp_to_sysclock_diff_ns(),
+      tns
       );
     (void) dstr_append_o (&name, &d->suffix);
   }

@@ -15,6 +15,8 @@
 #include <bl/nonblock/mpsc_i.h>
 #include <bl/nonblock/backoff.h>
 
+#include <bl/time_extras/time_extras.h>
+
 #include <malc/cfg.h>
 #include <malc/memory.h>
 #include <malc/serialization.h>
@@ -147,7 +149,11 @@ MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* alloc)
   if (!alloc) {
     return bl_mkerr (bl_invalid);
   }
-  bl_err err  = memory_init (&l->mem, alloc);
+  bl_err err = bl_time_extras_init();
+  if (err.bl) {
+    return err;
+  }
+  err = memory_init (&l->mem, alloc);
   if (err.bl) {
     return err;
   }
@@ -165,7 +171,11 @@ MALC_EXPORT bl_err malc_create (malc* l, alloc_tbl const* alloc)
   l->consumer.idle_task_period_us = 300000;
   l->consumer.backoff_max_us      = 2000;
   l->consumer.start_own_thread    = false;
-  l->producer.timestamp           = false;
+#if BL_HAS_CPU_TSTAMP == 1
+  l->producer.timestamp = true;
+#else
+  l->producer.timestamp = true;
+#endif
 
   mpsc_i_init (&l->q);
   l->alloc = alloc;
@@ -185,6 +195,7 @@ MALC_EXPORT bl_err malc_destroy (malc* l)
   if (!atomic_uword_strong_cas_rlx (&l->state, &expected, st_destructing)) {
     return bl_mkerr (bl_preconditions);
   }
+  bl_time_extras_destroy();
   memory_destroy (&l->mem, l->alloc);
   deserializer_destroy (&l->ds, l->alloc);
   entry_parser_destroy (&l->ep);

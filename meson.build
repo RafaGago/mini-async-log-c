@@ -26,10 +26,11 @@ base_library = subproject(
         'bare=' + is_bare
         ]
     )
-base_lib          = base_library.get_variable ('base_lib')
-nonblock_lib      = base_library.get_variable ('nonblock_lib')
+base_lib     = base_library.get_variable ('base_lib')
+nonblock_lib = base_library.get_variable ('nonblock_lib')
+t_extras_lib = base_library.get_variable ('t_extras_lib')
 if not get_option ('bare')
-    libcmocka_path    = base_library.get_variable ('libcmocka_path')
+    libcmocka_path = base_library.get_variable ('libcmocka_path')
 endif
 build_helpers_dir = base_library.get_variable ('build_helpers_dir')
 
@@ -144,7 +145,7 @@ malc_lib = build_target(
     malc_srcs,
     target_type         : libtype,
     include_directories : include_dirs,
-    link_with           : [ base_lib, nonblock_lib ],
+    link_with           : [ base_lib, nonblock_lib, t_extras_lib ],
     c_args              : cflags + lib_cflags,
     install             : true
     )
