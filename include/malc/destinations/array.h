@@ -15,9 +15,10 @@ be aware of the asynchronous nature of malc: the last entries aren't guaranteed
 to be logged yet when you hit e.g. a breakpoint.
 
 This destination stores log entries in an external array of char arrays, so it
-wastes space on the tail of each fixed-size entry. The entries can be easily
-indexed and seen with a debugger. It always keeps an empty entry at the tail to
-be able to see where the tail is located by just looking at the array itself.
+wastes space on the tail of each fixed-size entry. The array is circular and
+loses the oldest entry when full. The entries can be easily indexed and seen
+with a debugger. It always keeps an empty entry at the tail to be able to see
+where the tail is located by just looking at the memory array itself.
 */
 /*----------------------------------------------------------------------------*/
 typedef struct malc_array_dst malc_array_dst;

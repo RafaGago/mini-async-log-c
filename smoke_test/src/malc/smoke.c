@@ -12,7 +12,7 @@ typedef struct context {
   malc*           l;
   malc_array_dst* dst;
   u32             dst_id;
-  char            lines[64][80];
+  char            lines[64][1024];
 }
 context;
 /*----------------------------------------------------------------------------*/
@@ -92,12 +92,78 @@ static void init_terminate (void **state)
   bl_err err = malc_get_cfg (c->l, &cfg);
   assert_int_equal (err.bl, bl_ok);
 
-  cfg.consumer.start_own_thread   = false;
+  cfg.consumer.start_own_thread  = false;
 
   err = malc_init (c->l, &cfg);
   assert_int_equal (err.bl, bl_ok);
 
   termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
+static void all_allocation_sizes_up_to_slot_size_impl(
+  void **state, bool producer_timestamp
+  )
+{
+  /* notice that as there are internal structures prepended on each slot, this
+  test is guaranteed to test all the transition sizes between a slot and two.*/
+  context* c = (context*) *state;
+  char send_data[sizeof c->lines[0]];
+
+  /* making the entries on the array match the exact passed data by turning-off
+  the timestamp and severity printouts */
+  malc_dst_cfg dcfg;
+  dcfg.log_rate_filter_time = 0;
+  dcfg.show_timestamp       = false;
+  dcfg.show_severity        = false;
+  dcfg.severity             = malc_sev_debug;
+  dcfg.severity_file_path   = nullptr;
+
+  bl_err err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  assert_int_equal (err.bl, bl_ok);
+
+  malc_cfg cfg;
+  err = malc_get_cfg (c->l, &cfg);
+  assert_int_equal (err.bl, bl_ok);
+
+  assert_true (cfg.alloc.slot_size < sizeof send_data);
+  cfg.producer.timestamp = producer_timestamp;
+  cfg.consumer.start_own_thread = false;
+
+  err = malc_init (c->l, &cfg);
+  assert_int_equal (err.bl, bl_ok);
+
+  for (uword i = 0; i < cfg.alloc.slot_size; ++i) {
+    send_data[i] = '0' + (char)(i % 10);
+    uword datasz = i + 1;
+
+    log_warning (err, "{}", logstrcpy (send_data, (u16) datasz));
+    assert_int_equal (err.bl, bl_ok);
+
+    err = malc_run_consume_task (c->l, 10000);
+    assert_int_equal (err.bl, bl_ok);
+
+    uword arrsz = malc_array_dst_size (c->dst);
+    if (datasz > arrsz) {
+      assert_int_equal (arrsz, malc_array_dst_capacity (c->dst));
+    }
+    else {
+      assert_int_equal (arrsz, datasz);
+    }
+    assert_memory_equal(
+      malc_array_dst_get_entry (c->dst, arrsz -1), send_data, datasz
+      );
+  }
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
+static void all_allocation_sizes_up_to_slot_size_no_tstamp (void **state)
+{
+  all_allocation_sizes_up_to_slot_size_impl (state, false);
+}
+/*----------------------------------------------------------------------------*/
+static void all_allocation_sizes_up_to_slot_size_with_tstamp (void **state)
+{
+  all_allocation_sizes_up_to_slot_size_impl (state, true);
 }
 /*----------------------------------------------------------------------------*/
 static void tls_allocation (void **state)
@@ -506,6 +572,12 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (bounded_allocation, setup, teardown),
   cmocka_unit_test_setup_teardown (dynamic_allocation, setup, teardown),
   cmocka_unit_test_setup_teardown (own_thread_and_flush, setup, teardown),
+  cmocka_unit_test_setup_teardown(
+    all_allocation_sizes_up_to_slot_size_no_tstamp, setup, teardown
+    ),
+  cmocka_unit_test_setup_teardown(
+    all_allocation_sizes_up_to_slot_size_with_tstamp, setup, teardown
+    ),
   cmocka_unit_test_setup_teardown (severity_change, setup, teardown),
   cmocka_unit_test_setup_teardown (severity_two_destinations, setup, teardown),
   cmocka_unit_test_setup_teardown (integer_formats, setup, teardown),
