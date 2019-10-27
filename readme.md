@@ -91,8 +91,3 @@ Windows:
 Untested. It's almost surely broken. If it's broken on the preprocessor code
 (Visual Studio preprocessor quirks) then the preprocessor hackery can be
 replaced with template hackery.
-
-TODO
-==================
-
--Investigate faster, platform-specific options for timestamping.
