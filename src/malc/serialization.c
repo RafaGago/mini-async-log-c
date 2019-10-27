@@ -3,6 +3,7 @@
 #include <bl/base/time.h>
 #include <bl/base/static_integer_math.h>
 #include <bl/base/preprocessor_basic.h>
+#include <bl/base/static_assert.h>
 
 #include <bl/time_extras/time_extras.h>
 
@@ -300,8 +301,8 @@ void serializer_init(
 {
   se->entry      = entry;
   se->has_tstamp = has_tstamp;
-  se->extra_size = sizeof se->entry + (has_tstamp ? sizeof se->t : 0);
   se->ch         = nullptr;
+  se->internal_fields_size = sizeof se->entry + (has_tstamp ? sizeof se->t : 0);
   if (has_tstamp) {
     se->t = bl_get_ftstamp_fast();
   }
@@ -309,6 +310,24 @@ void serializer_init(
 /*----------------------------------------------------------------------------*/
 #else /* MALC_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
+/* the serialization layout when compressed is :
+
+  -qnode:  intrusive data structure for the queue.
+
+  -1 byte: nibble with the compression header for "malc_const_entry". and the
+    timestamp.
+  -(1 - 8) bytes: compressed "malc_const_entry".
+  -(1 - 8) bytes: compressed timestamp.
+
+  -n bytes: nibbles for the contained compressed data. If it includes the
+   timestamp it will be in the first nibble.
+  -n bytes: compressed and uncompressed data together. If it includes the
+   timestamp it will be in the first place.
+
+   The timestamp is compressed even if the builtin compression is disabled. This
+   is purely to simplify the implementation. If good reasons are found to define
+   all the variants there is no limitation to do so.
+*/
 void serializer_init(
   serializer* se, malc_const_entry const* entry, bool has_tstamp
   )
@@ -319,10 +338,12 @@ void serializer_init(
   if (has_tstamp) {
     se->t = malc_get_compressed_u64 ((u64) bl_get_ftstamp_fast());
   }
-  se->hdr_size   = div_ceil (has_tstamp + entry->compressed_count, 2);
-  /* first "1 +" is for the formatting nibble of "comp_entry" */
-  se->extra_size = 1 + ((se->comp_entry.format_nibble & 7) + 1) +
-    (has_tstamp ? ((se->t.format_nibble & 7) + 1) : 0);
+  se->comp_hdr_size = div_ceil (entry->compressed_count, 2);
+  se->internal_fields_size  =
+    1 + /* compressed header for the entry string and the timestamp (optional)*/
+    malc_compressed_get_size (se->comp_entry.format_nibble) +
+    (has_tstamp ? malc_compressed_get_size (se->t.format_nibble) + 1 : 0);
+
   se->chval.idx = 0;
   se->chval.hdr = nullptr;
   se->ch        = &se->chval;
@@ -340,22 +361,24 @@ malc_serializer serializer_prepare_external_serializer(
 #if MALC_COMPRESSION == 0
   s.field_mem = mem;
   malc_serialize (&s, (void*) ser->entry);
-#else /* MALC_COMPRESSION == 0 */
-  /*first byte is the entry length, wastes one nibble*/
+  if (ser->has_tstamp) {
+    malc_serialize (&s, ser->t);
+  }
+#else /* #if MALC_COMPRESSION == 0 */
   s.compressed_header     = mem;
   s.field_mem             = mem + 1;
   *s.compressed_header    = 0;
   s.compressed_header_idx = 0;
-  malc_serialize (&s, malc_get_compressed_ptr ((void*) ser->entry));
-  /*leaving space for all the size nibbles*/
-  s.compressed_header_idx = 0;
-  s.compressed_header     = s.field_mem;
-  memset (s.compressed_header, 0, serializer_hdr_size (ser));
-  s.field_mem            += serializer_hdr_size (ser);
-#endif
+  malc_serialize (&s, ser->comp_entry);
   if (ser->has_tstamp) {
     malc_serialize (&s, ser->t);
   }
+  /*leaving space for all the size nibbles*/
+  s.compressed_header_idx = 0;
+  s.compressed_header     = s.field_mem;
+  memset (s.compressed_header, 0, serializer_compressed_header_size (ser));
+  s.field_mem            += serializer_compressed_header_size (ser);
+#endif
   return s;
 }
 /*----------------------------------------------------------------------------*/
@@ -412,20 +435,6 @@ bl_err deserializer_execute(
     return err;
   }
   ds->entry = (malc_const_entry const*) entry;
-#else
-  void* entry;
-  ds->entry   = nullptr;
-  ds->ch->hdr = mem;
-  ++mem;
-  bl_err err = decode_compressed_ptr(ds->ch, &mem, mem_end, &entry);
-  if (unlikely (err.bl)) {
-    return err;
-  }
-  ds->entry   = (malc_const_entry const*) entry;
-  ds->ch->hdr = mem;
-  ds->ch->idx = 0;
-  mem        += div_ceil (ds->entry->compressed_count + has_timestamp, 2);
-#endif
   if (has_timestamp) {
     ds->t = 0;
     err   = decode (ds->ch, &mem, mem_end, &ds->t);
@@ -436,6 +445,35 @@ bl_err deserializer_execute(
   else {
     ds->t = bl_get_ftstamp_fast();
   }
+#else /* MALC_COMPRESSION == 0 */
+  void* entry;
+  ds->entry   = nullptr;
+  ds->ch->hdr = mem; /* internal fields compressed header location = mem */
+  ++mem;             /* internal fields data location = mem + 1*/
+  bl_err err = decode_compressed_ptr(ds->ch, &mem, mem_end, &entry);
+  if (unlikely (err.bl)) {
+    return err;
+  }
+  ds->entry = (malc_const_entry const*) entry;
+  if (has_timestamp) {
+    ds->t = 0;
+    static_assert_ns (sizeof ds->t == (64 / 8));
+    err = decode_compressed_64 (ds->ch, &mem, mem_end, &ds->t);
+    if (unlikely (err.bl)) {
+      return err;
+    }
+  }
+  else {
+    ds->t = bl_get_ftstamp_fast();
+  }
+  /* compressed header location = mem (after decompression of the
+  internal fields) */
+  ds->ch->hdr = mem;
+  /* compressed data location = mem + size of the compressed header, which
+  is as many nibbles as compressed fields are. */
+  mem        += div_ceil (ds->entry->compressed_count, 2);
+  ds->ch->idx = 0;
+#endif /* MALC_COMPRESSION == 0 */
   ds->t = bl_fstamp_to_nsec (ds->t);
   char const* partype = &ds->entry->info[1];
   log_argument larg;

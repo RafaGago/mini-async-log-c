@@ -27,12 +27,12 @@ typedef struct serializer {
   malc_const_entry const* entry;
   bool                    has_tstamp;
   tstamp                  t;
-  uword                   extra_size;
+  uword                   internal_fields_size;
   compressed_header*      ch;
 }
 serializer;
 /*----------------------------------------------------------------------------*/
-static inline uword serializer_hdr_size (serializer const* se)
+static inline uword serializer_compressed_header_size (serializer const* se)
 {
   return 0;
 }
@@ -43,17 +43,17 @@ typedef struct serializer {
   malc_const_entry const* entry;
   bool                    has_tstamp;
   malc_compressed_64      t;
-  uword                   extra_size;
+  uword                   internal_fields_size;
   compressed_header*      ch;
   malc_compressed_ptr     comp_entry;
-  uword                   hdr_size;
+  uword                   comp_hdr_size;
   compressed_header       chval;
 }
 serializer;
 /*----------------------------------------------------------------------------*/
-static inline uword serializer_hdr_size (serializer const* se)
+static inline uword serializer_compressed_header_size (serializer const* se)
 {
-  return se->hdr_size;
+  return se->comp_hdr_size;
 }
 /*----------------------------------------------------------------------------*/
 #endif /* MALC_COMPRESSION == 0 */
@@ -70,7 +70,7 @@ static inline uword serializer_log_entry_size(
   serializer const* se, uword payload
   )
 {
-  return payload + serializer_hdr_size (se) + se->extra_size;
+  return payload + serializer_compressed_header_size (se) + se->internal_fields_size;
 }
 /*----------------------------------------------------------------------------*/
 typedef struct deserializer {
