@@ -9,7 +9,7 @@
 
 #include <malc/malc.h>
 #include <malc/serialization.h>
-#include <malc/impl/serializer.h>
+#include <malc/impl/serialization.h>
 
 #ifndef __cplusplus
   #define DECODE_NAME_BUILD(suffix) pp_tokconcat(decode, suffix)

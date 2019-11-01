@@ -9,7 +9,7 @@
 
 #include <malc/malc.h>
 #include <malc/log_entry.h>
-#include <malc/impl/serializer.h>
+#include <malc/impl/serialization.h>
 
 /*----------------------------------------------------------------------------*/
 define_autoarray_types (log_args, log_argument);
