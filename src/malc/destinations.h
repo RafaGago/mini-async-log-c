@@ -10,43 +10,43 @@
 
 /*----------------------------------------------------------------------------*/
 typedef struct past_entry {
-  uword  entry_id;
-  tstamp tprev;
+  bl_uword  entry_id;
+  bl_timept64 tprev;
 }
 past_entry;
 /*----------------------------------------------------------------------------*/
 typedef struct destination {
-  uword        next_offset;
+  bl_uword     next_offset;
   malc_dst     dst;
   malc_dst_cfg cfg;
 }
 destination;
 /*----------------------------------------------------------------------------*/
 typedef struct destinations {
-  void*            mem;
-  alloc_tbl const* alloc;
-  uword            min_severity;
-  uword            count;
-  uword            size;
-  tstamp           filter_max_time;
-  u32              filter_watch_count;
-  u32              filter_min_severity;
-  ringb            pe;
-  past_entry       pe_buffer[64];
+  void*               mem;
+  bl_alloc_tbl const* alloc;
+  bl_uword            min_severity;
+  bl_uword            count;
+  bl_uword            size;
+  bl_timept64         filter_max_time;
+  bl_u32              filter_watch_count;
+  bl_u32              filter_min_severity;
+  bl_ringb            pe;
+  past_entry          pe_buffer[64];
 }
 destinations;
 /*----------------------------------------------------------------------------*/
-static inline uword destinations_min_severity (destinations const* d)
+static inline bl_uword destinations_min_severity (destinations const* d)
 {
   return d->min_severity;
 }
 /*----------------------------------------------------------------------------*/
-extern void destinations_init (destinations* d, alloc_tbl const* alloc);
+extern void destinations_init (destinations* d, bl_alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
 extern void destinations_destroy (destinations* d);
 /*----------------------------------------------------------------------------*/
 extern bl_err destinations_add(
-  destinations* d, u32* dest_id, malc_dst const* dst
+  destinations* d, bl_u32* dest_id, malc_dst const* dst
   );
 /*----------------------------------------------------------------------------*/
 extern bl_err destinations_validate_rate_limit_settings(
@@ -63,28 +63,28 @@ extern void destinations_get_rate_limit_settings(
 /*----------------------------------------------------------------------------*/
 extern void destinations_terminate (destinations* d);
 /*----------------------------------------------------------------------------*/
-extern void destinations_idle_task (destinations* , tstamp now);
+extern void destinations_idle_task (destinations* , bl_timept64 now);
 /*----------------------------------------------------------------------------*/
 extern void destinations_flush (destinations* d);
 /*----------------------------------------------------------------------------*/
 extern void destinations_write(
   destinations*           d,
-  uword                   entry_id,
-  tstamp                  now,
-  uword                   sev,
+  bl_uword                entry_id,
+  bl_timept64             now,
+  bl_uword                sev,
   malc_log_strings const* strs
   );
 /*----------------------------------------------------------------------------*/
 extern bl_err destinations_get_instance(
-  destinations const* d, void** instance, u32 dest_id
+  destinations const* d, void** instance, bl_u32 dest_id
   );
 /*----------------------------------------------------------------------------*/
 extern bl_err destinations_get_cfg(
-  destinations const* d, malc_dst_cfg* cfg, u32 dest_id
+  destinations const* d, malc_dst_cfg* cfg, bl_u32 dest_id
   );
 /*----------------------------------------------------------------------------*/
 extern bl_err destinations_set_cfg(
-  destinations* d, malc_dst_cfg const* cfg, u32 dest_id
+  destinations* d, malc_dst_cfg const* cfg, bl_u32 dest_id
   );
 /*----------------------------------------------------------------------------*/
 

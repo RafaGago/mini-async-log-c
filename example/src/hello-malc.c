@@ -26,7 +26,7 @@ int log_thread (void* ctx)
 int main (int argc, char const* argv[])
 {
   bl_err              err;
-  alloc_tbl           alloc = get_default_alloc(); /* Using malloc and free */
+  bl_alloc_tbl           alloc = bl_get_default_alloc(); /* Using malloc and free */
 
   /* logger allocation/initialization */
   ilog = bl_alloc (&alloc,  malc_get_size());
@@ -41,8 +41,8 @@ int main (int argc, char const* argv[])
   }
 
   /* destination register */
-  u32    stdouterr_id;
-  u32    file_id;
+  bl_u32    stdouterr_id;
+  bl_u32    file_id;
   err = malc_add_destination (ilog, &stdouterr_id, &malc_stdouterr_dst_tbl);
   if (err.bl) {
     fprintf (stderr, "Error creating the stdout/stderr destination\n");

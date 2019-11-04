@@ -15,14 +15,14 @@
 
 /*----------------------------------------------------------------------------*/
 typedef struct malc_compressed_32 {
-  u32 v;
-  u32 format_nibble; /*1 bit sign + 3 bit size (0-7)*/
+  bl_u32 v;
+  bl_u32 format_nibble; /*1 bit sign + 3 bit size (0-7)*/
 }
 malc_compressed_32;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_compressed_64 {
-  u64   v;
-  uword format_nibble; /*1 bit sign + 3 bit size (0-7)*/
+  bl_u64   v;
+  bl_uword format_nibble; /*1 bit sign + 3 bit size (0-7)*/
 }
 malc_compressed_64;
 /*----------------------------------------------------------------------------*/
@@ -31,12 +31,12 @@ typedef malc_compressed_64 malc_compressed_ptr;
 #elif BL_WORDSIZE == 32
 typedef malc_compressed_32 malc_compressed_ptr;
 #else
-  #error "Unsupported word size or bad compiler detection"
+  #error "Unsupported bl_word size or bad compiler detection"
 #endif
 /*----------------------------------------------------------------------------*/
 typedef struct malc_compressed_ref {
   malc_compressed_ptr ref;
-  u16                 size;
+  bl_u16              size;
 }
 malc_compressed_ref;
 /*----------------------------------------------------------------------------*/
@@ -46,42 +46,42 @@ typedef struct malc_compressed_refdtor {
 }
 malc_compressed_refdtor;
 /*----------------------------------------------------------------------------*/
-static inline uword malc_compressed_get_size (uword nibble)
+static inline bl_uword malc_compressed_get_size (bl_uword nibble)
 {
-  return (nibble & (u_bit (3) - 1)) + 1;
+  return (nibble & (bl_u_bit (3) - 1)) + 1;
 }
 /*----------------------------------------------------------------------------*/
-static inline bool malc_compressed_is_negative (uword nibble)
+static inline bool malc_compressed_is_negative (bl_uword nibble)
 {
   return (nibble >> 3) & 1;
 }
 /*----------------------------------------------------------------------------*/
-static inline malc_compressed_32 malc_get_compressed_u32 (u32 v)
+static inline malc_compressed_32 malc_get_compressed_u32 (bl_u32 v)
 {
   malc_compressed_32 r;
   r.v              = v;
-  r.format_nibble  = v ? log2_floor_unsafe_u32 (v) / 8 : 0;
+  r.format_nibble  = v ? bl_log2_floor_unsafe_u32 (v) / 8 : 0;
   return r;
 }
 /*----------------------------------------------------------------------------*/
-static inline malc_compressed_32 malc_get_compressed_i32 (i32 v)
+static inline malc_compressed_32 malc_get_compressed_i32 (bl_i32 v)
 {
-  malc_compressed_32 r = malc_get_compressed_u32 ((u32) (v < 0 ? ~v : v));
+  malc_compressed_32 r = malc_get_compressed_u32 ((bl_u32) (v < 0 ? ~v : v));
   r.format_nibble     |= (v < 0) << 3;
   return r;
 }
 /*----------------------------------------------------------------------------*/
-static inline malc_compressed_64 malc_get_compressed_u64 (u64 v)
+static inline malc_compressed_64 malc_get_compressed_u64 (bl_u64 v)
 {
   malc_compressed_64 r;
   r.v              = v;
-  r.format_nibble  = v ? log2_floor_unsafe_u64 (v) / 8 : 0;
+  r.format_nibble  = v ? bl_log2_floor_unsafe_u64 (v) / 8 : 0;
   return r;
 }
 /*----------------------------------------------------------------------------*/
-static inline malc_compressed_64 malc_get_compressed_i64 (i64 v)
+static inline malc_compressed_64 malc_get_compressed_i64 (bl_i64 v)
 {
-  malc_compressed_64 r = malc_get_compressed_u64 ((u64) (v < 0 ? ~v : v));
+  malc_compressed_64 r = malc_get_compressed_u64 ((bl_u64) (v < 0 ? ~v : v));
   r.format_nibble     |= (v < 0) << 3;
   return r;
 }
@@ -90,81 +90,81 @@ static inline malc_compressed_64 malc_get_compressed_i64 (i64 v)
 /*----------------------------------------------------------------------------*/
 static inline malc_compressed_ptr malc_get_compressed_ptr (void* v)
 {
-  return malc_get_compressed_u64 ((u64) v);
+  return malc_get_compressed_u64 ((bl_u64) v);
 }
 /*----------------------------------------------------------------------------*/
 #elif BL_WORDSIZE == 32
 /*----------------------------------------------------------------------------*/
 static inline malc_compressed_ptr malc_get_compressed_ptr (void* v)
 {
-  return malc_get_compressed_u32 ((u32) v);
+  return malc_get_compressed_u32 ((bl_u32) v);
 }
 /*----------------------------------------------------------------------------*/
 #else
-  #error "Unsupported word size or bad compiler detection"
+  #error "Unsupported bl_word size or bad compiler detection"
 #endif
 /*----------------------------------------------------------------------------*/
 typedef struct malc_serializer {
-    u8*   node_mem;
+    bl_u8*   node_mem;
 #if MALC_COMPRESSION == 1
-    u8*   compressed_header;
-    uword compressed_header_idx;
+    bl_u8*   compressed_header;
+    bl_uword compressed_header_idx;
 #endif
-    u8*   field_mem;
+    bl_u8*   field_mem;
 }
 malc_serializer;
 /*----------------------------------------------------------------------------*/
 static inline void wrong (void) {}
 /*----------------------------------------------------------------------------*/
 #ifndef __cplusplus
-  #define MALC_SERIALIZE(suffix) pp_tokconcat(malc_serialize, suffix)
+  #define MALC_SERIALIZE(suffix) bl_pp_tokconcat(malc_serialize, suffix)
 #else /* using function overloading on C++ */
   #define MALC_SERIALIZE(suffix) malc_serialize
 #endif
 /*----------------------------------------------------------------------------*/
-static inline void MALC_SERIALIZE(_u8) (malc_serializer* s, u8 v)
+static inline void MALC_SERIALIZE(_u8) (malc_serializer* s, bl_u8 v)
 {
   *s->field_mem = v;
   s->field_mem += 1;
 }
 /*----------------------------------------------------------------------------*/
-static inline void MALC_SERIALIZE(_i8) (malc_serializer* s, i8 v)
+static inline void MALC_SERIALIZE(_i8) (malc_serializer* s, bl_i8 v)
 {
-  *s->field_mem = (u8) v;
+  *s->field_mem = (bl_u8) v;
   s->field_mem += 1;
 }
 /*----------------------------------------------------------------------------*/
-static inline void MALC_SERIALIZE(_u16) (malc_serializer* s, u16 v)
+static inline void MALC_SERIALIZE(_u16) (malc_serializer* s, bl_u16 v)
 {
   memcpy (s->field_mem, &v, sizeof v);
   s->field_mem += sizeof v;
 }
 /*----------------------------------------------------------------------------*/
-static inline void MALC_SERIALIZE(_i16) (malc_serializer* s, i16 v)
+static inline void MALC_SERIALIZE(_i16) (malc_serializer* s, bl_i16 v)
 {
   memcpy (s->field_mem, &v, sizeof v);
   s->field_mem += sizeof v;
 }
 /*----------------------------------------------------------------------------*/
-static inline void MALC_SERIALIZE(_u32) (malc_serializer* s, u32 v)
+static inline void MALC_SERIALIZE(_u32) (malc_serializer* s, bl_u32 v)
 {
   memcpy (s->field_mem, &v, sizeof v);
   s->field_mem += sizeof v;
 }
 /*----------------------------------------------------------------------------*/
-static inline void MALC_SERIALIZE(_i32) (malc_serializer* s, i32 v)
+static inline void MALC_SERIALIZE(_i32) (malc_serializer* s, bl_i32 v)
 {
   memcpy (s->field_mem, &v, sizeof v);
   s->field_mem += sizeof v;
 }
 /*----------------------------------------------------------------------------*/
-static inline void MALC_SERIALIZE(_u64) (malc_serializer* s, u64 v)
+static inline void MALC_SERIALIZE(_u64) (malc_serializer* s, bl_u64 v)
 {
   memcpy (s->field_mem, &v, sizeof v);
   s->field_mem += sizeof v;
 }
 /*----------------------------------------------------------------------------*/
-static inline void MALC_SERIALIZE(_i64) (malc_serializer* s, i64 v)
+static inline void MALC_SERIALIZE(_i64) (malc_serializer* s, bl_i64 v)
 {
   memcpy (s->field_mem, &v, sizeof v);
   s->field_mem += sizeof v;
@@ -246,14 +246,14 @@ static inline void MALC_SERIALIZE(_comp32)(
   malc_serializer* s, malc_compressed_32 v
   )
 {
-  uword size = malc_compressed_get_size (v.format_nibble);
-  bl_assert (size <= sizeof (u32));
-  u8* hdr   = s->compressed_header;
-  uword idx = s->compressed_header_idx;
-  hdr[idx / 2] |= (u8) v.format_nibble << ((idx & 1) * 4);
+  bl_uword size = malc_compressed_get_size (v.format_nibble);
+  bl_assert (size <= sizeof (bl_u32));
+  bl_u8* hdr   = s->compressed_header;
+  bl_uword idx = s->compressed_header_idx;
+  hdr[idx / 2] |= (bl_u8) v.format_nibble << ((idx & 1) * 4);
   ++s->compressed_header_idx;
-  for (uword i = 0; i < size; ++i) {
-    *s->field_mem = (u8) (v.v >> (i * 8));
+  for (bl_uword i = 0; i < size; ++i) {
+    *s->field_mem = (bl_u8) (v.v >> (i * 8));
     ++s->field_mem;
   }
 }
@@ -263,13 +263,13 @@ static inline void MALC_SERIALIZE(_comp64)(
   malc_serializer* s, malc_compressed_64 v
   )
 {
-  uword size = malc_compressed_get_size (v.format_nibble);
-  u8* hdr   = s->compressed_header;
-  uword idx = s->compressed_header_idx;
-  hdr[idx / 2] |= (u8) v.format_nibble << ((idx & 1) * 4);
+  bl_uword size = malc_compressed_get_size (v.format_nibble);
+  bl_u8* hdr    = s->compressed_header;
+  bl_uword idx  = s->compressed_header_idx;
+  hdr[idx / 2] |= (bl_u8) v.format_nibble << ((idx & 1) * 4);
   ++s->compressed_header_idx;
-  for (uword i = 0; i < size; ++i) {
-    *s->field_mem = (u8) (v.v >> (i * 8));
+  for (bl_uword i = 0; i < size; ++i) {
+    *s->field_mem = (bl_u8) (v.v >> (i * 8));
     ++s->field_mem;
   }
 }
@@ -312,14 +312,14 @@ static inline void MALC_SERIALIZE(_comprefdtor)(
 #if MALC_COMPRESSION == 1
 #define malc_serialize(s, val)\
   _Generic ((val),\
-    u8:                      malc_serialize_u8,\
-    i8:                      malc_serialize_i8,\
-    u16:                     malc_serialize_u16,\
-    i16:                     malc_serialize_i16,\
-    u32:                     malc_serialize_u32,\
-    i32:                     malc_serialize_i32,\
-    u64:                     malc_serialize_u64,\
-    i64:                     malc_serialize_i64,\
+    bl_u8:                   malc_serialize_u8,\
+    bl_i8:                   malc_serialize_i8,\
+    bl_u16:                  malc_serialize_u16,\
+    bl_i16:                  malc_serialize_i16,\
+    bl_u32:                  malc_serialize_u32,\
+    bl_i32:                  malc_serialize_i32,\
+    bl_u64:                  malc_serialize_u64,\
+    bl_i64:                  malc_serialize_i64,\
     double:                  malc_serialize_double,\
     float:                   malc_serialize_float,\
     void*:                   malc_serialize_ptr,\
@@ -339,14 +339,14 @@ static inline void MALC_SERIALIZE(_comprefdtor)(
 #else /* #if MALC_COMPRESSION == 1 */
   #define malc_serialize(s, val)\
   _Generic ((val),\
-    u8:                      malc_serialize_u8,\
-    i8:                      malc_serialize_i8,\
-    u16:                     malc_serialize_u16,\
-    i16:                     malc_serialize_i16,\
-    u32:                     malc_serialize_u32,\
-    i32:                     malc_serialize_i32,\
-    u64:                     malc_serialize_u64,\
-    i64:                     malc_serialize_i64,\
+    bl_u8:                   malc_serialize_u8,\
+    bl_i8:                   malc_serialize_i8,\
+    bl_u16:                  malc_serialize_u16,\
+    bl_i16:                  malc_serialize_i16,\
+    bl_u32:                  malc_serialize_u32,\
+    bl_i32:                  malc_serialize_i32,\
+    bl_u64:                  malc_serialize_u64,\
+    bl_i64:                  malc_serialize_i64,\
     double:                  malc_serialize_double,\
     float:                   malc_serialize_float,\
     void*:                   malc_serialize_ptr,\

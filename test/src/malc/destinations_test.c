@@ -11,14 +11,14 @@
 
 /*----------------------------------------------------------------------------*/
 typedef struct mock_dest {
-  u8* terminate;
-  u32 flush;
-  u16 idle_task;
-  u64 write;
+  bl_u8* terminate;
+  bl_u32 flush;
+  bl_u16 idle_task;
+  bl_u64 write;
 }
 mock_dest;
 /*----------------------------------------------------------------------------*/
-static bl_err mock_dest_init (void* instance, alloc_tbl const* alloc)
+static bl_err mock_dest_init (void* instance, bl_alloc_tbl const* alloc)
 {
   mock_dest* d = (mock_dest*) instance;
   memset (d, 0, sizeof *d);
@@ -46,7 +46,7 @@ static bl_err mock_dest_idle_task (void* instance)
 }
 /*----------------------------------------------------------------------------*/
 static bl_err mock_dest_write(
-  void* instance, tstamp now, uword sev, malc_log_strings const* s
+  void* instance, bl_timept64 now, bl_uword sev, malc_log_strings const* s
   )
 {
   mock_dest* d = (mock_dest*) instance;
@@ -64,9 +64,9 @@ static const malc_dst mock_dst_tbl = {
 };
 /*----------------------------------------------------------------------------*/
 typedef struct destinations_context {
-  malc_dst      tbls[2];
-  alloc_tbl     alloc;
-  destinations  d;
+  malc_dst     tbls[2];
+  bl_alloc_tbl alloc;
+  destinations d;
 }
 destinations_context;
 /*----------------------------------------------------------------------------*/
@@ -75,7 +75,7 @@ static int dsts_test_setup (void **state)
   static destinations_context c;
   c.tbls[0] = mock_dst_tbl;
   c.tbls[1] = mock_dst_tbl;
-  c.alloc   = get_default_alloc();
+  c.alloc   = bl_get_default_alloc();
   destinations_init (&c.d, &c.alloc);
   *state = &c;
   return 0;
@@ -90,7 +90,7 @@ static int dsts_test_teardown (void **state)
 }
 /*----------------------------------------------------------------------------*/
 static void destinations_do_add(
-  destinations_context* c, u32* ids, mock_dest** mock
+  destinations_context* c, bl_u32* ids, mock_dest** mock
   )
 {
   bl_err err;
@@ -108,7 +108,7 @@ static void destinations_do_add(
 static void destinations_cfg_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  u32 id[2];
+  bl_u32 id[2];
   mock_dest* mock[2];
   bl_err err;
   destinations_do_add (c, id, mock);
@@ -142,7 +142,7 @@ static void destinations_cfg_test (void **state)
 static void destinations_idle_task_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  u32 id[2];
+  bl_u32 id[2];
   mock_dest* mock[2];
 
   c->tbls[0].idle_task = nullptr;
@@ -156,7 +156,7 @@ static void destinations_idle_task_test (void **state)
 static void destinations_flush_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  u32 id[2];
+  bl_u32 id[2];
   mock_dest* mock[2];
   c->tbls[0].flush = nullptr;
   destinations_do_add (c, id, mock);
@@ -169,7 +169,7 @@ static void destinations_flush_test (void **state)
 static void destinations_write_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  u32 id[2];
+  bl_u32 id[2];
   mock_dest* mock[2];
 
   destinations_do_add (c, id, mock);
@@ -184,7 +184,7 @@ static void destinations_write_test (void **state)
 static void destinations_write_sev_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  u32              id[2];
+  bl_u32           id[2];
   mock_dest*       mock[2];
   malc_dst_cfg     cfg;
   bl_err           err;
@@ -222,7 +222,7 @@ static void write_sev_file (char const* text)
 static void destinations_write_rate_filter_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  u32              id[2];
+  bl_u32           id[2];
   mock_dest*       mock[2];
   malc_dst_cfg     cfg;
   bl_err           err;
@@ -234,13 +234,13 @@ static void destinations_write_rate_filter_test (void **state)
 
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (bl_ok, err.bl);
-  cfg.log_rate_filter_time = bl_usec_to_tstamp (2);
+  cfg.log_rate_filter_time = bl_usec_to_timept64 (2);
   err = destinations_set_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (bl_ok, err.bl);
 
   err = destinations_get_cfg (&c->d, &cfg, id[1]);
   assert_int_equal (bl_ok, err.bl);
-  cfg.log_rate_filter_time = bl_usec_to_tstamp (2);
+  cfg.log_rate_filter_time = bl_usec_to_timept64 (2);
   err = destinations_set_cfg (&c->d, &cfg, id[1]);
   assert_int_equal (bl_ok, err.bl);
 
@@ -250,17 +250,17 @@ static void destinations_write_rate_filter_test (void **state)
   err = destinations_set_rate_limit_settings (&c->d, &sec);
   assert_int_equal (bl_ok, err.bl);
 
-  tstamp t = 0;
+  bl_timept64 t = 0;
   destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
 
-  t += bl_usec_to_tstamp (2);
+  t += bl_usec_to_timept64 (2);
   destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
   assert_int_equal (mock[0]->write, 2);
   assert_int_equal (mock[1]->write, 2);
 
-  t += bl_usec_to_tstamp (1);
+  t += bl_usec_to_timept64 (1);
   destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
   /*filtered out: less than 2 us with last entry */
   assert_int_equal (mock[0]->write, 2);
@@ -270,7 +270,7 @@ static void destinations_write_rate_filter_test (void **state)
 static void destinations_write_rate_filter_severity_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  u32              id[2];
+  bl_u32              id[2];
   mock_dest*       mock[2];
   malc_dst_cfg     cfg;
   bl_err           err;
@@ -282,14 +282,14 @@ static void destinations_write_rate_filter_severity_test (void **state)
 
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (bl_ok, err.bl);
-  cfg.log_rate_filter_time = bl_usec_to_tstamp (2);
+  cfg.log_rate_filter_time = bl_usec_to_timept64 (2);
   cfg.severity             = malc_sev_debug;
   err = destinations_set_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (bl_ok, err.bl);
 
   err = destinations_get_cfg (&c->d, &cfg, id[1]);
   assert_int_equal (bl_ok, err.bl);
-  cfg.log_rate_filter_time = bl_usec_to_tstamp (2);
+  cfg.log_rate_filter_time = bl_usec_to_timept64 (2);
   cfg.severity             = malc_sev_debug;
   err = destinations_set_cfg (&c->d, &cfg, id[1]);
   assert_int_equal (bl_ok, err.bl);
@@ -300,18 +300,18 @@ static void destinations_write_rate_filter_severity_test (void **state)
   err = destinations_set_rate_limit_settings (&c->d, &sec);
   assert_int_equal (bl_ok, err.bl);
 
-  tstamp t = 0;
+  bl_timept64 t = 0;
   destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
 
-  t += bl_usec_to_tstamp (1);
+  t += bl_usec_to_timept64 (1);
   destinations_write (&c->d, 0, t, malc_sev_warning, &strings);
   /*filtered out: severity */
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
 
-  t += bl_usec_to_tstamp (1);
+  t += bl_usec_to_timept64 (1);
   destinations_write (&c->d, 0, t, malc_sev_note, &strings);
   /*not filtered out: severity */
   assert_int_equal (mock[0]->write, 2);
@@ -321,7 +321,7 @@ static void destinations_write_rate_filter_severity_test (void **state)
 static void destinations_sev_file_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  u32              id[2];
+  bl_u32           id[2];
   mock_dest*       mock[2];
   malc_dst_cfg     cfg;
   bl_err           err;

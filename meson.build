@@ -21,10 +21,7 @@ is_bare = get_option ('bare') ? 'true' : 'false'
 
 base_library = subproject(
     'base_library',
-    default_options : [
-        'timestamp_64bit=true',
-        'bare=' + is_bare
-        ]
+    default_options : [ 'bare=' + is_bare ]
     )
 base_lib     = base_library.get_variable ('base_lib')
 nonblock_lib = base_library.get_variable ('nonblock_lib')

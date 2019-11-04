@@ -27,16 +27,16 @@ void* tls_buffer_thread_local_get (void)
 }
 /*----------------------------------------------------------------------------*/
 bl_err tls_buffer_init(
-  tls_buffer**     out,
-  u32              slot_size_and_align,
-  u32              slot_count,
-  alloc_tbl const* alloc,
-  tls_destructor   destructor_fn,
-  void*            destructor_context
+  tls_buffer**        out,
+  bl_u32              slot_size_and_align,
+  bl_u32              slot_count,
+  bl_alloc_tbl const* alloc,
+  tls_destructor      destructor_fn,
+  void*               destructor_context
   )
 {
-  bl_assert (is_pow2 (slot_size_and_align));
-  uword allocsize = sizeof (tls_buffer) + slot_size_and_align;
+  bl_assert (bl_is_pow2 (slot_size_and_align));
+  bl_uword allocsize = sizeof (tls_buffer) + slot_size_and_align;
   allocsize      += slot_size_and_align * slot_count;
 
   tls_buffer* t = (tls_buffer*) bl_alloc (alloc, allocsize);
@@ -48,11 +48,11 @@ bl_err tls_buffer_init(
   t->slot_size          = slot_size_and_align;
   t->slot_count         = slot_count;
 
-  uword mem  = ((uword) t) + sizeof (*t) + t->slot_size;
-  mem       &= ~(((uword) t->slot_size) - 1);
-  t->mem     = (u8*) mem;
-  t->mem_end = t->mem + (slot_count * t->slot_size);
-  t->slot    = t->mem;
+  bl_uword mem = ((bl_uword) t) + sizeof (*t) + t->slot_size;
+  mem         &= ~(((bl_uword) t->slot_size) - 1);
+  t->mem       = (bl_u8*) mem;
+  t->mem_end   = t->mem + (slot_count * t->slot_size);
+  t->slot      = t->mem;
   tls_buffer_dealloc (t->mem, slot_count, t->slot_size);
   *out = t;
   return bl_mkok();
@@ -74,32 +74,32 @@ void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque)
   }
 }
 /*----------------------------------------------------------------------------*/
-bl_err tls_buffer_alloc (u8** mem, u32 slots)
+bl_err tls_buffer_alloc (bl_u8** mem, bl_u32 slots)
 {
   /* Some GDB versions segfault on TLS var access, set breakpoints afterwards*/
   tls_buffer* t = malc_tls;
-  if (unlikely (!t)) {
+  if (bl_unlikely (!t)) {
     return bl_mkerr (bl_alloc);
   }
   bl_assert (slots != 0 && mem && t);
-  if (unlikely (slots > t->slot_count)) {
+  if (bl_unlikely (slots > t->slot_count)) {
     return bl_mkerr (bl_alloc);
   }
-  /* Segfaults here are most likely caused by a thread enqueueing after the
+  /* Segfaults here are most bl_likely caused by a thread enqueueing after the
   termination function has been called, which is forbidden but not enforced
   (enforcing it would require heavyweight synchronization on the fast-path) */
-  u8* slot_start = t->slot;
-  u8* slot_end   = t->slot + (slots * t->slot_size);
+  bl_u8* slot_start = t->slot;
+  bl_u8* slot_end   = t->slot + (slots * t->slot_size);
 
-  if (unlikely (slot_end > t->mem_end)) {
+  if (bl_unlikely (slot_end > t->mem_end)) {
     /* memory region wrapping */
     slot_start = t->mem;
     slot_end   = t->mem + (slots * t->slot_size);
   }
-  u8* check_iter = slot_start;
+  bl_u8* check_iter = slot_start;
   while (check_iter < slot_end) {
-    uword first_word = atomic_uword_load_rlx ((atomic_uword*) check_iter);
-    if (unlikely (first_word != TLS_BUFFER_FREE_UWORD)) {
+    bl_uword first_word = bl_atomic_uword_load_rlx ((bl_atomic_uword*) check_iter);
+    if (bl_unlikely (first_word != TLS_BUFFER_FREE_UWORD)) {
       return bl_mkerr (bl_alloc);
     }
     check_iter += t->slot_size;
@@ -109,14 +109,14 @@ bl_err tls_buffer_alloc (u8** mem, u32 slots)
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
-void tls_buffer_dealloc (void* mem, u32 slots, u32 slot_size)
+void tls_buffer_dealloc (void* mem, bl_u32 slots, bl_u32 slot_size)
 {
   /* check right alignment */
-  bl_assert ((((uword) mem) / slot_size) * slot_size == (uword) mem);
-  u8* slot = (u8*) mem;
-  u8* end   = slot + (slot_size * slots);
+  bl_assert ((((bl_uword) mem) / slot_size) * slot_size == (bl_uword) mem);
+  bl_u8* slot = (bl_u8*) mem;
+  bl_u8* end   = slot + (slot_size * slots);
   for (; slot < end; slot += slot_size) {
-    atomic_uword_store_rlx ((atomic_uword*) slot, TLS_BUFFER_FREE_UWORD);
+    bl_atomic_uword_store_rlx ((bl_atomic_uword*) slot, TLS_BUFFER_FREE_UWORD);
   }
 }
 /*----------------------------------------------------------------------------*/

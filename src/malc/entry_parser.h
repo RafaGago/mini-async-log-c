@@ -37,14 +37,14 @@
 #define TSTAMP_DECIMAL 9
 /*----------------------------------------------------------------------------*/
 typedef struct entry_parser {
-  char tstamp[TSTAMP_INTEGER + TSTAMP_DECIMAL + 1 + 1]; /* dot + teminating 0 */
-  dstr str;
-  dstr fmt;
-  bool sanitize_log_entries;
+  char    timestamp[TSTAMP_INTEGER + TSTAMP_DECIMAL + 1 + 1]; /* dot + teminating 0 */
+  bl_dstr str;
+  bl_dstr fmt;
+  bool    sanitize_log_entries;
 }
 entry_parser;
 /*----------------------------------------------------------------------------*/
-BL_EXPORT bl_err entry_parser_init (entry_parser* ep, alloc_tbl const* alloc);
+BL_EXPORT bl_err entry_parser_init (entry_parser* ep, bl_alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
 BL_EXPORT void entry_parser_destroy (entry_parser* ep);
 /*----------------------------------------------------------------------------*/

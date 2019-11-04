@@ -14,9 +14,9 @@ static inline malc* get_malc_logger_instance()
   return ilog;
 }
 /*----------------------------------------------------------------------------*/
-void dtor_using_free (void* context, malc_ref const* refs, uword refs_count)
+void dtor_using_free (void* context, malc_ref const* refs, bl_uword refs_count)
 {
-  for (uword i = 0; i < refs_count; ++i) {
+  for (bl_uword i = 0; i < refs_count; ++i) {
     free ((void*) refs[i].ref);
   }
 }
@@ -34,12 +34,12 @@ int log_thread (void* ctx)
   log_error(
     err,
     "10 using \"0Nx\" specifier. N = number of nibbles: {0Nx}",
-    (u32) 10
+    (bl_u32) 10
     );
   log_error(
     err,
     "10 using \"0Wx\" specifier. W = max number of int digits: {0W}",
-    (u32) 10
+    (bl_u32) 10
     );
 
   /* floating point */
@@ -56,10 +56,10 @@ int log_thread (void* ctx)
   log_error (err, "1. using \"A\" specifier: {A}", 1.);
 
   /* bytes */
-  u8 const mem[] = { 10, 11, 12, 13 };
+  bl_u8 const mem[] = { 10, 11, 12, 13 };
   log_error (err, "[10,11,12,13] by value: {}", logmemcpy (mem, sizeof mem));
 
-  u8* dmem = malloc (sizeof mem);
+  bl_u8* dmem = malloc (sizeof mem);
   assert (dmem);
   memcpy (dmem, mem, sizeof mem);
   log_error(
@@ -101,8 +101,8 @@ int log_thread (void* ctx)
 /*----------------------------------------------------------------------------*/
 int add_configure_destinations (void)
 {
-  u32    stdouterr_id;
-  u32    file_id;
+  bl_u32    stdouterr_id;
+  bl_u32    file_id;
   bl_err err;
 
   /* destination register */
@@ -178,7 +178,7 @@ int add_configure_destinations (void)
 int main (int argc, char const* argv[])
 {
   bl_err              err;
-  alloc_tbl           alloc = get_default_alloc(); /* Using malloc and free */
+  bl_alloc_tbl           alloc = bl_get_default_alloc(); /* Using malloc and free */
   /* logger allocation/initialization */
   ilog = bl_alloc (&alloc,  malc_get_size());
   if (!ilog) {

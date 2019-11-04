@@ -7,10 +7,10 @@
 
 /*----------------------------------------------------------------------------*/
 struct malc_stdouterr_dst {
-  uword stderr_sev;
+  bl_uword stderr_sev;
 };
 /*----------------------------------------------------------------------------*/
-static bl_err malc_stdouterr_dst_init (void* instance, alloc_tbl const* alloc)
+static bl_err malc_stdouterr_dst_init (void* instance, bl_alloc_tbl const* alloc)
 {
   malc_stdouterr_dst* d = (malc_stdouterr_dst*) instance;
   d->stderr_sev = malc_sev_error;
@@ -18,15 +18,15 @@ static bl_err malc_stdouterr_dst_init (void* instance, alloc_tbl const* alloc)
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_stdouterr_dst_write(
-    void* instance, tstamp now, uword sev_val, malc_log_strings const* strs
+    void* instance, bl_timept64 now, bl_uword sev_val, malc_log_strings const* strs
     )
 {
   malc_stdouterr_dst* d = (malc_stdouterr_dst*) instance;
   FILE* dst = sev_val < d->stderr_sev ? stdout : stderr;
-  fwrite (strs->tstamp, 1, strs->tstamp_len, dst);
+  fwrite (strs->timestamp, 1, strs->timestamp_len, dst);
   fwrite (strs->sev, 1, strs->sev_len, dst);
   fwrite (strs->text, 1, strs->text_len, dst);
-  fwrite ("\n", 1, lit_len ("\n"), dst);
+  fwrite ("\n", 1, bl_lit_len ("\n"), dst);
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
@@ -52,7 +52,7 @@ MALC_EXPORT const struct malc_dst malc_stdouterr_dst_tbl = {
 };
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_stdouterr_set_stderr_severity(
-  malc_stdouterr_dst* d, uword sev
+  malc_stdouterr_dst* d, bl_uword sev
   )
 {
   if (!malc_is_valid_severity (sev) && sev != malc_sev_off) {

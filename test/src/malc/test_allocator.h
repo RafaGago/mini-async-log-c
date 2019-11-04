@@ -8,41 +8,41 @@
 
 /*----------------------------------------------------------------------------*/
 typedef struct alloc_data {
-  alloc_tbl alloc;
-  uword     alloc_count;
-  uword     realloc_count;
-  uword     dealloc_count;
-  uword     alloc_succeeds;
-  uword     realloc_succeeds;
-  u8*       buffer;
+  bl_alloc_tbl alloc;
+  bl_uword     alloc_count;
+  bl_uword     realloc_count;
+  bl_uword     dealloc_count;
+  bl_uword     alloc_succeeds;
+  bl_uword     realloc_succeeds;
+  bl_u8*       buffer;
 }
 alloc_data;
 /*----------------------------------------------------------------------------*/
-static void* test_alloc_func (size_t bytes, alloc_tbl const* invoker)
+static void* test_alloc_func (size_t bytes, bl_alloc_tbl const* invoker)
 {
-  alloc_data* ad = to_type_containing (invoker, alloc, alloc_data);
+  alloc_data* ad = bl_to_type_containing (invoker, alloc, alloc_data);
   ++ad->alloc_count;
   ad->alloc_succeeds = ad->alloc_succeeds ? ad->alloc_succeeds - 1 : 0;
   return ad->alloc_succeeds ? ad->buffer : nullptr;
 }
 /*----------------------------------------------------------------------------*/
 static void* test_realloc_func(
-  void* mem, size_t new_size, alloc_tbl const* invoker
+  void* mem, size_t new_size, bl_alloc_tbl const* invoker
   )
 {
-  alloc_data* ad = to_type_containing (invoker, alloc, alloc_data);
+  alloc_data* ad = bl_to_type_containing (invoker, alloc, alloc_data);
   ++ad->realloc_count;
   ad->realloc_succeeds = ad->realloc_succeeds ? ad->realloc_succeeds - 1 : 0;
   return ad->realloc_succeeds ? ad->buffer : nullptr;
 }
 /*----------------------------------------------------------------------------*/
-static void test_dealloc_func (void const* mem, alloc_tbl const* invoker)
+static void test_dealloc_func (void const* mem, bl_alloc_tbl const* invoker)
 {
-  alloc_data* ad = to_type_containing (invoker, alloc, alloc_data);
+  alloc_data* ad = bl_to_type_containing (invoker, alloc, alloc_data);
   ++ad->dealloc_count;
 }
 /*----------------------------------------------------------------------------*/
-static inline alloc_data alloc_data_init (u8* buffer)
+static inline alloc_data alloc_data_init (bl_u8* buffer)
 {
   alloc_data ad;
   ad.alloc.alloc      = test_alloc_func;
@@ -51,8 +51,8 @@ static inline alloc_data alloc_data_init (u8* buffer)
   ad.alloc_count      = 0;
   ad.realloc_count    = 0;
   ad.dealloc_count    = 0;
-  ad.alloc_succeeds   = (uword) -1;
-  ad.realloc_succeeds = (uword) -1;
+  ad.alloc_succeeds   = (bl_uword) -1;
+  ad.realloc_succeeds = (bl_uword) -1;
   ad.buffer           = buffer;
   return ad;
 }

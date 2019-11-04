@@ -62,8 +62,8 @@ typedef struct malc_file_cfg {
   char const* suffix;
   bool        time_based_name;
   bool        can_remove_old_data_on_full_disk;
-  uword       max_file_size;
-  uword       max_log_files;
+  bl_uword    max_file_size;
+  bl_uword    max_log_files;
 }
 malc_file_cfg;
 /*----------------------------------------------------------------------------*/

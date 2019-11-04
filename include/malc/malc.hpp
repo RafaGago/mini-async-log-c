@@ -51,37 +51,37 @@ public:
     return malc_terminate (handle(), is_consume_task_thread);
   }
   /*--------------------------------------------------------------------------*/
-  bl_err producer_thread_local_init (u32 bytes)
+  bl_err producer_thread_local_init (bl_u32 bytes)
   {
     assert (m_ptr);
     return malc_producer_thread_local_init (handle(), bytes);
   }
   /*--------------------------------------------------------------------------*/
-  bl_err run_consume_task (uword timeout_us)
+  bl_err run_consume_task (bl_uword timeout_us)
   {
     assert (m_ptr);
     return malc_run_consume_task (handle(), timeout_us);
   }
   /*--------------------------------------------------------------------------*/
-  bl_err add_destination (u32& dest_id, malc_dst const& dst)
+  bl_err add_destination (bl_u32& dest_id, malc_dst const& dst)
   {
     assert (m_ptr);
     return malc_add_destination (handle(), &dest_id, &dst);
   }
   /*--------------------------------------------------------------------------*/
-  bl_err get_destination_instance (void** instance, u32 dest_id) const
+  bl_err get_destination_instance (void** instance, bl_u32 dest_id) const
   {
     assert (m_ptr);
     return malc_get_destination_instance (handle(), instance, dest_id);
   }
   /*--------------------------------------------------------------------------*/
-  bl_err get_destination_cfg (malc_dst_cfg& cfg, u32 dest_id) const
+  bl_err get_destination_cfg (malc_dst_cfg& cfg, bl_u32 dest_id) const
   {
     assert (m_ptr);
     return malc_get_destination_cfg (handle(), &cfg, dest_id);
   }
   /*--------------------------------------------------------------------------*/
-  bl_err set_destination_cfg (malc_dst_cfg const& cfg, u32 dest_id)
+  bl_err set_destination_cfg (malc_dst_cfg const& cfg, bl_u32 dest_id)
   {
     assert (m_ptr);
     return malc_set_destination_cfg (handle(), &cfg, dest_id);
@@ -142,11 +142,11 @@ public:
         throw std::runtime_error ("malc_owner already constructed");
       }
     }
-    alloc_tbl alloc;
-    alloc = get_default_alloc();
+    bl_alloc_tbl alloc;
+    alloc = bl_get_default_alloc();
     m_ptr = (malc*) bl_alloc(
       &alloc,
-      malc_get_size() + std::alignment_of<alloc_tbl>::value + sizeof alloc
+      malc_get_size() + std::alignment_of<bl_alloc_tbl>::value + sizeof alloc
       );
     if (!m_ptr) {
       if (do_throw) {
@@ -183,12 +183,12 @@ private:
   malc_owner_impl(const malc_owner_impl&) = delete;
   malc_owner_impl& operator=(const malc_owner_impl&) = delete;
   /*--------------------------------------------------------------------------*/
-  alloc_tbl* get_alloc_tbl()
+  bl_alloc_tbl* get_alloc_tbl()
   {
-    uword tbl_addr = ((uword) m_ptr) + malc_get_size();
-    tbl_addr      += std::alignment_of<alloc_tbl>::value;
-    tbl_addr      &= ~(std::alignment_of<alloc_tbl>::value - 1);
-    return (alloc_tbl*) tbl_addr;
+    bl_uword tbl_addr = ((bl_uword) m_ptr) + malc_get_size();
+    tbl_addr      += std::alignment_of<bl_alloc_tbl>::value;
+    tbl_addr      &= ~(std::alignment_of<bl_alloc_tbl>::value - 1);
+    return (bl_alloc_tbl*) tbl_addr;
   }
 };
 /*----------------------------------------------------------------------------*/

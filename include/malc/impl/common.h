@@ -48,7 +48,7 @@ typedef enum malc_encodings {
 }
 malc_type_ids;
 /*----------------------------------------------------------------------------*/
-static inline bool malc_is_valid_severity (uword sev)
+static inline bool malc_is_valid_severity (bl_uword sev)
 {
   return (sev >= malc_sev_debug) && (sev <= malc_sev_critical);
 }
@@ -59,37 +59,37 @@ typedef struct malc_lit {
 malc_lit;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_memcp {
-  u8 const* mem;
-  u16       size;
+  bl_u8 const* mem;
+  bl_u16       size;
 }
 malc_memcp;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_memref {
-  u8 const* mem;
-  u16       size;
+  bl_u8 const* mem;
+  bl_u16       size;
 }
 malc_memref;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_strcp {
   char const* str;
-  u16         len;
+  bl_u16      len;
 }
 malc_strcp;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_strref {
   char const* str;
-  u16         len;
+  bl_u16      len;
 }
 malc_strref;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_ref {
   void const* ref;
-  u16         size;
+  bl_u16      size;
 }
 malc_ref;
 /*----------------------------------------------------------------------------*/
 typedef void (*malc_refdtor_fn)(
-  void* context, malc_ref const* refs, uword refs_count
+  void* context, malc_ref const* refs, bl_uword refs_count
   );
 /*----------------------------------------------------------------------------*/
 typedef struct malc_refdtor {
@@ -101,7 +101,7 @@ malc_refdtor;
 typedef struct malc_const_entry {
   char const* format;
   char const* info; /* first char is the severity */
-  u16         compressed_count;
+  bl_u16      compressed_count;
 }
 malc_const_entry;
 /*----------------------------------------------------------------------------*/
@@ -112,14 +112,14 @@ extern MALC_EXPORT bl_err malc_log_entry_prepare(
   struct malc*            l,
   struct malc_serializer* ext_ser,
   malc_const_entry const* entry,
-  uword                   payload_size
+  bl_uword                payload_size
   );
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT void malc_log_entry_commit(
   struct malc* l, struct malc_serializer const* ext_ser
   );
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT uword malc_get_min_severity (struct malc const* l);
+extern MALC_EXPORT bl_uword malc_get_min_severity (struct malc const* l);
 /*----------------------------------------------------------------------------*/
 #ifdef __cplusplus
 }

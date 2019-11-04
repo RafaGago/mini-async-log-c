@@ -12,7 +12,7 @@
 
 /*----------------------------------------------------------------------------*/
 typedef struct boundedb_context {
-  alloc_tbl alloc;
+  bl_alloc_tbl alloc;
   boundedb  b;
 }
 boundedb_context;
@@ -21,7 +21,7 @@ static int boundedb_test_setup (void **state)
 {
   static boundedb_context c;
   memset (&c, 0, sizeof c);
-  c.alloc = get_default_alloc();
+  c.alloc = bl_get_default_alloc();
   boundedb_init (&c.b);
   *state  = (void*) &c;
   return 0;
@@ -36,8 +36,8 @@ static int boundedb_test_teardown (void **state)
 /*----------------------------------------------------------------------------*/
 static void boundedb_alloc_dealloc_test (void **state)
 {
-  const uword slots     = 4;
-  const uword slot_size = 32;
+  const bl_uword slots     = 4;
+  const bl_uword slot_size = 32;
 
   boundedb_context* c = (boundedb_context*) *state;
   bl_err err = boundedb_reset(
@@ -45,16 +45,16 @@ static void boundedb_alloc_dealloc_test (void **state)
     );
   assert_int_equal (err.bl, bl_ok);
 
-  for (uword round = 0; round < 2; ++round) {
-    u8* mem[slots];
-    for (uword i = 0; i < slots; ++i) {
+  for (bl_uword round = 0; round < 2; ++round) {
+    bl_u8* mem[slots];
+    for (bl_uword i = 0; i < slots; ++i) {
       err = boundedb_alloc (&c->b, &mem[i], 1);
       assert_int_equal (err.bl, bl_ok);
     }
-    u8* dummy;
+    bl_u8* dummy;
     err = boundedb_alloc (&c->b, &dummy, 1);
     assert_int_equal (err.bl, bl_alloc);
-    for (uword i = 0; i < slots; ++i) {
+    for (bl_uword i = 0; i < slots; ++i) {
       boundedb_dealloc (&c->b, mem[i], 1);
     }
   }

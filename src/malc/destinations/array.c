@@ -8,14 +8,14 @@
 
 /*----------------------------------------------------------------------------*/
 struct malc_array_dst {
-  char* mem;
-  uword mem_entries;
-  uword entry_chars;
-  uword tail;
-  uword size;
+  char*    mem;
+  bl_uword mem_entries;
+  bl_uword entry_chars;
+  bl_uword tail;
+  bl_uword size;
 };
 /*----------------------------------------------------------------------------*/
-static bl_err malc_array_dst_init (void* instance, alloc_tbl const* alloc)
+static bl_err malc_array_dst_init (void* instance, bl_alloc_tbl const* alloc)
 {
   malc_array_dst* d = (malc_array_dst*) instance;
   memset (d, 0, sizeof *d);
@@ -23,17 +23,17 @@ static bl_err malc_array_dst_init (void* instance, alloc_tbl const* alloc)
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_array_dst_write(
-    void* instance, tstamp now, uword sev_val, malc_log_strings const* strs
+    void* instance, bl_timept64 now, bl_uword sev_val, malc_log_strings const* strs
     )
 {
   malc_array_dst* d = (malc_array_dst*) instance;
   bl_assert (d->mem && d->mem_entries > 1 && d->entry_chars > 1);
-  uword idx       = 0;
-  uword eoffset   = d->tail * d->entry_chars;
-  uword entry_len = d->entry_chars - 1;
-  uword cp;
-  cp   = bl_min (entry_len, strs->tstamp_len);
-  memcpy (&d->mem[eoffset + idx], strs->tstamp, cp);
+  bl_uword idx       = 0;
+  bl_uword eoffset   = d->tail * d->entry_chars;
+  bl_uword entry_len = d->entry_chars - 1;
+  bl_uword cp;
+  cp   = bl_min (entry_len, strs->timestamp_len);
+  memcpy (&d->mem[eoffset + idx], strs->timestamp, cp);
   idx += cp;
   cp   = bl_min (entry_len - idx, strs->sev_len);
   memcpy (&d->mem[eoffset + idx], strs->sev, cp);
@@ -60,7 +60,7 @@ MALC_EXPORT const struct malc_dst malc_array_dst_tbl = {
 };
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT void malc_array_dst_set_array(
-    malc_array_dst* d, char* mem, uword mem_entries, uword entry_chars
+    malc_array_dst* d, char* mem, bl_uword mem_entries, bl_uword entry_chars
     )
 {
   bl_assert (d);
@@ -72,27 +72,27 @@ MALC_EXPORT void malc_array_dst_set_array(
   memset (mem, 0, mem_entries * entry_chars);
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT uword malc_array_dst_size (malc_array_dst const* d)
+MALC_EXPORT bl_uword malc_array_dst_size (malc_array_dst const* d)
 {
   return d->size;
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT uword malc_array_dst_capacity (malc_array_dst const* d)
+MALC_EXPORT bl_uword malc_array_dst_capacity (malc_array_dst const* d)
 {
   return d->mem_entries - 1;
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT char const* malc_array_dst_get_entry(
-  malc_array_dst const* d, uword idx
+  malc_array_dst const* d, bl_uword idx
   )
 {
-  if (likely(
+  if (bl_likely(
     d->mem &&
     d->mem_entries != 0 &&
     d->entry_chars != 0 &&
     idx < d->size
     )) {
-    uword pos = (d->tail - d->size + idx) % d->mem_entries;
+    bl_uword pos = (d->tail - d->size + idx) % d->mem_entries;
     return &d->mem[pos * d->entry_chars];
   }
   return nullptr;

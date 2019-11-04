@@ -12,20 +12,20 @@
 #endif
 
 /*------------------------------------------------------------------------------
-tstamp:     timestamp string (from a monotonic clock).
-tstamp_len: timestamp string length. Can be zero depending on the configuration.
+timestamp:     timestamp string (from a monotonic clock).
+timestamp_len: timestamp string length. Can be zero depending on the configuration.
 sev:        severity string
 sev_len:    severity string length. Can be zero depending on the configuration.
 text:       log entry text. It won't contain an added trailing newline.
 text_len:   log entry text length. Can't be zero.
 ------------------------------------------------------------------------------*/
 typedef struct malc_log_strings {
-  char const* tstamp; /* from a monotonic clock */
-  uword       tstamp_len;
+  char const* timestamp; /* from a monotonic clock */
+  bl_uword    timestamp_len;
   char const* sev;
-  uword       sev_len;
+  bl_uword    sev_len;
   char const* text;
-  uword       text_len;
+  bl_uword    text_len;
 }
 malc_log_strings;
 /*------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ log_rate_filter_time:
 
   e.g. If you want to block entries that arrive with a frequency higher than
   100000 msg/sec you have to calculate the period (1/0.00001 = 10 microseconds)
-  and set it by using "bl_usec_to_tstamp (10)"
+  and set it by using "bl_usec_to_timept64 (10)"
 
 severity_file_path:
 
@@ -61,10 +61,10 @@ severity_file_path:
 
 ------------------------------------------------------------------------------*/
 typedef struct malc_dst_cfg {
-  tstamp      log_rate_filter_time;
+  bl_timept64 log_rate_filter_time; /* TODO: make easy for the user and set it in ns*/
   bool        show_timestamp;
   bool        show_severity;
-  u8          severity;
+  bl_u8       severity;
   char const* severity_file_path;
 }
 malc_dst_cfg;
@@ -117,13 +117,13 @@ write:
     strs: log strings.
 ------------------------------------------------------------------------------*/
 typedef struct malc_dst {
-  uword size_of;
-  bl_err (*init)      (void* instance, alloc_tbl const* alloc);
+  bl_uword size_of;
+  bl_err (*init)      (void* instance, bl_alloc_tbl const* alloc);
   void   (*terminate) (void* instance);
   bl_err (*flush)     (void* instance);
   bl_err (*idle_task) (void* instance);
   bl_err (*write)(
-    void* instance, tstamp now, uword sev_val, malc_log_strings const* strs
+    void* instance, bl_timept64 now, bl_uword sev_val, malc_log_strings const* strs
     );
 }
 malc_dst;

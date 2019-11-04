@@ -10,17 +10,17 @@
 
 /*----------------------------------------------------------------------------*/
 typedef struct array_dst_context {
-  u64             instance_buff[16];
+  bl_u64          instance_buff[16];
   char            entries[8][8];
   malc_array_dst* ad;
 }
 array_dst_context;
 /*----------------------------------------------------------------------------*/
-static const uword entry_len =
-  sizeof_member (array_dst_context, entries[0]) - 1;
+static const bl_uword entry_len =
+  bl_sizeof_member (array_dst_context, entries[0]) - 1;
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_STRS_INITIALIZER(t, s, txt)\
-  { t, lit_len (t), s, lit_len (s), txt, lit_len (txt) }
+  { t, bl_lit_len (t), s, bl_lit_len (s), txt, bl_lit_len (txt) }
 /*----------------------------------------------------------------------------*/
 static int array_dst_test_setup (void **state)
 {
@@ -30,9 +30,9 @@ static int array_dst_test_setup (void **state)
   bl_err err = malc_array_dst_tbl.init ((void*) c.ad, nullptr);
   assert_int_equal (bl_ok, err.bl);
   malc_array_dst_set_array(
-    c.ad, (char*) c.entries, arr_elems (c.entries), arr_elems (c.entries[0])
+    c.ad, (char*) c.entries, bl_arr_elems (c.entries), bl_arr_elems (c.entries[0])
     );
-  assert_int_equal (arr_elems (c.entries) - 1, malc_array_dst_capacity (c.ad));
+  assert_int_equal (bl_arr_elems (c.entries) - 1, malc_array_dst_capacity (c.ad));
   *state = (void*) &c;
   return 0;
 }
@@ -40,7 +40,7 @@ static int array_dst_test_setup (void **state)
 static void array_dst_basic (void **state)
 {
   array_dst_context* c = (array_dst_context*) *state;
-  for (uword i = 0; i < arr_elems (c->entries) - 1; ++i) {
+  for (bl_uword i = 0; i < bl_arr_elems (c->entries) - 1; ++i) {
     malc_log_strings s = MALC_LOG_STRS_INITIALIZER ("1", "2", "3");
     bl_err err = malc_array_dst_tbl.write ((void*) c->ad, 0, 0, &s);
     assert_int_equal (bl_ok, err.bl);
@@ -55,11 +55,11 @@ static void array_dst_basic (void **state)
 static void array_dst_rotation (void **state)
 {
   array_dst_context* c = (array_dst_context*) *state;
-  for (uword i = 0; i < arr_elems (c->entries); ++i) {
+  for (bl_uword i = 0; i < bl_arr_elems (c->entries); ++i) {
     char ch = (char) i + 1;
     malc_log_strings s = MALC_LOG_STRS_INITIALIZER ("", "", "");
-    s.tstamp     = &ch;
-    s.tstamp_len = 1;
+    s.timestamp     = &ch;
+    s.timestamp_len = 1;
     bl_err err = malc_array_dst_tbl.write ((void*) c->ad, 0, 0, &s);
     assert_int_equal (bl_ok, err.bl);
   }
@@ -69,14 +69,14 @@ static void array_dst_rotation (void **state)
 
   e = malc_array_dst_get_entry (c->ad, malc_array_dst_size (c->ad) - 1);
   assert_int_equal (1, strlen (e));
-  assert_int_equal ((char) arr_elems (c->entries), e[0]); /* wasn't rotated */
+  assert_int_equal ((char) bl_arr_elems (c->entries), e[0]); /* wasn't rotated */
 }
 /*----------------------------------------------------------------------------*/
 static void array_dst_all_truncations (void **state)
 {
   array_dst_context* c = (array_dst_context*) *state;
 
-  /*truncation on tstamp*/
+  /*truncation on bl_timept64*/
   malc_log_strings s = MALC_LOG_STRS_INITIALIZER ("1234567890", "", "");
   bl_err err = malc_array_dst_tbl.write ((void*) c->ad, 0, 0, &s);
   assert_int_equal (bl_ok, err.bl);

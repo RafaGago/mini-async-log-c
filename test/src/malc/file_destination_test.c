@@ -14,14 +14,14 @@
 #define FILE_PREFIX "malc_log_file_dst_test_out"
 /*----------------------------------------------------------------------------*/
 typedef struct file_dst_context {
-  u64            instance_buff[64];
+  bl_u64         instance_buff[64];
   malc_file_dst* fd;
-  alloc_tbl      alloc;
+  bl_alloc_tbl   alloc;
 }
 file_dst_context;
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_STRS_INITIALIZER(t, s, txt)\
-  { t, lit_len (t), s, lit_len (s), txt, lit_len (txt) }
+  { t, bl_lit_len (t), s, bl_lit_len (s), txt, bl_lit_len (txt) }
 
 static void remove_log_files (void)
 {
@@ -38,7 +38,7 @@ static int file_dst_test_setup (void **state)
   assert_true (sizeof c.instance_buff >= malc_file_dst_tbl.size_of);
   remove_log_files();
   c.fd       = (malc_file_dst*) c.instance_buff;
-  c.alloc    = get_default_alloc();
+  c.alloc    = bl_get_default_alloc();
   bl_err err = malc_file_dst_tbl.init ((void*) c.fd, &c.alloc);
   assert_int_equal (bl_ok, err.bl);
   *state = (void*) &c;
@@ -100,7 +100,7 @@ static void file_dst_segments (void **state)
   bl_err err = malc_file_set_cfg (c->fd, &cfg);
   assert_int_equal (err.bl, bl_ok);
 
-  for (uword i = 0; i < 3; ++i) {
+  for (bl_uword i = 0; i < 3; ++i) {
     malc_log_strings s = MALC_LOG_STRS_INITIALIZER ("1", "2", "3");
     err = malc_file_dst_tbl.write ((void*) c->fd, 0, 0, &s);
     assert_int_equal (err.bl, bl_ok);
@@ -126,7 +126,7 @@ static void file_dst_rotation (void **state)
   bl_err err = malc_file_set_cfg (c->fd, &cfg);
   assert_int_equal (err.bl, bl_ok);
 
-  for (uword i = 0; i < 3; ++i) {
+  for (bl_uword i = 0; i < 3; ++i) {
     malc_log_strings s = MALC_LOG_STRS_INITIALIZER ("1", "2", "3");
     err = malc_file_dst_tbl.write ((void*) c->fd, 0, 0, &s);
     assert_int_equal (err.bl, bl_ok);

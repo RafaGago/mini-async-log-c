@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#define BL_UNPREFIXED_PRINTF_FORMATS
 #include <bl/base/default_allocator.h>
 #include <bl/base/thread.h>
 #include <bl/base/cache.h>
@@ -20,7 +21,6 @@ producer side. Thought out to be running for hours. It adds a destination on RAM
 with extra instrumentation. */
 
 malc* ilog = nullptr;
-
 /*----------------------------------------------------------------------------*/
 /* Stress destination: a wrapper around "array_dst". Its only purpose is to
   expose externally the received message count at the consumer side at the end.
@@ -29,14 +29,14 @@ malc* ilog = nullptr;
   destinations*/
 /*----------------------------------------------------------------------------*/
 typedef struct stress_dst {
-  malc_array_dst*  arr;
-  uword*           msgs;
-  alloc_tbl const* alloc;
-  char             lines[32][80];
+  malc_array_dst*     arr;
+  bl_uword*           msgs;
+  bl_alloc_tbl const* alloc;
+  char                lines[32][80];
 }
 stress_dst;
 /*----------------------------------------------------------------------------*/
-static bl_err stress_dst_init (void* dst, alloc_tbl const* alloc)
+static bl_err stress_dst_init (void* dst, bl_alloc_tbl const* alloc)
 {
   stress_dst* d = (stress_dst*) dst;
   d->msgs  = nullptr;
@@ -55,7 +55,7 @@ static bl_err stress_dst_init (void* dst, alloc_tbl const* alloc)
     }
   }
   malc_array_dst_set_array(
-    d->arr, (char*) d->lines, arr_elems (d->lines), arr_elems (d->lines[0])
+    d->arr, (char*) d->lines,bl_arr_elems (d->lines),bl_arr_elems (d->lines[0])
     );
   return bl_mkok();
 }
@@ -88,7 +88,7 @@ static bl_err stress_dst_idle_task (void* dst)
 }
 /*----------------------------------------------------------------------------*/
 static bl_err stress_dst_write(
-  void* dst, tstamp now, uword sev_val, malc_log_strings const* strs
+  void* dst, bl_timept64 now, bl_uword sev_val, malc_log_strings const* strs
   )
 {
   stress_dst* d = (stress_dst*) dst;
@@ -105,7 +105,7 @@ static const malc_dst stress_dst_tbl = {
   stress_dst_write
 };
 /*----------------------------------------------------------------------------*/
-static void stress_dst_set_msg_count_ptr (stress_dst* d, uword* ptr)
+static void stress_dst_set_msg_count_ptr (stress_dst* d, bl_uword* ptr)
 {
   d->msgs = ptr;
 }
@@ -116,12 +116,12 @@ static inline malc* get_malc_logger_instance()
 }
 /*----------------------------------------------------------------------------*/
 typedef struct thr_context {
-  atomic_uword ready;
-  uword        tls_bytes;
-  uword        msgs;
-  uword        faults;
-  bl_err       err;
-  declare_cache_pad_member;
+  bl_atomic_uword ready;
+  bl_uword        tls_bytes;
+  bl_uword        msgs;
+  bl_uword        faults;
+  bl_err          err;
+  bl_declare_cache_pad_member;
 }
 thr_context;
 /*----------------------------------------------------------------------------*/
@@ -140,15 +140,15 @@ static int througput_thread (void* ctx)
   }
   /* Don't include the initialization (TLS creation) time on the data rate
   measurements*/
-  atomic_uword_store_rlx (&c->ready, 1);
-  while (atomic_uword_load_rlx (&c->ready) == 1) {
-    processor_pause();
+  bl_atomic_uword_store_rlx (&c->ready, 1);
+  while (bl_atomic_uword_load_rlx (&c->ready) == 1) {
+    bl_processor_pause();
   }
-  for (uword i = 0; i < c->msgs; ++i) {
+  for (bl_uword i = 0; i < c->msgs; ++i) {
     log_error (err, "Hello malc, testing {}, {}, {.1}", i, 2, 3.f);
     c->faults += err.bl != bl_ok;
   }
-  atomic_uword_store (&c->ready, 3, mo_release);
+  bl_atomic_uword_store (&c->ready, 3, bl_mo_release);
   return 0;
 }
 /*----------------------------------------------------------------------------*/
@@ -160,15 +160,17 @@ enum cfg_mode {
 };
 /*----------------------------------------------------------------------------*/
 typedef struct pargs {
-  uword iterations;
-  uword msgs;
-  uword alloc_mode;
+  bl_uword iterations;
+  bl_uword msgs;
+  bl_uword alloc_mode;
 }
 pargs;
 /*----------------------------------------------------------------------------*/
 static void print_usage()
 {
-  puts("Usage: malc-stress-test <[tls|heap|queue|queue-cpu]> <msgs> <iterations>");
+  puts(
+    "Usage: malc-stress-test <[tls|heap|queue|queue-cpu]> <msgs> <iterations>"
+    );
 }
 /*----------------------------------------------------------------------------*/
 static int parse_args(pargs* args, int argc, char const* argv[])
@@ -178,16 +180,16 @@ static int parse_args(pargs* args, int argc, char const* argv[])
     print_usage();
     return bl_invalid;
   }
-  if (lit_strcmp (argv[1], "tls") == 0) {
+  if (bl_lit_strcmp (argv[1], "tls") == 0) {
     args->alloc_mode = cfg_tls;
   }
-  else if (lit_strcmp (argv[1], "heap") == 0) {
+  else if (bl_lit_strcmp (argv[1], "heap") == 0) {
     args->alloc_mode = cfg_heap;
   }
-  else if (lit_strcmp (argv[1], "queue") == 0) {
+  else if (bl_lit_strcmp (argv[1], "queue") == 0) {
     args->alloc_mode = cfg_queue;
   }
-  else if (lit_strcmp (argv[1], "queue-cpu") == 0) {
+  else if (bl_lit_strcmp (argv[1], "queue-cpu") == 0) {
     args->alloc_mode = cfg_queue_cpu;
   }
   else {
@@ -216,7 +218,7 @@ static const int threads[] = { 1, 2, 4, 8, MAX_THREADS };
 int main (int argc, char const* argv[])
 {
   bl_err              err;
-  alloc_tbl           alloc = get_default_alloc(); /* Using malloc and free */
+  bl_alloc_tbl        alloc = bl_get_default_alloc(); /* Using malloc and free */
   pargs               args;
   thr_context         tcontext[MAX_THREADS];
   bl_thread           thrs[MAX_THREADS];
@@ -225,16 +227,19 @@ int main (int argc, char const* argv[])
   if (err.bl) {
     return err.bl;
   }
-  for (uword i = 0; i < args.iterations; ++i) {
-    for (uword thread_idx = 0; thread_idx < arr_elems(threads); ++thread_idx) {
+  for (bl_uword i = 0; i < args.iterations; ++i) {
+    for(
+      bl_uword thread_idx = 0; thread_idx < bl_arr_elems(threads); ++thread_idx
+      ) {
       /* logger allocation/initialization */
-      uword thread_count = threads[thread_idx];
-      uword faults = 0;
-      uword msgs = 0;
+      bl_uword thread_count = threads[thread_idx];
+      bl_uword faults = 0;
+      bl_uword msgs = 0;
       double producer_sec, consumer_sec;
-      tstamp start, stop, end;
+      bl_timept64 start, stop, end;
       stress_dst* sdst = nullptr;
-      uword expected_msgs = round_to_next_multiple (args.msgs, thread_count);
+      bl_uword expected_msgs =
+        bl_round_to_next_multiple (args.msgs, thread_count);
 
       ilog = (malc*) bl_alloc (&alloc,  malc_get_size());
       if (!ilog) {
@@ -247,7 +252,7 @@ int main (int argc, char const* argv[])
         goto dealloc;
       }
       /* destination register */
-      u32 dst_id;
+      bl_u32 dst_id;
       err = malc_add_destination (ilog, &dst_id, &stress_dst_tbl);
       if (err.bl) {
         fprintf (stderr, "Error creating the stress destination\n");
@@ -277,7 +282,7 @@ int main (int argc, char const* argv[])
       cfg.alloc.fixed_allocator_per_cpu   = 0;
 
       if (args.alloc_mode == cfg_queue || args.alloc_mode == cfg_queue_cpu) {
-        uword div = args.alloc_mode == cfg_queue ? 1 : bl_get_cpu_count();
+        bl_uword div = args.alloc_mode == cfg_queue ? 1 : bl_get_cpu_count();
         cfg.alloc.fixed_allocator_bytes     = QSIZE / div;
         cfg.alloc.fixed_allocator_max_slots = 2;
         cfg.alloc.fixed_allocator_per_cpu = (args.alloc_mode == cfg_queue_cpu);
@@ -289,7 +294,7 @@ int main (int argc, char const* argv[])
       }
       /*Thread start*/
       memset(tcontext, 0, sizeof tcontext);
-      for (uword th = 0; th < thread_count; ++th) {
+      for (bl_uword th = 0; th < thread_count; ++th) {
         tcontext[th].msgs = expected_msgs / thread_count;
         if (args.alloc_mode == cfg_tls) {
           tcontext[th].tls_bytes = QSIZE / thread_count;
@@ -306,32 +311,32 @@ int main (int argc, char const* argv[])
         }
       }
       /*Wait for all threads to be ready*/
-      for (uword th = 0; th < thread_count; ++th) {
-        while (atomic_uword_load_rlx (&tcontext[th].ready) == 0) {
-          processor_pause();
+      for (bl_uword th = 0; th < thread_count; ++th) {
+        while (bl_atomic_uword_load_rlx (&tcontext[th].ready) == 0) {
+          bl_processor_pause();
         }
       }
-      start = bl_get_tstamp();
+      start = bl_timept64_get();
       /*Signal threads to start*/
-      for (uword th = 0; th < thread_count; ++th) {
-        atomic_uword_store_rlx (&tcontext[th].ready, 2);
+      for (bl_uword th = 0; th < thread_count; ++th) {
+        bl_atomic_uword_store_rlx (&tcontext[th].ready, 2);
       }
       /*Join (will add jitter)*/
-      for (uword th = 0; th < thread_count; ++th) {
+      for (bl_uword th = 0; th < thread_count; ++th) {
         bl_thread_join (&thrs[th]);
       }
-      stop = bl_get_tstamp();
+      stop = bl_timept64_get();
       (void) malc_terminate (ilog, false);
-      end = bl_get_tstamp();
+      end = bl_timept64_get();
 
       /*Results*/
-      for (uword th = 0; th < thread_count; ++th) {
+      for (bl_uword th = 0; th < thread_count; ++th) {
         faults += tcontext[th].faults;
       }
-      producer_sec  = (double) bl_tstamp_to_nsec (stop - start);
-      consumer_sec  = (double) bl_tstamp_to_nsec (end - start);
-      producer_sec /= (double) nsec_in_sec;
-      consumer_sec /= (double) nsec_in_sec;
+      producer_sec  = (double) bl_timept64_to_nsec (stop - start);
+      consumer_sec  = (double) bl_timept64_to_nsec (end - start);
+      producer_sec /= (double) bl_nsec_in_sec;
+      consumer_sec /= (double) bl_nsec_in_sec;
       printf(
         "threads: %2" FMT_W ", Producer Kmsgs/sec: %.2f, Consumer Kmsgs/sec: %.2f, faults: %" FMT_UW "\n",
         thread_count,

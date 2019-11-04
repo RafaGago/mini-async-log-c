@@ -2,6 +2,7 @@
 #include <string.h>
 #include <errno.h>
 
+#define BL_UNPREFIXED_PRINTF_FORMATS
 #include <bl/base/integer_math.h>
 #include <bl/base/utility.h>
 #include <bl/base/dynamic_string.h>
@@ -13,38 +14,38 @@
 #include <malc/malc.h>
 #include <malc/destinations/file.h>
 
-define_ringb_funcs (past_files, char*);
+bl_define_ringb_funcs (past_files, char*);
 /*----------------------------------------------------------------------------*/
 struct malc_file_dst {
   FILE*            f;
-  alloc_tbl const* alloc;
+  bl_alloc_tbl const* alloc;
   bool             time_based_name;
   bool             can_remove_old_data_on_full_disk;
-  uword            name_seq_num;
-  dstr             prefix;
-  dstr             suffix;
-  uword            file_size;
-  uword            max_file_size;
-  uword            max_log_files;
-  ringb            files;
+  bl_uword         name_seq_num;
+  bl_dstr          prefix;
+  bl_dstr          suffix;
+  bl_uword         file_size;
+  bl_uword         max_file_size;
+  bl_uword         max_log_files;
+  bl_ringb         files;
 };
 /*----------------------------------------------------------------------------*/
-static bl_err malc_file_dst_init (void* instance, alloc_tbl const* alloc)
+static bl_err malc_file_dst_init (void* instance, bl_alloc_tbl const* alloc)
 {
   malc_file_dst* d = (malc_file_dst*) instance;
   memset (d, 0, sizeof *d);
-  dstr_init (&d->prefix, alloc);
-  dstr_init (&d->suffix, alloc);
+  bl_dstr_init (&d->prefix, alloc);
+  bl_dstr_init (&d->suffix, alloc);
   d->alloc = alloc;
   d->time_based_name = true;
   d->can_remove_old_data_on_full_disk = false;
-  bl_err err = dstr_set_lit (&d->suffix, ".log");
+  bl_err err = bl_dstr_set_lit (&d->suffix, ".log");
   if (err.bl) {
     return err;
   }
   err = past_files_init (&d->files, 1, alloc);
   if (err.bl) {
-    dstr_destroy (&d->suffix);
+    bl_dstr_destroy (&d->suffix);
   }
   return err;
 }
@@ -61,32 +62,32 @@ static void malc_file_dst_terminate (void* instance)
     past_files_drop_head (&d->files);
   }
   past_files_destroy (&d->files, d->alloc);
-  dstr_destroy (&d->prefix);
-  dstr_destroy (&d->suffix);
+  bl_dstr_destroy (&d->prefix);
+  bl_dstr_destroy (&d->suffix);
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
 {
-  dstr name = dstr_init_rv (d->alloc);
+  bl_dstr name = bl_dstr_init_rv (d->alloc);
   bl_assert (d->file_size == 0);
 
-  bl_err err = dstr_set_capacity(
-      &name, dstr_len (&d->prefix) + 1 + 16 + 1 + 16 + dstr_len (&d->suffix)
+  bl_err err = bl_dstr_set_capacity(
+      &name, bl_dstr_len (&d->prefix) + 1 + 16 + 1 + 16 + bl_dstr_len (&d->suffix)
       );
   if (err.bl) {
       return err;
   }
   if (d->time_based_name) {
-    /* no dstr error check: it has already the required space allocated */
-    (void) dstr_set_o (&name, &d->prefix);
-    toffset tns = bl_fstamp_to_nsec (bl_get_ftstamp());
-    (void) dstr_append_va(
+    /* no bl_dstr error check: it has already the required space allocated */
+    (void) bl_dstr_set_o (&name, &d->prefix);
+    bl_timeoft64 tns = bl_fast_timept_get_fast();
+    (void) bl_dstr_append_va(
       &name,
       "_%016"FMT_X64"_%016"FMT_X64,
-      tns + bl_ftstamp_to_sysclock_diff_ns(),
+      tns + bl_fast_timept_to_sysclock64_diff_ns(),
       tns
       );
-    (void) dstr_append_o (&name, &d->suffix);
+    (void) bl_dstr_append_o (&name, &d->suffix);
   }
   else {
     /* find a filename that doesn't exist */
@@ -95,20 +96,20 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
         fclose (d->f);
         d->f = nullptr;
       }
-      /* no dstr error check: it has already the required space allocated */
-      (void) dstr_set_o (&name, &d->prefix);
-      (void) dstr_append_va (&name, "_%"FMT_UWORD, d->name_seq_num++);
-      (void) dstr_append_o (&name, &d->suffix);
-      d->f = fopen (dstr_get (&name), "r");
+      /* no bl_dstr error check: it has already the required space allocated */
+      (void) bl_dstr_set_o (&name, &d->prefix);
+      (void) bl_dstr_append_va (&name, "_%"FMT_UWORD, d->name_seq_num++);
+      (void) bl_dstr_append_o (&name, &d->suffix);
+      d->f = fopen (bl_dstr_get (&name), "r");
     }
     while (d->f);
     if (errno != ENOENT) {
       err = bl_mkerr_sys (bl_file, errno);
-      dstr_destroy (&name);
+      bl_dstr_destroy (&name);
       return err;
     }
   }
-  char* fname = dstr_steal_ownership (&name);
+  char* fname = bl_dstr_steal_ownership (&name);
   d->f = fopen (fname, "w");
   if (!d->f) {
     err.bl  = (bl_err_uint) bl_file;
@@ -122,7 +123,7 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
 /*----------------------------------------------------------------------------*/
 static void malc_file_dst_drop_last_file (malc_file_dst* d, bool do_remove)
 {
-  if (likely (past_files_size (&d->files))) {
+  if (bl_likely (past_files_size (&d->files))) {
     char* file = *past_files_at_head (&d->files);
     if (do_remove) {
       remove (file);
@@ -132,21 +133,21 @@ static void malc_file_dst_drop_last_file (malc_file_dst* d, bool do_remove)
   }
 }
 /*----------------------------------------------------------------------------*/
-#define LIT_fwrite(fd, lit) fwrite (lit, 1, lit_len (lit), fd)
+#define LIT_fwrite(fd, lit) fwrite (lit, 1, bl_lit_len (lit), fd)
 #define ENOSPC_ERRSTR "<corrupted: ENOSPC>\n"
 /*----------------------------------------------------------------------------*/
-static bl_err malc_fwrite (malc_file_dst* d, char const* s, uword slen)
+static bl_err malc_fwrite (malc_file_dst* d, char const* s, bl_uword slen)
 {
-  static const uword max_retries = 2;
-  uword i;
+  static const bl_uword max_retries = 2;
+  bl_uword i;
 
   for (i = 0; i < max_retries; ++i) {
-    uword bytes   = fwrite (s, sizeof (char), slen, d->f);
+    bl_uword bytes   = fwrite (s, sizeof (char), slen, d->f);
     d->file_size += bytes;
 
     if (bytes != slen) {
       if (errno == ENOSPC && d->can_remove_old_data_on_full_disk) {
-        uword size = past_files_size (&d->files);
+        bl_uword size = past_files_size (&d->files);
         if (size == 1) {
           /* removing the currently open file */
           fclose (d->f);
@@ -163,7 +164,7 @@ static bl_err malc_fwrite (malc_file_dst* d, char const* s, uword slen)
           malc_file_dst_drop_last_file (d, true);
           bytes = LIT_fwrite (d->f, ENOSPC_ERRSTR);
           d->file_size += bytes;
-          if (bytes != lit_len (ENOSPC_ERRSTR)) {
+          if (bytes != bl_lit_len (ENOSPC_ERRSTR)) {
             return bl_mkerr (bl_error);
           }
         }
@@ -180,13 +181,13 @@ static bl_err malc_fwrite (malc_file_dst* d, char const* s, uword slen)
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_file_dst_write(
-    void* instance, tstamp now, uword sev_val, malc_log_strings const* strs
+    void* instance, bl_timept64 now, bl_uword sev_val, malc_log_strings const* strs
     )
 {
   malc_file_dst* d = (malc_file_dst*) instance;
 
-  uword bytes = strs->tstamp_len + strs->sev_len + strs->text_len;
-  bytes      += lit_len ("\n");
+  bl_uword bytes = strs->timestamp_len + strs->sev_len + strs->text_len;
+  bytes         += bl_lit_len ("\n");
 
   if (d->max_file_size != 0 && d->file_size + bytes >= d->max_file_size) {
     if (d->f) {
@@ -210,7 +211,7 @@ static bl_err malc_file_dst_write(
       return err;
     }
   }
-  err = malc_fwrite (d, strs->tstamp, strs->tstamp_len);
+  err = malc_fwrite (d, strs->timestamp, strs->timestamp_len);
   if (err.bl) {
     return err;
   }
@@ -222,7 +223,7 @@ static bl_err malc_file_dst_write(
   if (err.bl) {
     return err;
   }
-  return malc_fwrite (d, "\n", lit_len ("\n"));
+  return malc_fwrite (d, "\n", bl_lit_len ("\n"));
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_file_dst_flush (void* instance)
@@ -248,8 +249,8 @@ MALC_EXPORT bl_err malc_file_get_cfg (malc_file_dst* d, malc_file_cfg* cfg)
   if (!d || !cfg) {
     return bl_mkerr (bl_invalid);
   }
-  cfg->prefix = dstr_get (&d->prefix);
-  cfg->suffix = dstr_get (&d->suffix);
+  cfg->prefix = bl_dstr_get (&d->prefix);
+  cfg->suffix = bl_dstr_get (&d->suffix);
   cfg->max_file_size = d->max_file_size;
   cfg->max_log_files = d->max_log_files;
   cfg->time_based_name = d->time_based_name;
@@ -272,15 +273,15 @@ MALC_EXPORT bl_err malc_file_set_cfg(
   d->max_log_files = cfg->max_file_size ? cfg->max_log_files : 0;
   d->time_based_name = cfg->time_based_name;
   d->can_remove_old_data_on_full_disk = cfg->can_remove_old_data_on_full_disk;
-  bl_err err = dstr_set (&d->prefix, cfg->prefix);
+  bl_err err = bl_dstr_set (&d->prefix, cfg->prefix);
   if (err.bl) {
     return err;
   }
-  err = dstr_set (&d->suffix, cfg->suffix);
+  err = bl_dstr_set (&d->suffix, cfg->suffix);
   if (err.bl) {
     return err;
   }
-  uword pfcount = d->max_log_files ? round_next_pow2_u (d->max_log_files) : 1;
+  bl_uword pfcount = d->max_log_files ? bl_round_next_pow2_u (d->max_log_files) : 1;
   return past_files_init (&d->files, pfcount, d->alloc);
 }
 /*----------------------------------------------------------------------------*/

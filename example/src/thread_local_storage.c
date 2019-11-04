@@ -17,13 +17,13 @@ static inline malc* get_malc_logger_instance()
 /*----------------------------------------------------------------------------*/
 int log_thread (void* ctx)
 {
-  atomic_uword* alive = (atomic_uword*) ctx;
+  bl_atomic_uword* alive = (bl_atomic_uword*) ctx;
   bl_err err = malc_producer_thread_local_init (ilog, 128 * 1024);
   if (err.bl) {
     log_error (err, "Error when starting thread local storage: {}", err.bl);
   }
   log_error (err, "Hello from log thread");
-  uword alive_prev = atomic_uword_fetch_sub_rlx (alive, 1);
+  bl_uword alive_prev = bl_atomic_uword_fetch_sub_rlx (alive, 1);
   if (alive_prev == 1) {
     /* the last thread alive can invoke malc-terminate, malc_terminate could
      be invoked by any other thread (e.g. the main one). */
@@ -34,10 +34,10 @@ int log_thread (void* ctx)
 /*----------------------------------------------------------------------------*/
 int main (int argc, char const* argv[])
 {
-  bl_err             err;
-  alloc_tbl          alloc = get_default_alloc(); /* Using malloc and free */
-  static const uword thread_count = 4;
-  atomic_uword       alive_threads = thread_count;
+  bl_err                err;
+  bl_alloc_tbl          alloc = bl_get_default_alloc(); /* Using malloc and free */
+  static const bl_uword thread_count = 4;
+  bl_atomic_uword       alive_threads = thread_count;
 
   /* logger allocation/initialization */
   ilog = bl_alloc (&alloc,  malc_get_size());
@@ -52,8 +52,8 @@ int main (int argc, char const* argv[])
   }
 
   /* destination register */
-  u32    stdouterr_id;
-  u32    file_id;
+  bl_u32 stdouterr_id;
+  bl_u32 file_id;
   err = malc_add_destination (ilog, &stdouterr_id, &malc_stdouterr_dst_tbl);
   if (err.bl) {
     fprintf (stderr, "Error creating the stdout/stderr destination\n");
@@ -79,7 +79,7 @@ int main (int argc, char const* argv[])
     goto destroy;
   }
 
-  for (uword i = 0; i < thread_count; ++i) {
+  for (bl_uword i = 0; i < thread_count; ++i) {
     bl_thread t;
     err = bl_thread_init (&t, log_thread, (void*) &alive_threads);
     if (err.bl) {

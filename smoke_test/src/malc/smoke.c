@@ -8,10 +8,10 @@
 
 /*----------------------------------------------------------------------------*/
 typedef struct context {
-  alloc_tbl       alloc;
+  bl_alloc_tbl    alloc;
   malc*           l;
   malc_array_dst* dst;
-  u32             dst_id;
+  bl_u32          dst_id;
   char            lines[64][1024];
 }
 context;
@@ -28,7 +28,7 @@ static int setup (void **state)
   *state  = (void*) &smoke_context;
   context* c = (context*) &smoke_context;
   memset (c, 0, sizeof *c);
-  c->alloc = get_default_alloc();
+  c->alloc = bl_get_default_alloc();
   c->l     = (malc*) bl_alloc (&c->alloc,  malc_get_size());
   if (!c->l) {
     return 1;
@@ -46,7 +46,7 @@ static int setup (void **state)
     return err.bl;
   }
   malc_array_dst_set_array(
-    c->dst, (char*) c->lines, arr_elems (c->lines), arr_elems (c->lines[0])
+    c->dst, (char*) c->lines, bl_arr_elems (c->lines), bl_arr_elems (c->lines[0])
     );
 
   malc_dst_cfg dcfg;
@@ -132,17 +132,17 @@ static void all_allocation_sizes_up_to_slot_size_impl(
   err = malc_init (c->l, &cfg);
   assert_int_equal (err.bl, bl_ok);
 
-  for (uword i = 0; i < cfg.alloc.slot_size; ++i) {
+  for (bl_uword i = 0; i < cfg.alloc.slot_size; ++i) {
     send_data[i] = '0' + (char)(i % 10);
-    uword datasz = i + 1;
+    bl_uword datasz = i + 1;
 
-    log_warning (err, "{}", logstrcpy (send_data, (u16) datasz));
+    log_warning (err, "{}", logstrcpy (send_data, (bl_u16) datasz));
     assert_int_equal (err.bl, bl_ok);
 
     err = malc_run_consume_task (c->l, 10000);
     assert_int_equal (err.bl, bl_ok);
 
-    uword arrsz = malc_array_dst_size (c->dst);
+    bl_uword arrsz = malc_array_dst_size (c->dst);
     if (datasz > arrsz) {
       assert_int_equal (arrsz, malc_array_dst_capacity (c->dst));
     }
@@ -168,7 +168,7 @@ static void all_allocation_sizes_up_to_slot_size_with_tstamp (void **state)
 /*----------------------------------------------------------------------------*/
 static void tls_allocation (void **state)
 {
-  static const uword tls_size = 32;
+  static const bl_uword tls_size = 32;
 
   context* c = (context*) *state;
   malc_cfg cfg;
@@ -202,7 +202,7 @@ static void tls_allocation (void **state)
 /*----------------------------------------------------------------------------*/
 static void bounded_allocation (void **state)
 {
-  static const uword bounded_size = 128;
+  static const bl_uword bounded_size = 128;
 
   context* c = (context*) *state;
   malc_cfg cfg;
@@ -339,7 +339,7 @@ static void severity_change (void **state)
 static void severity_two_destinations (void **state)
 {
   char lines[64][80];
-  u32             dst_id2;
+  bl_u32             dst_id2;
   malc_array_dst* dst2;
 
   context* c = (context*) *state;
@@ -354,7 +354,7 @@ static void severity_two_destinations (void **state)
   err = malc_get_destination_instance (c->l, (void**) &dst2, dst_id2);
   assert_int_equal (err.bl, bl_ok);
   malc_array_dst_set_array(
-    dst2, (char*) lines, arr_elems (lines), arr_elems (lines[0])
+    dst2, (char*) lines, bl_arr_elems (lines), bl_arr_elems (lines[0])
     );
 
   malc_dst_cfg dcfg;
@@ -421,14 +421,14 @@ static void integer_formats (void **state)
   log_warning(
     err,
     "{} {} {} {} {} {} {} {}",
-    (u8) 1,
-    (i8) -1,
-    (u16) 1,
-    (i16) -1,
-    (u32) 1,
-    (i32) -1,
-    (u64) 1,
-    (i64) -1,
+    (bl_u8) 1,
+    (bl_i8) -1,
+    (bl_u16) 1,
+    (bl_i16) -1,
+    (bl_u32) 1,
+    (bl_i32) -1,
+    (bl_u64) 1,
+    (bl_i64) -1,
     );
   assert_int_equal (err.bl, bl_ok);
 
@@ -443,10 +443,10 @@ static void integer_formats (void **state)
   log_warning(
     err,
     "{0Nx} {0Nx} {0Nx} {0Nx}",
-    (u8) 0x0e,
-    (u16) 0x0ffe,
-    (u32) 0x0ffffffe,
-    (u64) 0x0ffffffffffffffe,
+    (bl_u8) 0x0e,
+    (bl_u16) 0x0ffe,
+    (bl_u32) 0x0ffffffe,
+    (bl_u64) 0x0ffffffffffffffe,
     );
   assert_int_equal (err.bl, bl_ok);
 
@@ -463,14 +463,14 @@ static void integer_formats (void **state)
 /*----------------------------------------------------------------------------*/
 typedef struct smoke_refdtor_ctx {
   void* ptrs[8];
-  uword ptrs_count;
+  bl_uword ptrs_count;
 }
 smoke_refdtor_ctx;
 /*----------------------------------------------------------------------------*/
-static void smoke_refdtor(void* context, malc_ref const* refs, uword refs_count)
+static void smoke_refdtor(void* context, malc_ref const* refs, bl_uword refs_count)
 {
   smoke_refdtor_ctx* c = (smoke_refdtor_ctx*) context;
-  for (uword i = 0; i < refs_count; ++i) {
+  for (bl_uword i = 0; i < refs_count; ++i) {
     c->ptrs[i] = (void*) refs[i].ref;
     free (c->ptrs[i]);
   }
@@ -492,8 +492,8 @@ static void dynargs_are_deallocated (void **state)
   smoke_refdtor_ctx dealloc;
   dealloc.ptrs_count = 0;
   char stringv[] = "paco";
-  u8* v1 = (u8*) malloc (sizeof stringv);
-  u8* v2 = (u8*) malloc (sizeof stringv);
+  bl_u8* v1 = (bl_u8*) malloc (sizeof stringv);
+  bl_u8* v2 = (bl_u8*) malloc (sizeof stringv);
   memcpy(v1, stringv, sizeof stringv);
   memcpy(v2, stringv, sizeof stringv);
 
@@ -545,8 +545,8 @@ static void dynargs_are_deallocated_for_filtered_out_severities (void **state)
   smoke_refdtor_ctx dealloc;
   dealloc.ptrs_count = 0;
   char stringv[] = "paco";
-  u8* v1 = (u8*) malloc (sizeof stringv);
-  u8* v2 = (u8*) malloc (sizeof stringv);
+  bl_u8* v1 = (bl_u8*) malloc (sizeof stringv);
+  bl_u8* v2 = (bl_u8*) malloc (sizeof stringv);
   memcpy(v1, stringv, sizeof stringv);
   memcpy(v2, stringv, sizeof stringv);
 

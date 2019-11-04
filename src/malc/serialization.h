@@ -12,12 +12,12 @@
 #include <malc/impl/serialization.h>
 
 /*----------------------------------------------------------------------------*/
-define_autoarray_types (log_args, log_argument);
-define_autoarray_types (log_refs, malc_ref);
+bl_define_autoarray_types (log_args, log_argument);
+bl_define_autoarray_types (log_refs, malc_ref);
 /*----------------------------------------------------------------------------*/
 typedef struct compressed_header {
-  u8*   hdr;
-  uword idx;
+  bl_u8*   hdr;
+  bl_uword idx;
 }
 compressed_header;
 /*----------------------------------------------------------------------------*/
@@ -26,13 +26,13 @@ compressed_header;
 typedef struct serializer {
   malc_const_entry const* entry;
   bool                    has_tstamp;
-  tstamp                  t;
-  uword                   internal_fields_size;
+  bl_timept64             t;
+  bl_uword                internal_fields_size;
   compressed_header*      ch;
 }
 serializer;
 /*----------------------------------------------------------------------------*/
-static inline uword serializer_compressed_header_size (serializer const* se)
+static inline bl_uword serializer_compressed_header_size (serializer const* se)
 {
   return 0;
 }
@@ -43,15 +43,15 @@ typedef struct serializer {
   malc_const_entry const* entry;
   bool                    has_tstamp;
   malc_compressed_64      t;
-  uword                   internal_fields_size;
+  bl_uword                internal_fields_size;
   compressed_header*      ch;
   malc_compressed_ptr     comp_entry;
-  uword                   comp_hdr_size;
+  bl_uword                comp_hdr_size;
   compressed_header       chval;
 }
 serializer;
 /*----------------------------------------------------------------------------*/
-static inline uword serializer_compressed_header_size (serializer const* se)
+static inline bl_uword serializer_compressed_header_size (serializer const* se)
 {
   return se->comp_hdr_size;
 }
@@ -63,11 +63,11 @@ extern void serializer_init(
   );
 /*----------------------------------------------------------------------------*/
 extern malc_serializer serializer_prepare_external_serializer(
-  serializer* ser, u8* node_mem, u8* mem
+  serializer* ser, bl_u8* node_mem, bl_u8* mem
   );
 /*----------------------------------------------------------------------------*/
-static inline uword serializer_log_entry_size(
-  serializer const* se, uword payload
+static inline bl_uword serializer_log_entry_size(
+  serializer const* se, bl_uword payload
   )
 {
   return payload + serializer_compressed_header_size (se) + se->internal_fields_size;
@@ -78,7 +78,7 @@ typedef struct deserializer {
   log_refs                refs;
   malc_refdtor            refdtor;
   malc_const_entry const* entry;
-  tstamp                  t;
+  bl_timept64             t;
   compressed_header*      ch;
 #if MALC_COMPRESSION
   compressed_header       chval;
@@ -86,18 +86,18 @@ typedef struct deserializer {
 }
 deserializer;
 /*----------------------------------------------------------------------------*/
-extern bl_err deserializer_init (deserializer* ds, alloc_tbl const* alloc);
+extern bl_err deserializer_init (deserializer* ds, bl_alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
-extern void deserializer_destroy (deserializer* ds, alloc_tbl const* alloc);
+extern void deserializer_destroy (deserializer* ds, bl_alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
 extern void deserializer_reset (deserializer* ds);
 /*----------------------------------------------------------------------------*/
 extern bl_err deserializer_execute(
-  deserializer*    ds,
-  u8*              mem,
-  u8*              mem_end,
-  bool             has_timestamp,
-  alloc_tbl const* alloc
+  deserializer*       ds,
+  bl_u8*              mem,
+  bl_u8*              mem_end,
+  bool                has_timestamp,
+  bl_alloc_tbl const* alloc
   );
 /*----------------------------------------------------------------------------*/
 extern log_entry deserializer_get_log_entry (deserializer const* ds);

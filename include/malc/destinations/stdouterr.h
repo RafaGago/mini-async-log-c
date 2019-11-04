@@ -14,7 +14,7 @@ typedef struct malc_stdouterr_dst malc_stdouterr_dst;
 extern MALC_EXPORT const struct malc_dst malc_stdouterr_dst_tbl;
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_stdouterr_set_stderr_severity(
-  malc_stdouterr_dst* d, uword sev
+  malc_stdouterr_dst* d, bl_uword sev
   );
 /*----------------------------------------------------------------------------*/
 

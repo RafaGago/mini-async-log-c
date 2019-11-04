@@ -26,15 +26,15 @@ typedef struct malc_array_dst malc_array_dst;
 extern MALC_EXPORT const struct malc_dst malc_array_dst_tbl;
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT void malc_array_dst_set_array(
-  malc_array_dst* d, char* mem, uword mem_entries, uword entry_chars
+  malc_array_dst* d, char* mem, bl_uword mem_entries, bl_uword entry_chars
   );
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT uword malc_array_dst_size (malc_array_dst const* d);
+extern MALC_EXPORT bl_uword malc_array_dst_size (malc_array_dst const* d);
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT uword malc_array_dst_capacity (malc_array_dst const* d);
+extern MALC_EXPORT bl_uword malc_array_dst_capacity (malc_array_dst const* d);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT char const* malc_array_dst_get_entry(
-  malc_array_dst const* d, uword idx
+  malc_array_dst const* d, bl_uword idx
   );
 /*----------------------------------------------------------------------------*/
 

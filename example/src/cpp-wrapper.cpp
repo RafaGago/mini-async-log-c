@@ -27,8 +27,8 @@ int main (int argc, char const* argv[])
 {
   /* destination register */
   bl_err err;
-  u32 stdouterr_id;
-  u32 file_id;
+  bl_u32 stdouterr_id;
+  bl_u32 file_id;
   err = log.add_destination (stdouterr_id, malc_stdouterr_dst_tbl);
   if (err.bl) {
     fprintf (stderr, "Error creating the stdout/stderr destination\n");

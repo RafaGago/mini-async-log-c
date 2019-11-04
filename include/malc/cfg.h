@@ -28,9 +28,9 @@ start_own_thread:
   user thread by using "malc_run_consume_task".
 ------------------------------------------------------------------------------*/
 typedef struct malc_consumer_cfg {
-  u32  idle_task_period_us;
-  u32  backoff_max_us;
-  bool start_own_thread;
+  bl_u32 idle_task_period_us;
+  bl_u32 backoff_max_us;
+  bool   start_own_thread;
 }
 malc_consumer_cfg;
 
@@ -85,11 +85,11 @@ fixed_allocator_per_cpu:
 
 ------------------------------------------------------------------------------*/
 typedef struct malc_alloc_cfg {
-  alloc_tbl const* msg_allocator;
-  u32              slot_size;
-  u32              fixed_allocator_bytes;
-  u32              fixed_allocator_max_slots;
-  bool             fixed_allocator_per_cpu;
+  bl_alloc_tbl const* msg_allocator;
+  bl_u32              slot_size;
+  bl_u32              fixed_allocator_bytes;
+  bl_u32              fixed_allocator_max_slots;
+  bool                fixed_allocator_per_cpu;
 }
 malc_alloc_cfg;
 /*------------------------------------------------------------------------------
@@ -122,8 +122,8 @@ log_rate_filter_cutoff_eps:
 ------------------------------------------------------------------------------*/
 typedef struct malc_security {
   bool sanitize_log_entries;
-  u32  log_rate_filter_watch_count;
-  u32  log_rate_filter_min_severity;
+  bl_u32  log_rate_filter_watch_count;
+  bl_u32  log_rate_filter_min_severity;
 }
 malc_security;
 /*----------------------------------------------------------------------------*/

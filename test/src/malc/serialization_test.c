@@ -12,13 +12,13 @@
 
 #define SER_TEST_GET_ENTRY(var, ...)\
   MALC_LOG_CREATE_CONST_ENTRY (malc_sev_warning, "", __VA_ARGS__); \
-  var = &pp_tokconcat(malc_const_entry_, __LINE__)
+  var = &bl_pp_tokconcat(malc_const_entry_, __LINE__)
 
 /*----------------------------------------------------------------------------*/
 typedef struct ser_deser_context {
-  u8           buff[2048];
+  bl_u8        buff[2048];
   deserializer deser;
-  alloc_tbl    alloc;
+  bl_alloc_tbl alloc;
 }
 ser_deser_context;
 /*----------------------------------------------------------------------------*/
@@ -37,7 +37,7 @@ static int ser_test_setup (void **state)
 {
   static ser_deser_context c;
   memset (c.buff, -1, sizeof c.buff);
-  c.alloc = get_default_alloc();
+  c.alloc = bl_get_default_alloc();
   assert_int_equal (deserializer_init (&c.deser, &c.alloc).bl, bl_ok);
   *state = &c;
   return 0;
@@ -96,7 +96,7 @@ static void serialization_test_double (void **state)
 static void serialization_test_i8 (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
-  i8 v = -92;
+  bl_i8 v = -92;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   malc_serializer ser = get_external_serializer (c, entry);
@@ -117,7 +117,7 @@ static void serialization_test_i8 (void **state)
 static void serialization_test_i16 (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
-  i16 v = -92 * 255;
+  bl_i16 v = -92 * 255;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   malc_serializer ser = get_external_serializer (c, entry);
@@ -138,7 +138,7 @@ static void serialization_test_i16 (void **state)
 static void serialization_test_i32 (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
-  i32 v = -92 * 255 * 255 * 255;
+  bl_i32 v = -92 * 255 * 255 * 255;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   MALC_LOG_DECLARE_TMP_VARIABLES (v);
@@ -160,7 +160,7 @@ static void serialization_test_i32 (void **state)
 static void serialization_test_i64 (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
-  i64 v = -92 * ((u64) 1 << 58);
+  bl_i64 v = -92 * ((bl_u64) 1 << 58);
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   MALC_LOG_DECLARE_TMP_VARIABLES (v);
@@ -182,7 +182,7 @@ static void serialization_test_i64 (void **state)
 static void serialization_test_u8 (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
-  u8 v = 92;
+  bl_u8 v = 92;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   malc_serializer ser = get_external_serializer (c, entry);
@@ -203,7 +203,7 @@ static void serialization_test_u8 (void **state)
 static void serialization_test_u16 (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
-  u16 v = 92 * 255;
+  bl_u16 v = 92 * 255;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   malc_serializer ser = get_external_serializer (c, entry);
@@ -224,7 +224,7 @@ static void serialization_test_u16 (void **state)
 static void serialization_test_u32 (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
-  u32 v = 92 * 255 * 255 * 255;
+  bl_u32 v = 92 * 255 * 255 * 255;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   MALC_LOG_DECLARE_TMP_VARIABLES (v);
@@ -246,7 +246,7 @@ static void serialization_test_u32 (void **state)
 static void serialization_test_u64 (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
-  u64 v = 92 * ((u64) 1 << 58);
+  bl_u64 v = 92 * ((bl_u64) 1 << 58);
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   MALC_LOG_DECLARE_TMP_VARIABLES (v);
@@ -313,7 +313,7 @@ static void serialization_test_strcp (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
   char str[] = "eaaaa!";
-  malc_strcp v = { str, lit_len (str) };
+  malc_strcp v = { str, bl_lit_len (str) };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   malc_serializer ser = get_external_serializer (c, entry);
@@ -328,8 +328,8 @@ static void serialization_test_strcp (void **state)
   assert_int_equal (1, le.args_count);
   assert_int_equal (0, le.refs_count);
   assert_int_equal (nullptr, le.refdtor.func);
-  assert_memory_equal (le.args[0].vstrcp.str, str, lit_len (str));
-  assert_int_equal (le.args[0].vstrcp.len, lit_len (str));
+  assert_memory_equal (le.args[0].vstrcp.str, str, bl_lit_len (str));
+  assert_int_equal (le.args[0].vstrcp.len, bl_lit_len (str));
 }
 /*----------------------------------------------------------------------------*/
 static void serialization_test_strref (void **state)
@@ -364,7 +364,7 @@ static void serialization_test_memcp (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
   char str[] = "eaaaeaa!";
-  malc_memcp v = { (u8*) str, sizeof str };
+  malc_memcp v = { (bl_u8*) str, sizeof str };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   malc_serializer ser = get_external_serializer (c, entry);
@@ -386,7 +386,7 @@ static void serialization_test_memcp (void **state)
 static void serialization_test_memref (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
-  malc_memref v  = { (u8 const*) 0x123456, 12345 };
+  malc_memref v  = { (bl_u8 const*) 0x123456, 12345 };
   malc_refdtor d = { (malc_refdtor_fn) 0x145645, (void*) 0x3434 };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v, d);
@@ -429,11 +429,11 @@ static void serialization_test_all (void **state)
   all.vlit.lit  = (char const*) 0xbbbbbbbb;
   all.vstrcp.str   = "str";
   all.vstrcp.len   = sizeof "str";
-  all.vmemcp.mem   = (u8 const*) "mem";
+  all.vmemcp.mem   = (bl_u8 const*) "mem";
   all.vmemcp.size  = sizeof "mem";
   all.vstrref.str  = "strref";
   all.vstrref.len  = sizeof "strref";
-  all.vmemref.mem  = (u8 const*) "memref";
+  all.vmemref.mem  = (bl_u8 const*) "memref";
   all.vmemref.size = sizeof "memref";
   malc_refdtor d = { (malc_refdtor_fn) 0x145645, (void*) 0x3434 };
 
@@ -503,7 +503,7 @@ static void serialization_test_all (void **state)
   assert_int_equal (err.bl, bl_ok);
   log_entry le = deserializer_get_log_entry (&c->deser);
   assert_ptr_equal (entry, le.entry);
-  uword idx = 0;
+  bl_uword idx = 0;
 
   assert_int_equal (le.args[idx].vu8, all.vu8);
   ++idx;
@@ -550,7 +550,7 @@ static void serialization_test_all (void **state)
 static void serialization_test_small_buffer (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
-  u16 v = 92 * 255;
+  bl_u16 v = 92 * 255;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
   malc_serializer ser = get_external_serializer (c, entry);

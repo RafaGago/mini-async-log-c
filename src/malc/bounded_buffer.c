@@ -6,14 +6,14 @@
 
 #include <malc/bounded_buffer.h>
 
-/* Preliminary implementation based on a modded D.Vjukov mpmc type of queue */
+/* Preliminary implementation based on a modded D.Vjukov bl_mpmc type of queue */
 
-declare_dynarray_funcs (cpuq, mpmc_bpm)
+bl_declare_dynarray_funcs (cpuq, bl_mpmc_bpm)
 
 /*---------------------------------------------------------------------------*/
 typedef struct b_cpu_data {
-  u16 cpu;
-  u16 calls;
+  bl_u16 cpu;
+  bl_u16 calls;
 }
 b_cpu_data;
 /*---------------------------------------------------------------------------*/
@@ -26,16 +26,16 @@ void boundedb_init (boundedb* b)
 /*---------------------------------------------------------------------------*/
 bl_err boundedb_reset(
   boundedb*        b,
-  alloc_tbl const* alloc,
-  u32              bytes,
-  u32              slot_size,
-  u32              max_slots,
+  bl_alloc_tbl const* alloc,
+  bl_u32           bytes,
+  bl_u32           slot_size,
+  bl_u32           max_slots,
   bool             per_cpu
   )
 {
   bl_assert (b && alloc);
   bl_err err  = bl_mkok();
-  uword slot_count = div_ceil (bytes, slot_size);
+  bl_uword slot_count = bl_div_ceil (bytes, slot_size);
   if (slot_count == 0) {
     err = bl_mkok();
     goto do_destroy;
@@ -44,14 +44,14 @@ bl_err boundedb_reset(
     return bl_mkerr (bl_invalid);
   }
   boundedb_destroy (b, alloc);
-  uword count = per_cpu ? bl_get_cpu_count() : 1;
-  for (uword i = 0; i < count; ++i) {
+  bl_uword count = per_cpu ? bl_get_cpu_count() : 1;
+  for (bl_uword i = 0; i < count; ++i) {
     err = cpuq_grow (&b->queues, 1, alloc);
     if (err.bl) {
       goto do_destroy;
     }
-    mpmc_bpm* q = cpuq_at (&b->queues, i);
-    err  = mpmc_bpm_init(
+    bl_mpmc_bpm* q = cpuq_at (&b->queues, i);
+    err  = bl_mpmc_bpm_init(
       q, alloc, slot_count, max_slots, slot_size, 16, false
       );
     if (err.bl) {
@@ -64,36 +64,36 @@ do_destroy:
   return err;
 }
 /*---------------------------------------------------------------------------*/
-void boundedb_destroy (boundedb* b, alloc_tbl const* alloc)
+void boundedb_destroy (boundedb* b, bl_alloc_tbl const* alloc)
 {
-  for (uword i = 0; i < cpuq_size (&b->queues); ++i) {
-    mpmc_bpm_destroy (cpuq_at (&b->queues, i), alloc);
+  for (bl_uword i = 0; i < cpuq_size (&b->queues); ++i) {
+    bl_mpmc_bpm_destroy (cpuq_at (&b->queues, i), alloc);
   }
   cpuq_destroy (&b->queues, alloc);
 }
 /*---------------------------------------------------------------------------*/
-bl_err boundedb_alloc (boundedb* b, u8** mem, u32 slots)
+bl_err boundedb_alloc (boundedb* b, bl_u8** mem, bl_u32 slots)
 {
-  uword size = cpuq_size (&b->queues);
+  bl_uword size = cpuq_size (&b->queues);
   bl_assert (size);
-  uword qidx = 0;
+  bl_uword qidx = 0;
   if (size > 1) {
-    if ((b_cpu.calls & u_lsb_set (6)) == 0) {
+    if ((b_cpu.calls & bl_u_lsb_set (6)) == 0) {
       b_cpu.cpu = bl_get_cpu();
     }
     ++b_cpu.calls;
     qidx = b_cpu.cpu;
   }
-  *mem = mpmc_bpm_alloc (cpuq_at (&b->queues, qidx), slots);
+  *mem = bl_mpmc_bpm_alloc (cpuq_at (&b->queues, qidx), slots);
   return bl_mkerr (*mem ? bl_ok : bl_alloc);
 }
 /*---------------------------------------------------------------------------*/
-void boundedb_dealloc (boundedb* b, u8* mem, u32 slots)
+void boundedb_dealloc (boundedb* b, bl_u8* mem, bl_u32 slots)
 {
-  for (uword i = 0; i < cpuq_size (&b->queues); ++i) {
-    mpmc_bpm* q = cpuq_at (&b->queues, i);
-    if (mpmc_bpm_allocation_is_in_range (q, mem)) {
-      mpmc_bpm_dealloc (q, mem, slots);
+  for (bl_uword i = 0; i < cpuq_size (&b->queues); ++i) {
+    bl_mpmc_bpm* q = cpuq_at (&b->queues, i);
+    if (bl_mpmc_bpm_allocation_is_in_range (q, mem)) {
+      bl_mpmc_bpm_dealloc (q, mem, slots);
       return;
     }
   }
