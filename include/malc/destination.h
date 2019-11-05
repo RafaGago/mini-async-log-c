@@ -29,7 +29,7 @@ typedef struct malc_log_strings {
 }
 malc_log_strings;
 /*------------------------------------------------------------------------------
-log_rate_filter_time:
+log_rate_filter_time_ns:
 
   Rate filter period. The same log entry arriving before this time will be
   discarded. 0 = disabled.
@@ -41,10 +41,6 @@ log_rate_filter_time:
 
   This is to be used in with the global "log_rate_filter_watch_count" and
   "log_rate_filter_min_severity" on the "malc_security_cfg" struct.
-
-  e.g. If you want to block entries that arrive with a frequency higher than
-  100000 msg/sec you have to calculate the period (1/0.00001 = 10 microseconds)
-  and set it by using "bl_usec_to_timept64 (10)"
 
 severity_file_path:
 
@@ -61,7 +57,7 @@ severity_file_path:
 
 ------------------------------------------------------------------------------*/
 typedef struct malc_dst_cfg {
-  bl_timept64 log_rate_filter_time; /* TODO: make easy for the user and set it in ns*/
+  bl_u64      log_rate_filter_time_ns;
   bool        show_timestamp;
   bool        show_severity;
   bl_u8       severity;

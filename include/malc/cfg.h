@@ -100,10 +100,10 @@ sanitize_log_entries:
 
 log_rate_filter_watch_count:
 
-  Controls how many different log entries can be watched simultaneosly by the
-  log rate filter. This number may be limited to be very low (64), as
-  calculating the data rate of all the previous entries has performance
-  implications. 0 disables the filter.
+  Controls how many different log entries can be watched simultaneously for
+  repeated log messages by the log rate filter. This number may be limited to be
+  very low (64), as calculating the data rate of all the previous entries has
+  performance implications. 0 disables the filter.
 
 log_rate_filter_min_severity:
 
@@ -112,18 +112,14 @@ log_rate_filter_min_severity:
   these can be used for debugging and stripped from the release executable.
 
   Both this and is "log_rate_filter_watch_count" are to be used together with
-  the per-destination (in struct "malc_dst_cfg") "log_rate_filter_time"
+  the per-destination (in struct "malc_dst_cfg") "log_rate_filter_time_ns"
   parameter.
 
-log_rate_filter_cutoff_eps:
-
-  Controls the maximum rate that a given log entry can have. The units are
-  entries per second.
 ------------------------------------------------------------------------------*/
 typedef struct malc_security {
-  bool sanitize_log_entries;
-  bl_u32  log_rate_filter_watch_count;
-  bl_u32  log_rate_filter_min_severity;
+  bool   sanitize_log_entries;
+  bl_u32 log_rate_filter_watch_count;
+  bl_u32 log_rate_filter_min_severity;
 }
 malc_security;
 /*----------------------------------------------------------------------------*/

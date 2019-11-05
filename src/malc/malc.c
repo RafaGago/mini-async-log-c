@@ -427,7 +427,11 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
             Note that log lines that prefix the file and line are not affected
             by this. */
             destinations_write(
-              &l->dst, (bl_uword) le.entry->format, now, le.entry->info[0], &strs
+              &l->dst,
+              (bl_uword) le.entry->format,
+              now,
+              le.entry->info[0],
+              &strs
               );
           }
           if (le.refdtor.func) {

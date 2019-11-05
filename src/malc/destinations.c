@@ -5,7 +5,7 @@
 
 #include <bl/base/assert.h>
 #include <bl/base/deadline.h>
-#include <bl/base/time.h>
+#include <bl/time_extras/time_extras.h>
 #include <bl/base/utility.h>
 #include <bl/base/static_integer_math.h>
 #include <bl/base/integer_math.h>
@@ -101,8 +101,8 @@ bl_err destinations_add (destinations* d, bl_u32* dest_id, malc_dst const* dst)
   dest->cfg.show_timestamp = true;
   dest->cfg.show_severity  = true;
   dest->cfg.severity       = DEFAULT_SEVERITY;
-  dest->cfg.severity_file_path   = nullptr;
-  dest->cfg.log_rate_filter_time = 0;
+  dest->cfg.severity_file_path      = nullptr;
+  dest->cfg.log_rate_filter_time_ns = 0;
 
   if (dst->init) {
     bl_err err = dst->init (destination_get_instance (dest), d->alloc);
@@ -134,7 +134,7 @@ static bl_err destinations_set_rate_limit_settings_impl(
     destination* dest;
     enabled = false;
     FOREACH_DESTINATION (d->mem, dest) {
-      if (dest->cfg.log_rate_filter_time != 0) {
+      if (dest->cfg.log_rate_filter_time_ns != 0) {
         enabled = true;
         break;
       }
@@ -163,8 +163,10 @@ static bl_err destinations_set_rate_limit_settings_impl(
 
   destination* dest;
   FOREACH_DESTINATION (d->mem, dest) {
-    d->filter_max_time =
-      bl_max (d->filter_max_time, dest->cfg.log_rate_filter_time);
+    d->filter_max_time = bl_max(
+      d->filter_max_time,
+      bl_nsec_to_fast_timept (dest->cfg.log_rate_filter_time_ns)
+      );
   }
   return past_entries_init_extern (&d->pe, d->pe_buffer, wc);
 }
@@ -259,9 +261,9 @@ static malc_log_strings get_entry_strings(
 /*----------------------------------------------------------------------------*/
 void destinations_write(
   destinations*           d,
-  bl_uword                   entry_id,
-  bl_timept64                  now,
-  bl_uword                   sev,
+  bl_uword                entry_id,
+  bl_timept64             now,
+  bl_uword                sev,
   malc_log_strings const* strs
   )
 {
@@ -290,8 +292,9 @@ void destinations_write(
     FOREACH_DESTINATION (d->mem, dest) {
       bl_assert (dest->dst.write);
       if (sev >= dest->cfg.severity) {
-        if (pe && dest->cfg.log_rate_filter_time != 0) {
-          bl_timept64 allowed = pe->tprev + dest->cfg.log_rate_filter_time;
+        if (pe && dest->cfg.log_rate_filter_time_ns != 0) {
+          bl_timept64 allowed = pe->tprev;
+          allowed += bl_nsec_to_fast_timept (dest->cfg.log_rate_filter_time_ns);
           if (bl_unlikely (bl_timept64_get_diff (now, allowed) < 0)) {
             continue;
           }
@@ -364,8 +367,10 @@ bl_err destinations_set_cfg (
   d->filter_max_time = 0;
   FOREACH_DESTINATION (d->mem, dest) {
     d->min_severity = bl_min (d->min_severity, dest->cfg.severity);
-    d->filter_max_time =
-      bl_max (d->filter_max_time, dest->cfg.log_rate_filter_time);
+    d->filter_max_time = bl_max(
+      d->filter_max_time,
+      bl_nsec_to_fast_timept (dest->cfg.log_rate_filter_time_ns)
+      );
   }
   return bl_mkok();
 }

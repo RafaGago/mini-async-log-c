@@ -50,11 +50,11 @@ static int setup (void **state)
     );
 
   malc_dst_cfg dcfg;
-  dcfg.log_rate_filter_time = 0;
-  dcfg.show_timestamp       = false;
-  dcfg.show_severity        = false;
-  dcfg.severity             = malc_sev_debug;
-  dcfg.severity_file_path   = nullptr;
+  dcfg.log_rate_filter_time_ns = 0;
+  dcfg.show_timestamp     = false;
+  dcfg.show_severity      = false;
+  dcfg.severity           = malc_sev_debug;
+  dcfg.severity_file_path = nullptr;
 
   err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
   return err.bl;
@@ -112,11 +112,11 @@ static void all_allocation_sizes_up_to_slot_size_impl(
   /* making the entries on the array match the exact passed data by turning-off
   the timestamp and severity printouts */
   malc_dst_cfg dcfg;
-  dcfg.log_rate_filter_time = 0;
-  dcfg.show_timestamp       = false;
-  dcfg.show_severity        = false;
-  dcfg.severity             = malc_sev_debug;
-  dcfg.severity_file_path   = nullptr;
+  dcfg.log_rate_filter_time_ns = 0;
+  dcfg.show_timestamp     = false;
+  dcfg.show_severity      = false;
+  dcfg.severity           = malc_sev_debug;
+  dcfg.severity_file_path = nullptr;
 
   bl_err err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
   assert_int_equal (err.bl, bl_ok);
@@ -300,11 +300,11 @@ static void severity_change (void **state)
   cfg.consumer.start_own_thread = false;
 
   malc_dst_cfg dcfg;
-  dcfg.log_rate_filter_time = 0;
-  dcfg.show_timestamp       = false;
-  dcfg.show_severity        = false;
-  dcfg.severity             = malc_sev_debug;
-  dcfg.severity_file_path   = nullptr;
+  dcfg.log_rate_filter_time_ns = 0;
+  dcfg.show_timestamp     = false;
+  dcfg.show_severity      = false;
+  dcfg.severity           = malc_sev_debug;
+  dcfg.severity_file_path = nullptr;
 
   err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
   assert_int_equal (err.bl, bl_ok);
@@ -358,11 +358,11 @@ static void severity_two_destinations (void **state)
     );
 
   malc_dst_cfg dcfg;
-  dcfg.log_rate_filter_time = 0;
-  dcfg.show_timestamp       = false;
-  dcfg.show_severity        = false;
-  dcfg.severity             = malc_sev_debug;
-  dcfg.severity_file_path   = nullptr;
+  dcfg.log_rate_filter_time_ns = 0;
+  dcfg.show_timestamp     = false;
+  dcfg.show_severity      = false;
+  dcfg.severity           = malc_sev_debug;
+  dcfg.severity_file_path = nullptr;
 
   err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
   assert_int_equal (err.bl, bl_ok);
@@ -524,11 +524,11 @@ static void dynargs_are_deallocated_for_filtered_out_severities (void **state)
   context* c = (context*) *state;
 
   malc_dst_cfg dcfg;
-  dcfg.log_rate_filter_time = 0;
-  dcfg.show_timestamp       = false;
-  dcfg.show_severity        = false;
-  dcfg.severity             = malc_sev_error;
-  dcfg.severity_file_path   = nullptr;
+  dcfg.log_rate_filter_time_ns = 0;
+  dcfg.show_timestamp     = false;
+  dcfg.show_severity      = false;
+  dcfg.severity           = malc_sev_error;
+  dcfg.severity_file_path = nullptr;
 
   bl_err err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
   assert_int_equal (err.bl, bl_ok);

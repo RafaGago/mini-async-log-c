@@ -121,10 +121,10 @@ int add_configure_destinations (void)
 
   /* destination generic cfg, setting log severities */
   malc_dst_cfg dcfg;
-  dcfg.log_rate_filter_time = 0;
-  dcfg.show_timestamp       = true;
-  dcfg.show_severity        = true;
-  dcfg.severity_file_path   = nullptr;
+  dcfg.log_rate_filter_time_ns = 0;
+  dcfg.show_timestamp     = true;
+  dcfg.show_severity      = true;
+  dcfg.severity_file_path = nullptr;
 
   dcfg.severity = malc_sev_warning;
   err = malc_set_destination_cfg (ilog, &dcfg, stdouterr_id);

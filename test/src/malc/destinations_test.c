@@ -4,6 +4,7 @@
 #include <bl/cmocka_pre.h>
 #include <bl/base/default_allocator.h>
 #include <bl/base/time.h>
+#include <bl/time_extras/time_extras.h>
 
 #include <malc/destinations.h>
 
@@ -234,13 +235,13 @@ static void destinations_write_rate_filter_test (void **state)
 
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (bl_ok, err.bl);
-  cfg.log_rate_filter_time = bl_usec_to_timept64 (2);
+  cfg.log_rate_filter_time_ns = 2000;
   err = destinations_set_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (bl_ok, err.bl);
 
   err = destinations_get_cfg (&c->d, &cfg, id[1]);
   assert_int_equal (bl_ok, err.bl);
-  cfg.log_rate_filter_time = bl_usec_to_timept64 (2);
+  cfg.log_rate_filter_time_ns = 2000;
   err = destinations_set_cfg (&c->d, &cfg, id[1]);
   assert_int_equal (bl_ok, err.bl);
 
@@ -255,16 +256,24 @@ static void destinations_write_rate_filter_test (void **state)
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
 
-  t += bl_usec_to_timept64 (2);
+  t += bl_usec_to_fast_timept (2);
   destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
   assert_int_equal (mock[0]->write, 2);
   assert_int_equal (mock[1]->write, 2);
 
-  t += bl_usec_to_timept64 (1);
+  t += bl_usec_to_fast_timept (1);
   destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
-  /*filtered out: less than 2 us with last entry */
+  /*filtered out: less than 2 us from last entry */
   assert_int_equal (mock[0]->write, 2);
   assert_int_equal (mock[1]->write, 2);
+
+  t += bl_usec_to_fast_timept (1);
+  destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
+  /*still filtered out: the filtered out message before updated the internal
+  counter */
+  assert_int_equal (mock[0]->write, 2);
+  assert_int_equal (mock[1]->write, 2);
+
 }
 /*----------------------------------------------------------------------------*/
 static void destinations_write_rate_filter_severity_test (void **state)
@@ -282,15 +291,15 @@ static void destinations_write_rate_filter_severity_test (void **state)
 
   err = destinations_get_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (bl_ok, err.bl);
-  cfg.log_rate_filter_time = bl_usec_to_timept64 (2);
-  cfg.severity             = malc_sev_debug;
+  cfg.log_rate_filter_time_ns = 2000;
+  cfg.severity                = malc_sev_debug;
   err = destinations_set_cfg (&c->d, &cfg, id[0]);
   assert_int_equal (bl_ok, err.bl);
 
   err = destinations_get_cfg (&c->d, &cfg, id[1]);
   assert_int_equal (bl_ok, err.bl);
-  cfg.log_rate_filter_time = bl_usec_to_timept64 (2);
-  cfg.severity             = malc_sev_debug;
+  cfg.log_rate_filter_time_ns = 2000;
+  cfg.severity                = malc_sev_debug;
   err = destinations_set_cfg (&c->d, &cfg, id[1]);
   assert_int_equal (bl_ok, err.bl);
 
@@ -305,13 +314,13 @@ static void destinations_write_rate_filter_severity_test (void **state)
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
 
-  t += bl_usec_to_timept64 (1);
+  t += bl_usec_to_fast_timept (1);
   destinations_write (&c->d, 0, t, malc_sev_warning, &strings);
   /*filtered out: severity */
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
 
-  t += bl_usec_to_timept64 (1);
+  t += bl_usec_to_fast_timept (1);
   destinations_write (&c->d, 0, t, malc_sev_note, &strings);
   /*not filtered out: severity */
   assert_int_equal (mock[0]->write, 2);
