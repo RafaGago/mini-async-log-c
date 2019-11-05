@@ -39,7 +39,44 @@ extern MALC_EXPORT char const* malc_array_dst_get_entry(
 /*----------------------------------------------------------------------------*/
 
 #ifdef __cplusplus
-  }
-#endif
+ } // extern "C"
 
+class malc_wrapper;
+/*----------------------------------------------------------------------------*/
+class malc_array_dst_adapter {
+public:
+  /*--------------------------------------------------------------------------*/
+  void set_array (char* mem, bl_uword mem_entries, bl_uword entry_chars) noexcept
+  {
+    malc_array_dst_set_array(
+      (malc_array_dst*) this, mem, mem_entries, entry_chars
+      );
+  }
+  /*--------------------------------------------------------------------------*/
+  bl_uword size() const noexcept
+  {
+    return malc_array_dst_size ((malc_array_dst const*) this);
+  }
+  /*--------------------------------------------------------------------------*/
+  bl_uword capacity() const noexcept
+  {
+    return malc_array_dst_capacity ((malc_array_dst const*) this);
+  }
+  /*--------------------------------------------------------------------------*/
+  char const* get_entry (bl_uword idx) const noexcept
+  {
+    return malc_array_dst_get_entry ((malc_array_dst const*) this, idx);
+  }
+  /*--------------------------------------------------------------------------*/
+private:
+  /*--------------------------------------------------------------------------*/
+  friend class malc_wrapper;
+  static malc_dst get_dst_tbl()
+  {
+    return malc_array_dst_tbl;
+  }
+  /*--------------------------------------------------------------------------*/
+};
+/*----------------------------------------------------------------------------*/
+#endif /* __cplusplus */
 #endif

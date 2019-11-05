@@ -21,13 +21,6 @@
 
 struct malc;
 typedef struct malc malc;
-
-enum malc_destinations {
-  malc_dst_file,
-  malc_dst_console,
-}
-malc_destinations;
-
 /* Usage:
 #if MALC_VERSION <= MALC_VERSION_GET (1, 0, 0)
   Do something for versions LE than 1.0.0

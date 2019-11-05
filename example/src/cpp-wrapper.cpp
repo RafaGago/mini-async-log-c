@@ -17,7 +17,9 @@ static inline malc* get_malc_logger_instance()
 int log_thread (void* ctx)
 {
   bl_err err;
-  log_error (err, "Hello malc, testing {}, {}, {.1}", 1, 2, 3.f);
+  malc_producer_thread_local_init (log.handle(), 128 * 1024);
+  log_error (err, "Hello malc");
+  log_debug (err, "testing {}, {}, {.1}", 1, 2, 3.f);
   (void) log.terminate (true); /* terminating the logger. Will force the
                                   event loop on main's thread to exit */
   return 0;
@@ -27,18 +29,42 @@ int main (int argc, char const* argv[])
 {
   /* destination register */
   bl_err err;
-  bl_u32 stdouterr_id;
-  bl_u32 file_id;
-  err = log.add_destination (stdouterr_id, malc_stdouterr_dst_tbl);
-  if (err.bl) {
+  auto stdouterr = log.add_destination<malc_stdouterr_dst_adapter>();
+  if (!stdouterr.is_valid()) {
     fprintf (stderr, "Error creating the stdout/stderr destination\n");
-    return err.bl;
+    return 1;
   }
-  err = log.add_destination (file_id, malc_file_dst_tbl);
-  if (err.bl) {
+  auto file = log.add_destination<malc_file_dst_adapter>();
+  if (!file.is_valid()) {
     fprintf (stderr, "Error creating the file destination\n");
-    return err.bl;
+    return 1;
   }
+  /* deliberately ignoring error codes on already created objects, as this
+  non allocating calls won't fail in this circumstances */
+
+  /* generic malc instance destination configuration */
+  malc_dst_cfg dcfg;
+
+  stdouterr.get_cfg (dcfg);
+  dcfg.show_timestamp = false;
+  dcfg.show_severity  = false;
+  dcfg.severity       = malc_sev_warning;
+  stdouterr.set_cfg (dcfg);
+
+  file.get_cfg (dcfg);
+  dcfg.show_timestamp = true;
+  dcfg.show_severity  = true;
+  dcfg.severity       = malc_sev_debug;
+  file.set_cfg (dcfg);
+
+  /* instance specific configuration*/
+  stdouterr.try_get()->set_stderr_severity (malc_sev_debug);
+
+  malc_file_cfg fcfg;
+  file.try_get()->get_cfg (fcfg);
+  fcfg.prefix = "malc-cpp-wrapper-example";
+  file.try_get()->set_cfg (fcfg);
+
   /* logger startup */
   malc_cfg cfg;
   err = log.get_cfg (cfg);
