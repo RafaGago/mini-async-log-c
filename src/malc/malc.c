@@ -16,6 +16,7 @@
 #include <bl/nonblock/backoff.h>
 
 #include <bl/time_extras/time_extras.h>
+#include <bl/time_extras/deadline.h>
 
 #include <malc/cfg.h>
 #include <malc/memory.h>
@@ -75,9 +76,7 @@ typedef struct info_byte {
 }
 info_byte;
 /*----------------------------------------------------------------------------*/
-bl_static_assert_outside_func_ns(
-  bl_pow2_u (8 - 1 - alloc_tag_bits) >= q_cmd_max
-  );
+bl_static_assert_global_ns (bl_pow2_u (8 - 1 - alloc_tag_bits) >= q_cmd_max);
 /*----------------------------------------------------------------------------*/
 typedef struct qnode {
   bl_mpsc_i_node hook;
@@ -130,14 +129,16 @@ static void malc_send_blocking_flush (malc* l)
 /*----------------------------------------------------------------------------*/
 static bool malc_try_run_idle_task (malc* l, bl_timept64 now)
 {
-  if (!bl_deadline64_expired_explicit (l->idle_deadline, now)) {
+  if (!bl_fast_timept_deadline_expired_explicit (l->idle_deadline, now)) {
     return false;
   }
-  destinations_idle_task (&l->dst, now);
+  destinations_idle_task (&l->dst, bl_fast_timept_to_nsec (now));
   do {
-    l->idle_deadline += bl_usec_to_timept64 (l->consumer.idle_task_period_us);
+    l->idle_deadline += bl_usec_to_fast_timept(
+      l->consumer.idle_task_period_us
+      );
   }
-  while (bl_deadline64_expired_explicit (l->idle_deadline, now));
+  while (bl_fast_timept_deadline_expired_explicit (l->idle_deadline, now));
   return true;
 }
 /*----------------------------------------------------------------------------*/
@@ -218,7 +219,7 @@ MALC_EXPORT bl_err malc_get_cfg (malc const* l, malc_cfg* cfg)
 /*----------------------------------------------------------------------------*/
 static void malc_producer_thread_env_init(malc* l)
 {
-    bl_timept64 now = bl_timept64_get();
+    bl_timept64 now = bl_fast_timept_get();
     bl_nonblock_backoff_init_default (&l->cbackoff, l->consumer.backoff_max_us);
     l->idle_deadline = now;
     malc_try_run_idle_task (l, now);
@@ -369,8 +370,9 @@ MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, bl_u32 bytes)
 MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
 {
   bl_timept64 deadline;
-  bl_timept64 now = bl_timept64_get();
-  bl_err err = bl_deadline64_init_explicit (&deadline, now, timeout_us);
+  bl_timept64 now = bl_fast_timept_get();
+  bl_err err =
+    bl_fast_timept_deadline_init_usec_explicit (&deadline, now, timeout_us);
 
   if (bl_unlikely (err.bl)) {
     return err;
@@ -429,7 +431,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
             destinations_write(
               &l->dst,
               (bl_uword) le.entry->format,
-              now,
+              l->ds.t,
               le.entry->info[0],
               &strs
               );
@@ -505,10 +507,13 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
       default:
         bl_assert (0 && "bug or malicious code");
       }
-      bl_nonblock_backoff_init_default (&l->cbackoff, l->consumer.backoff_max_us);
+      bl_nonblock_backoff_init_default(
+        &l->cbackoff, l->consumer.backoff_max_us
+        );
     }
     else if (err.bl == bl_empty) {
-      bl_timeoft64 next_sleep_us = bl_nonblock_backoff_next_sleep_us (&l->cbackoff);
+      bl_timeoft64 next_sleep_us =
+        bl_nonblock_backoff_next_sleep_us (&l->cbackoff);
       bool do_backoff       = true;
       if (l->idle_boundary_us < next_sleep_us)  {
         do_backoff = !malc_try_run_idle_task (l, now);
@@ -516,14 +521,14 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
       if (do_backoff) {
         bl_nonblock_backoff_run (&l->cbackoff);
         /* no timer updates on spin/yield phase of the backoff (expensive?) */
-        now = next_sleep_us ? bl_timept64_get() : now;
+        now = next_sleep_us ? bl_fast_timept_get() : now;
       }
     }
     else {
       break;
     }
   }
-  while (!bl_deadline64_expired_explicit (deadline, now));
+  while (!bl_fast_timept_deadline_expired_explicit (deadline, now));
   return bl_mkerr (count ? bl_ok : bl_nothing_to_do);
 }
 /*----------------------------------------------------------------------------*/

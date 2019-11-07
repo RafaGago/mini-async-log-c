@@ -4,7 +4,6 @@
 #include <malc/destinations.h>
 
 #include <bl/base/assert.h>
-#include <bl/base/deadline.h>
 #include <bl/time_extras/time_extras.h>
 #include <bl/base/utility.h>
 #include <bl/base/static_integer_math.h>
@@ -164,8 +163,7 @@ static bl_err destinations_set_rate_limit_settings_impl(
   destination* dest;
   FOREACH_DESTINATION (d->mem, dest) {
     d->filter_max_time = bl_max(
-      d->filter_max_time,
-      bl_nsec_to_fast_timept (dest->cfg.log_rate_filter_time_ns)
+      d->filter_max_time, dest->cfg.log_rate_filter_time_ns
       );
   }
   return past_entries_init_extern (&d->pe, d->pe_buffer, wc);
@@ -210,12 +208,12 @@ void destinations_terminate (destinations* d)
   d->count = 0;
 }
 /*----------------------------------------------------------------------------*/
-static void entry_filter_idle (destinations* d, bl_timept64 now)
+static void entry_filter_idle (destinations* d, bl_u64 now_ns)
 {
   for (bl_uword i = 0; i < past_entries_size (&d->pe); ++i) {
     past_entry* pe = past_entries_at (&d->pe, i);
-    bl_timept64 t_allowed = pe->tprev + d->filter_max_time;
-    if (bl_unlikely (bl_timept64_get_diff (now, t_allowed) >= 0)) {
+    bl_u64 t_allowed = pe->tprev + d->filter_max_time;
+    if (bl_unlikely (bl_timept64_get_diff (now_ns, t_allowed) >= 0)) {
       past_entries_drop (&d->pe, i);
       --i;
     }
@@ -225,9 +223,9 @@ static void entry_filter_idle (destinations* d, bl_timept64 now)
   }
 }
 /*----------------------------------------------------------------------------*/
-void destinations_idle_task (destinations* d, bl_timept64 now)
+void destinations_idle_task (destinations* d, bl_u64 now_ns)
 {
-  entry_filter_idle (d, now);
+  entry_filter_idle (d, now_ns);
   destination* dest;
   FOREACH_DESTINATION (d->mem, dest) {
     if (dest->cfg.severity_file_path) {
@@ -262,7 +260,7 @@ static malc_log_strings get_entry_strings(
 void destinations_write(
   destinations*           d,
   bl_uword                entry_id,
-  bl_timept64             now,
+  bl_u64                  entry_ns,
   bl_uword                sev,
   malc_log_strings const* strs
   )
@@ -274,7 +272,9 @@ void destinations_write(
       bl_assert (dest->dst.write);
       if (sev >= dest->cfg.severity) {
         malc_log_strings s = get_entry_strings (dest, strs);
-        (void) dest->dst.write (destination_get_instance (dest), now, sev, &s);
+        (void) dest->dst.write(
+          destination_get_instance (dest), entry_ns, sev, &s
+          );
       }
     }
   }
@@ -293,14 +293,15 @@ void destinations_write(
       bl_assert (dest->dst.write);
       if (sev >= dest->cfg.severity) {
         if (pe && dest->cfg.log_rate_filter_time_ns != 0) {
-          bl_timept64 allowed = pe->tprev;
-          allowed += bl_nsec_to_fast_timept (dest->cfg.log_rate_filter_time_ns);
-          if (bl_unlikely (bl_timept64_get_diff (now, allowed) < 0)) {
+          bl_u64 allowed = pe->tprev + dest->cfg.log_rate_filter_time_ns;
+          if (bl_unlikely (bl_timept64_get_diff (entry_ns, allowed) < 0)) {
             continue;
           }
         }
         malc_log_strings s = get_entry_strings (dest, strs);
-        (void) dest->dst.write (destination_get_instance (dest), now, sev, &s);
+        (void) dest->dst.write(
+          destination_get_instance (dest), entry_ns, sev, &s
+          );
       }
     }
     if (!pe) {
@@ -311,7 +312,7 @@ void destinations_write(
       pe = past_entries_at_tail (&d->pe);
       pe->entry_id  = entry_id;
     }
-    pe->tprev = now;
+    pe->tprev = entry_ns;
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -368,8 +369,7 @@ bl_err destinations_set_cfg (
   FOREACH_DESTINATION (d->mem, dest) {
     d->min_severity = bl_min (d->min_severity, dest->cfg.severity);
     d->filter_max_time = bl_max(
-      d->filter_max_time,
-      bl_nsec_to_fast_timept (dest->cfg.log_rate_filter_time_ns)
+      d->filter_max_time, dest->cfg.log_rate_filter_time_ns
       );
   }
   return bl_mkok();

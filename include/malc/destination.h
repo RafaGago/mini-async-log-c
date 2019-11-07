@@ -119,7 +119,7 @@ typedef struct malc_dst {
   bl_err (*flush)     (void* instance);
   bl_err (*idle_task) (void* instance);
   bl_err (*write)(
-    void* instance, bl_timept64 now, bl_uword sev_val, malc_log_strings const* strs
+    void* instance, bl_u64 nsec, bl_uword sev_val, malc_log_strings const* strs
     );
 }
 malc_dst;

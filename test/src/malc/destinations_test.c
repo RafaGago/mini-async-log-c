@@ -256,18 +256,18 @@ static void destinations_write_rate_filter_test (void **state)
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
 
-  t += bl_usec_to_fast_timept (2);
+  t += 2000;
   destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
   assert_int_equal (mock[0]->write, 2);
   assert_int_equal (mock[1]->write, 2);
 
-  t += bl_usec_to_fast_timept (1);
+  t += 1000;
   destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
   /*filtered out: less than 2 us from last entry */
   assert_int_equal (mock[0]->write, 2);
   assert_int_equal (mock[1]->write, 2);
 
-  t += bl_usec_to_fast_timept (1);
+  t += 1000;
   destinations_write (&c->d, 0, t, malc_sev_critical, &strings);
   /*still filtered out: the filtered out message before updated the internal
   counter */
@@ -314,13 +314,13 @@ static void destinations_write_rate_filter_severity_test (void **state)
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
 
-  t += bl_usec_to_fast_timept (1);
+  t += 1000;
   destinations_write (&c->d, 0, t, malc_sev_warning, &strings);
   /*filtered out: severity */
   assert_int_equal (mock[0]->write, 1);
   assert_int_equal (mock[1]->write, 1);
 
-  t += bl_usec_to_fast_timept (1);
+  t += 1000;
   destinations_write (&c->d, 0, t, malc_sev_note, &strings);
   /*not filtered out: severity */
   assert_int_equal (mock[0]->write, 2);
