@@ -205,15 +205,6 @@ if not get_option ('bare')
             c_args              : cflags,
             dependencies        : threads
         )
-    executable(
-            'malc-example-custom-cpp-destination',
-            [ 'example/src/custom-destination.cpp' ],
-            include_directories : smoke_test_include_dirs,
-            link_with           : malc_lib,
-            link_args           : test_link_args,
-            c_args              : cflags,
-            dependencies        : threads
-        )
     st = executable(
             'malc-example-stress-test',
             [ 'example/src/stress-test.c' ],
@@ -256,6 +247,15 @@ if not get_option ('bare')
                 cpp_args            : cflags,
                 dependencies        : threads
             ))
+        executable(
+            'malc-example-cpp-custom-destination',
+            [ 'example/src/cpp-custom-destination.cpp' ],
+            include_directories : smoke_test_include_dirs,
+            link_with           : malc_lib,
+            link_args           : test_link_args,
+            c_args              : cflags,
+            dependencies        : threads
+            )
         configure_file(
             input : 'example/src/stress-test.c',
             output : 'stress-test.cpp',

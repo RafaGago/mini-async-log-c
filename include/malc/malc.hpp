@@ -8,6 +8,7 @@
 #include <string>
 
 #include <malc/malc.h>
+#include <malc/cpp_destination_adapter.hpp>
 #include <bl/base/default_allocator.h>
 
 class malc_wrapper;
@@ -76,7 +77,11 @@ private:
 };
 /*----------------------------------------------------------------------------*/
 /* Very thin wrapper without ownership. Constructors and destructors don't
-   invoke malc_create / malc_destroy */
+   invoke malc_create / malc_destroy
+
+   For documentation on the methods here, look at the underlying C header on
+   "malc/malc.h".
+   */
 /*----------------------------------------------------------------------------*/
 class malc_wrapper {
 public:
@@ -151,13 +156,36 @@ public:
     assert (m_ptr);
     return malc_set_destination_cfg (handle(), &cfg, dest_id);
   }
-  /*--------------------------------------------------------------------------*/
+  /*----------------------------------------------------------------------------
+  This class accepts either one of the provided destinations as template
+  parameter:
+
+  - malc_stdouterr_dst_adapter
+  - malc_file_dst_adapter
+  - malc_array_dst_adapter
+
+  Or a custom implementation with the next interface:
+
+  class custom_dst_interface {
+    custom_dst_interface (const bl_alloc_tbl& alloc);
+    bool flush();
+    bool idle_task();
+    bool write (bl_u64 nsec, bl_uword severity, malc_log_strings const& strs);
+
+  This method has to be explicitly given the template paramter, as it is
+  malc who will own the instance.
+
+  This method returns a "malc_dst_access<T>"" class which simplifies
+  managing the destination configuration compared with using the C interface.
+
+  See the "cpp-wrapper.cpp" and the "cpp-custom-destination-cpp" examples.
+  ----------------------------------------------------------------------------*/
   template <class T>
   malc_dst_access<T> add_destination() noexcept
   {
     bl_u32 id;
     malc_dst_access<T> ret;
-    malc_dst tbl = T::get_dst_tbl();
+    malc_dst tbl = malc_cpp_destination_adapt<T>::get_dst_tbl();
     bl_err err = malc_add_destination (handle(), &id, &tbl);
     if (!err.bl) {
       ret.m_owner = handle();
