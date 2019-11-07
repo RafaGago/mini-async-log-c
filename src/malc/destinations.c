@@ -252,8 +252,14 @@ static malc_log_strings get_entry_strings(
   )
 {
   malc_log_strings s = *strs;
-  s.timestamp_len = dest->cfg.show_timestamp ? strs->timestamp_len : 0;
-  s.sev_len    = dest->cfg.show_severity ? strs->sev_len : 0;
+  if (!dest->cfg.show_timestamp) {
+    s.timestamp     = "";
+    s.timestamp_len = 0;
+  }
+  if (!dest->cfg.show_severity) {
+    s.sev     = "";
+    s.sev_len = 0;
+  }
   return s;
 }
 /*----------------------------------------------------------------------------*/
