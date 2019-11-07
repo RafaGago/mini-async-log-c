@@ -242,7 +242,7 @@ if not get_option ('bare')
                 'malc-example-cpp-wrapper',
                 [ 'example/src/cpp-wrapper.cpp' ],
                 include_directories : smoke_test_include_dirs,
-                link_with           : malc_lib,
+                link_with           : [ malc_lib, base_lib ],
                 link_args           : test_link_args,
                 cpp_args            : cflags,
                 dependencies        : threads

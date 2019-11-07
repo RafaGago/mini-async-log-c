@@ -19,6 +19,10 @@
 #include <malc/cfg.h>
 #include <malc/destination.h>
 
+#ifdef __cplusplus
+  extern "C" {
+#endif
+
 struct malc;
 typedef struct malc malc;
 /* Usage:
@@ -32,9 +36,6 @@ typedef struct malc malc;
 #define MALC_VERSION \
   MALC_VERSION_GET(MALC_VERSION_MAJOR, MALC_VERSION_MINOR, MALC_VERSION_REV)
 
-#ifdef __cplusplus
-  extern "C" {
-#endif
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_uword malc_get_size (void);
 /*----------------------------------------------------------------------------*/
