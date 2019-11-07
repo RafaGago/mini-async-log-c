@@ -306,7 +306,7 @@ MALC_EXPORT bl_err malc_flush (malc* l)
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
+MALC_EXPORT bl_err malc_terminate (malc* l, bool dont_block)
 {
   qnode* n = bl_alloc (l->alloc, sizeof *n);
   if (!n) {
@@ -331,7 +331,7 @@ MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread)
   bl_mpsc_i_node_set (&n->hook, nullptr, 0, 0);
   bl_mpsc_i_produce_notag (&l->q, &n->hook);
 
-  if (!is_consume_task_thread) {
+  if (!dont_block) {
     if (l->consumer.start_own_thread) {
       bl_thread_join (&l->thread);
     }

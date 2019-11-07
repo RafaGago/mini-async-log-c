@@ -27,7 +27,7 @@ int log_thread (void* ctx)
   if (alive_prev == 1) {
     /* the last thread alive can invoke malc-terminate, malc_terminate could
      be invoked by any other thread (e.g. the main one). */
-    (void) malc_terminate (ilog, true);
+    (void) malc_terminate (ilog, false);
   }
   return 0;
 }

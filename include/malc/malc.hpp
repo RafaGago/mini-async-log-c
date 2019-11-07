@@ -109,10 +109,10 @@ public:
     return malc_flush (handle());
   }
   /*--------------------------------------------------------------------------*/
-  bl_err terminate (bool is_consume_task_thread) noexcept
+  bl_err terminate (bool dontblock = false) noexcept
   {
     assert (m_ptr);
-    return malc_terminate (handle(), is_consume_task_thread);
+    return malc_terminate (handle(), dontblock);
   }
   /*--------------------------------------------------------------------------*/
   bl_err producer_thread_local_init (bl_u32 bytes) noexcept

@@ -18,15 +18,15 @@ int log_thread (void* ctx)
 {
   bl_err err;
   log_error (err, "Hello malc, testing {}, {}, {.1}", 1, 2, 3.f);
-  (void) malc_terminate (ilog, true); /* terminating the logger. Will force the
-                                  event loop on main's thread to exit */
+  (void) malc_terminate (ilog, false); /* terminating the logger. Will force the
+                                          event loop on main's thread to exit */
   return 0;
 }
 /*----------------------------------------------------------------------------*/
 int main (int argc, char const* argv[])
 {
-  bl_err              err;
-  bl_alloc_tbl           alloc = bl_get_default_alloc(); /* Using malloc and free */
+  bl_err       err;
+  bl_alloc_tbl alloc = bl_get_default_alloc(); /* Using malloc and free */
 
   /* logger allocation/initialization */
   ilog = bl_alloc (&alloc,  malc_get_size());

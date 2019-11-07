@@ -20,8 +20,8 @@ int log_thread (void* ctx)
   malc_producer_thread_local_init (log.handle(), 128 * 1024);
   log_error (err, "Hello malc");
   log_debug (err, "testing {}, {}, {.1}", 1, 2, 3.f);
-  (void) log.terminate (true); /* terminating the logger. Will force the
-                                  event loop on main's thread to exit */
+  (void) log.terminate(); /* terminating the logger. Will force the
+                             event loop on main's thread to exit */
   return 0;
 }
 /*----------------------------------------------------------------------------*/

@@ -61,22 +61,27 @@ Prepares the logger for termination. After this is invoked the consumer task
 logger and will eventually return "bl_preconditions" when the logger instance is
 in the terminated state.
 
-After calling this function no further log messages can be enqueued by any
-thread.
+After "bl_preconditions" has been returned by "malc_run_consume_task" no further
+log messages can be enqueued by any thread.
 
-The "is_consume_task_thread" bool parameter needs to be set to "true" when the
-thread doing the termination is the same one that runs "malc_run_consume_task".
-This is because in such case the command can't block until the consumer task
-processes the termination command (it would deadlock). In this case the
-termination is complete when "malc_run_consume_task" returns "bl_preconditions".
+If the "dontblock" parameter is set to "false" the calling thread will block
+until the consumer thread has acknowledged the termination (
+"malc_run_consume_task" returned "bl_preconditions" on the consumer thread).
 
-If "is_consume_task_thread" is "false" this call will block until the
-termination command has been processed by the consume task.
+If the "dontblock" parameter is set to "true" this function won't block. This is
+useful if you either don't need to block or if you are manually running
+"malc_run_consume_task" from one of your threads. Blocking in the last case
+would deadlock, as the function would never return and hence
+"malc_run_consume_task" would never be called either.
 
- "malc_destroy" will only succeed when the consumer task is in the terminated
- state.
+Notice that unfortunately this parameter name is negated because it previously
+was called "is_consume_task_thread" and I didn't want to silently break already
+working code.
+
+"malc_destroy" will only succeed if a successful call to "malc_terminate" has
+succeeded before.
 ------------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_terminate (malc* l, bool is_consume_task_thread);
+extern MALC_EXPORT bl_err malc_terminate (malc* l, bool dontblock);
 /*------------------------------------------------------------------------------
 Activates the thread local buffer for the caller thread. Using this buffer makes
 the logger the fastest it can be. Logging becomes wait-free (as long as there
