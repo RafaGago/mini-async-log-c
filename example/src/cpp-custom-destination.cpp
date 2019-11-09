@@ -1,7 +1,5 @@
 #include <stdio.h>
-#include <string.h>
 #include <thread>
-#include <chrono>
 
 #include <malc/malc.hpp>
 /*----------------------------------------------------------------------------*/
@@ -12,7 +10,7 @@ public:
    /* required */
   demo_destination (const bl_alloc_tbl& alloc)
   {
-    /* We don't use the passed allocator */
+    /* Ignoring the passed allocator */
   };
   /*--------------------------------------------------------------------------*/
   /* required */
@@ -31,10 +29,10 @@ public:
   }
   /*--------------------------------------------------------------------------*/
   /* required */
-  bool write (bl_u64 nsec, bl_uword severity, malc_log_strings const& strs)
+  bool write (bl_u64 nsec, bl_uword severity, malcpp::log_strings const& strs)
   {
     printf(
-      "%s: enrty: %s %s %s\n",
+      "%s: entry: %s %s %s\n",
       m_name.c_str(),
       strs.timestamp,
       strs.sev,
@@ -53,9 +51,9 @@ private:
   std::string m_name;
 };
 /*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-
-malc_owner log;
+// false, false, true; non-throwing with explicit construction but scope-based
+// destruction
+malcpp::malcpp<false, false, true> log;
 /*----------------------------------------------------------------------------*/
 static inline malc* get_malc_logger_instance()
 {
@@ -64,6 +62,11 @@ static inline malc* get_malc_logger_instance()
 /*----------------------------------------------------------------------------*/
 int main (int argc, char const* argv[])
 {
+  bl_err err = log.construct();
+  if (err.bl) {
+    fprintf (stderr, "unable to construct malc\n");
+    return err.bl;
+  }
   /* destination register */
   auto dst = log.add_destination<demo_destination>();
   if (!dst.is_valid()) {
@@ -73,8 +76,8 @@ int main (int argc, char const* argv[])
   dst.try_get()->set_name ("demo-destination");
 
   /* logger startup */
-  malc_cfg cfg;
-  bl_err err = log.get_cfg (cfg);
+  malcpp::cfg cfg;
+  err = log.get_cfg (cfg);
   if (err.bl) {
     fprintf (stderr, "bug when retrieving the logger configuration\n");
     return err.bl;

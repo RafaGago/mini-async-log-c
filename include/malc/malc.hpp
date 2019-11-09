@@ -2,41 +2,65 @@
 #define __MALC_HPP__
 
 #include <new>
-#include <cassert>
 #include <stdexcept>
 #include <type_traits>
-//#include <string>
-#include <exception>
+#include <cassert>
 
 #include <malc/malc.h>
-#include <malc/cpp_destination_adapter.hpp>
+#include <malc/destinations.hpp>
 #include <bl/base/default_allocator.h>
 
+namespace malcpp {
 
-class malc_wrapper;
+enum {
+  sev_debug    = malc_sev_debug,
+  sev_trace    = malc_sev_trace,
+  sev_note     = malc_sev_note,
+  sev_warning  = malc_sev_warning,
+  sev_error    = malc_sev_error,
+  sev_critical = malc_sev_critical,
+  sev_off      = malc_sev_off,
+};
+
+typedef malc_cfg         cfg;
+typedef malc_dst_cfg     dst_cfg;
+typedef malc_log_strings log_strings;
+
+class wrapper;
 /*----------------------------------------------------------------------------*/
-class malc_exception : public std::runtime_error
+class exception : public std::runtime_error
 {
-  /*C++ compiler writers may not be the happiest people on earth... */
   using std::runtime_error::runtime_error;
 };
 /*----------------------------------------------------------------------------*/
-/* A class to be returned by the "malc_wrapper" to encapsulate destination
+namespace detail {
+
+static void throw_if_error (bl_err err)
+{
+  if (err.bl) {
+    throw exception (bl_strerror (err));
+  }
+}
+
+} // namespace detail
+/*----------------------------------------------------------------------------*/
+/* A class to be returned by the "wrapper" to encapsulate destination
 related configuration. */
 /*----------------------------------------------------------------------------*/
 template <class T>
-class malc_dst_access {
+class dst_access {
 public:
   /*--------------------------------------------------------------------------*/
-  malc_dst_access() noexcept
+  dst_access() noexcept
   {
     m_owner = nullptr;
     m_id    = (bl_u32) -1ll;
   }
   /*--------------------------------------------------------------------------*/
-  /* Gets the underlying instance owned by malc. Don't store the pointer until
-  you have finished adding destinations, as malc is free to move them around in
-  memory.*/
+  /* Gets the underlying instance owned by malc. Don't store the pointer
+  returned by this function until you have finished adding destinations, as malc
+  internally stores them in a contiguous array (for memory locality) and uses
+  realloc.*/
   T* try_get() const noexcept
   {
     if (!is_valid()) {
@@ -47,20 +71,20 @@ public:
     return e.bl ? nullptr : static_cast<T*> (inst);
   }
   /*--------------------------------------------------------------------------*/
-  bl_err get_cfg (malc_dst_cfg& cfg) const noexcept
+  bl_err get_cfg (dst_cfg& c) const noexcept
   {
     if (!is_valid()) {
       return bl_mkerr (bl_invalid);
     }
-    return malc_get_destination_cfg (owner(), &cfg, id());
+    return malc_get_destination_cfg (owner(), &c, id());
   }
   /*--------------------------------------------------------------------------*/
-  bl_err set_cfg (malc_dst_cfg const& cfg) const noexcept
+  bl_err set_cfg (dst_cfg const& c) const noexcept
   {
     if (!is_valid()) {
       return bl_mkerr (bl_invalid);
     }
-    return malc_set_destination_cfg (owner(), &cfg, id());
+    return malc_set_destination_cfg (owner(), &c, id());
   }
   /*--------------------------------------------------------------------------*/
   bool is_valid() const noexcept
@@ -79,60 +103,56 @@ public:
   }
   /*--------------------------------------------------------------------------*/
 protected:
-  friend class malc_wrapper;
+  friend class wrapper;
   malc*  m_owner;
   bl_u32 m_id;
 };
 /*----------------------------------------------------------------------------*/
-/* throwing version of "malc_dst_access"*/
+/* throwing version of "dst_access"*/
 /*----------------------------------------------------------------------------*/
 template <class T>
-class malc_dst_access_throw : protected malc_dst_access<T> {
+class dst_access_throw : protected dst_access<T> {
 public:
-  malc_dst_access_throw (const malc_dst_access<T>& i)
+  dst_access_throw (const dst_access<T>& i)
   {
     this->m_owner = i.owner();
     this->m_id    = i.id();
   }
   /*--------------------------------------------------------------------------*/
-  /* Gets the underlying instance owned by malc. Don't store the pointer until
-  you have finished adding destinations, as malc is free to move them around in
-  memory.*/
+  /* Gets the underlying instance owned by malc. Don't store the pointer
+  returned by this function until you have finished adding destinations, as malc
+  internally stores them in a contiguous array (for memory locality) and uses
+  realloc.*/
   T& get() const
   {
     if (!is_valid()) {
-      throw malc_exception("\"get\" error on malc_dst_throw instance");
+      throw exception("\"get\" error on dst_throw instance");
     }
     void* inst;
-    throw_if_error (malc_get_destination_instance (owner(), &inst, id()));
+    detail::throw_if_error(
+      malc_get_destination_instance (owner(), &inst, id())
+      );
     return *static_cast<T*> (inst);
   }
   /*--------------------------------------------------------------------------*/
-  malc_dst_cfg get_cfg() const
+  dst_cfg get_cfg() const
   {
-    malc_dst_cfg r;
-    throw_if_error (malc_dst_access<T>::get_cfg (r));
+    dst_cfg r;
+    detail::throw_if_error (dst_access<T>::get_cfg (r));
     return r;
   }
   /*--------------------------------------------------------------------------*/
-  void set_cfg (malc_dst_cfg const& cfg) const
+  void set_cfg (dst_cfg const& c) const
   {
-    throw_if_error (malc_dst_access<T>::set_cfg (cfg));
+    detail::throw_if_error (dst_access<T>::set_cfg (c));
   }
   /*--------------------------------------------------------------------------*/
-  using malc_dst_access<T>::owner;
-  using malc_dst_access<T>::id;
-  using malc_dst_access<T>::is_valid;
+  using dst_access<T>::owner;
+  using dst_access<T>::id;
+  using dst_access<T>::is_valid;
   /*--------------------------------------------------------------------------*/
 private:
-  friend class malc_wrapper;
-
-  void throw_if_error (bl_err err) const
-  {
-    if (err.bl) {
-      throw malc_exception (bl_strerror (err));
-    }
-  }
+  friend class wrapper;
 };
 /*----------------------------------------------------------------------------*/
 /* Very thin wrapper without ownership. Constructors and destructors don't
@@ -142,29 +162,29 @@ private:
    "malc/malc.h".
    */
 /*----------------------------------------------------------------------------*/
-class malc_wrapper {
+class wrapper {
 public:
   /*--------------------------------------------------------------------------*/
-  malc_wrapper (malc* ptr) noexcept
+  wrapper (malc* ptr) noexcept
   {
     m_ptr = ptr;
   }
   /*--------------------------------------------------------------------------*/
-  ~malc_wrapper()
+  ~wrapper()
   {
     m_ptr = nullptr;
   }
   /*--------------------------------------------------------------------------*/
-  bl_err get_cfg (malc_cfg& cfg) const noexcept
+  bl_err get_cfg (cfg& c) const noexcept
   {
     assert (m_ptr);
-    return malc_get_cfg (handle(), &cfg);
+    return malc_get_cfg (handle(), &c);
   }
   /*--------------------------------------------------------------------------*/
-  bl_err init (malc_cfg const& cfg) noexcept
+  bl_err init (cfg const& c) noexcept
   {
     assert (m_ptr);
-    return malc_init (handle(), &cfg);
+    return malc_init (handle(), &c);
   }
     /*--------------------------------------------------------------------------*/
   bl_err init() noexcept
@@ -210,24 +230,24 @@ public:
     return malc_get_destination_instance (handle(), instance, dest_id);
   }
   /*--------------------------------------------------------------------------*/
-  bl_err get_destination_cfg (malc_dst_cfg& cfg, bl_u32 dest_id) const noexcept
+  bl_err get_destination_cfg (dst_cfg& c, bl_u32 dest_id) const noexcept
   {
     assert (m_ptr);
-    return malc_get_destination_cfg (handle(), &cfg, dest_id);
+    return malc_get_destination_cfg (handle(), &c, dest_id);
   }
   /*--------------------------------------------------------------------------*/
-  bl_err set_destination_cfg (malc_dst_cfg const& cfg, bl_u32 dest_id) noexcept
+  bl_err set_destination_cfg (dst_cfg const& c, bl_u32 dest_id) noexcept
   {
     assert (m_ptr);
-    return malc_set_destination_cfg (handle(), &cfg, dest_id);
+    return malc_set_destination_cfg (handle(), &c, dest_id);
   }
   /*----------------------------------------------------------------------------
-  This class accepts either one of the provided destinations as template
+  This function accepts either one of the provided destinations as template
   parameter:
 
-  - malc_stdouterr_dst_adapter
-  - malc_file_dst_adapter
-  - malc_array_dst_adapter
+  - stdouterr_ds
+  - file_dst
+  - array_dst
 
   Or a custom implementation with the next interface:
 
@@ -240,18 +260,18 @@ public:
   This method has to be explicitly given the template paramter, as it is
   malc who will own the instance.
 
-  This method returns a "malc_dst_access<T>"" class which simplifies
+  This method returns a "dst_access<T>"" class which simplifies
   managing the destination configuration compared with using the C interface.
 
   See the "cpp-wrapper.cpp" and the "cpp-custom-destination-cpp" examples.
   ----------------------------------------------------------------------------*/
   template <class T>
-  malc_dst_access<T> add_destination() noexcept
+  dst_access<T> add_destination() noexcept
   {
     bl_u32 id;
-    malc_dst_access<T> ret;
-    malc_dst tbl = malc_cpp_destination_adapt<T>::get_dst_tbl();
-    bl_err err = malc_add_destination (handle(), &id, &tbl);
+    dst_access<T> ret;
+    malc_dst tbl = detail::destination_adapt<T>::type::get_dst_tbl();
+    bl_err err   = malc_add_destination (handle(), &id, &tbl);
     if (!err.bl) {
       ret.m_owner = handle();
       ret.m_id    = id;
@@ -273,164 +293,222 @@ private:
   malc* m_ptr;
 };
 /*------------------------------------------------------------------------------
-  Same as malc_wrapper, but with instance ownership.
+  Same as wrapper, but with exceptions enabled and a non error-based interface.
 ------------------------------------------------------------------------------*/
-class malc_throwing_wrapper : private malc_wrapper
+class throwing_wrapper : private wrapper
 {
 public:
-  using malc_wrapper::malc_wrapper;
-  using malc_wrapper::handle;
+  using wrapper::wrapper;
+  using wrapper::handle;
   /*--------------------------------------------------------------------------*/
-  malc_cfg get_cfg() const
+  cfg get_cfg() const
   {
-    malc_cfg r;
-    throw_if_error (malc_wrapper::get_cfg (r));
+    cfg r;
+    detail::throw_if_error (wrapper::get_cfg (r));
     return r;
   }
   /*--------------------------------------------------------------------------*/
-  void init (malc_cfg const& cfg)
+  void init (cfg const& cfg)
   {
-    throw_if_error (malc_wrapper::init (cfg));
+    detail::throw_if_error (wrapper::init (cfg));
   }
   /*--------------------------------------------------------------------------*/
   void init ()
   {
-    throw_if_error (malc_wrapper::init());
+    detail::throw_if_error (wrapper::init());
   }
   /*--------------------------------------------------------------------------*/
   void flush()
   {
-    throw_if_error (malc_wrapper::init());
+    detail::throw_if_error (wrapper::init());
   }
   /*--------------------------------------------------------------------------*/
   void terminate (bool dontblock = false)
   {
-    throw_if_error (malc_wrapper::terminate (dontblock));
+    detail::throw_if_error (wrapper::terminate (dontblock));
   }
   /*--------------------------------------------------------------------------*/
   void producer_thread_local_init (bl_u32 bytes)
   {
-    throw_if_error (malc_wrapper::producer_thread_local_init (bytes));
+    detail::throw_if_error (wrapper::producer_thread_local_init (bytes));
   }
   /*--------------------------------------------------------------------------*/
   bool run_consume_task (bl_uword timeout_us)
   {
-    bl_err err = malc_wrapper::run_consume_task (timeout_us);
+    bl_err err = wrapper::run_consume_task (timeout_us);
     if (!err.bl || err.bl == bl_nothing_to_do) {
       return true;
     }
     if (err.bl == bl_preconditions) {
       return false;
     }
-    throw_if_error (err);
+    detail::throw_if_error (err);
     return false; /* unreachable */
   }
   /*--------------------------------------------------------------------------*/
   bl_u32 add_destination (malc_dst const& dst)
   {
     bl_u32 r;;
-    throw_if_error (malc_wrapper::add_destination (r, dst));
+    detail::throw_if_error (wrapper::add_destination (r, dst));
     return r;
   }
   /*--------------------------------------------------------------------------*/
   void* get_destination_instance (bl_u32 dest_id) const
   {
     void* r;
-    throw_if_error (malc_wrapper::get_destination_instance (&r, dest_id));
+    detail::throw_if_error (wrapper::get_destination_instance (&r, dest_id));
     return r;
   }
   /*--------------------------------------------------------------------------*/
-  malc_dst_cfg get_destination_cfg (bl_u32 dest_id) const
+  dst_cfg get_destination_cfg (bl_u32 dest_id) const
   {
-    malc_dst_cfg r;
-    throw_if_error (malc_wrapper::get_destination_cfg (r, dest_id));
+    dst_cfg r;
+    detail::throw_if_error (wrapper::get_destination_cfg (r, dest_id));
     return r;
   }
   /*--------------------------------------------------------------------------*/
-  void set_destination_cfg (malc_dst_cfg const& cfg, bl_u32 dest_id)
+  void set_destination_cfg (dst_cfg const& c, bl_u32 dest_id)
   {
-    throw_if_error (malc_wrapper::set_destination_cfg (cfg, dest_id));
+    detail::throw_if_error (wrapper::set_destination_cfg (c, dest_id));
   }
   /*--------------------------------------------------------------------------*/
   template <class T>
-  malc_dst_access_throw<T> add_destination()
+  dst_access_throw<T> add_destination()
   {
-    auto tmp = malc_wrapper::add_destination<T>();
+    auto tmp = wrapper::add_destination<T>();
     if (!tmp.is_valid()) {
-      throw malc_exception ("unable to create destination");
+      throw exception ("unable to create destination");
     }
-    return malc_dst_access_throw<T> (tmp);
+    return dst_access_throw<T> (tmp);
   }
   /*--------------------------------------------------------------------------*/
 protected:
-  using malc_wrapper::set_handle;
-  /*--------------------------------------------------------------------------*/
-private:
-  void throw_if_error (bl_err err) const
-  {
-    if (err.bl) {
-      throw malc_exception (bl_strerror (err));
-    }
-  }
+  using wrapper::set_handle;
   /*--------------------------------------------------------------------------*/
 };
 /*----------------------------------------------------------------------------*/
-template <bool throws>
-struct malc_wrapper_selector {
-  typedef malc_wrapper type;
+namespace detail {
+
+template <bool enable_except>
+struct wrapper_selector {
+  typedef wrapper type;
 };
 /*----------------------------------------------------------------------------*/
 template <>
-struct malc_wrapper_selector<true> {
-  typedef malc_throwing_wrapper type;
+struct wrapper_selector<true> {
+  typedef throwing_wrapper type;
 };
-/*------------------------------------------------------------------------------
-  Same as malc_wrapper, but with instance ownership.
-------------------------------------------------------------------------------*/
-template <bool do_construct, bool do_destruct, bool throw_ops>
-class malc_owner_impl : public malc_wrapper_selector<throw_ops>::type {
-private:
-  typedef typename malc_wrapper_selector<throw_ops>::type base;
+/*----------------------------------------------------------------------------*/
+template <class impl, bool except, bool autoconstruct>
+class construct_enable {};
+/*----------------------------------------------------------------------------*/
+template <class impl>
+class construct_enable<impl, true, false> {
 public:
-  class throw_tag {};
-  /*--------------------------------------------------------------------------*/
-  malc_owner_impl() : base (nullptr)
+  void construct (bl_alloc_tbl alloc = bl_get_default_alloc())
   {
-    if (do_construct) {
-      construct (throw_tag());
+    static_cast<impl*> (this)->construct_throw_impl (alloc);
+  }
+};
+/*----------------------------------------------------------------------------*/
+template <class impl>
+class construct_enable<impl, false, false> {
+public:
+  bl_err construct (bl_alloc_tbl alloc = bl_get_default_alloc()) noexcept
+  {
+    return static_cast<impl*> (this)->construct_impl (alloc);
+  }
+};
+/*----------------------------------------------------------------------------*/
+template <class impl, bool autodestruct>
+class destruct_enable {};
+/*----------------------------------------------------------------------------*/
+template <class impl>
+class destruct_enable<impl, false> {
+public:
+  void destruct() noexcept
+  {
+    return static_cast<impl*> (this)->destruct_impl();
+  }
+};
+
+} // namespace detail {
+/*------------------------------------------------------------------------------
+  The thin wrappers defined above (wrapper/throw_wrapper)+ instance ownership
+
+  It can be configured to throw, have automatic construction and automatic
+  destruction. Automatic construction requires exceptions, as constructors
+  can't return error codes.
+------------------------------------------------------------------------------*/
+template<
+  bool use_except = true, bool autoconstruct = true, bool autodestruct = true
+  >
+class malcpp :
+  public detail::wrapper_selector<use_except>::type,
+  public detail::construct_enable<
+    malcpp<use_except, autoconstruct, autodestruct>, use_except, autoconstruct
+    >,
+  public detail::destruct_enable<
+    malcpp<use_except, autoconstruct, autodestruct>, autodestruct
+    >
+  {
+private:
+  static_assert(
+    !autoconstruct || (autoconstruct && use_except),
+    "for this class to be automatically constructed exceptions are necessary"
+    );
+  typedef typename detail::wrapper_selector<use_except>::type base;
+public:
+  /*--------------------------------------------------------------------------*/
+  malcpp (bl_alloc_tbl alloc = bl_get_default_alloc()) : base (nullptr)
+  {
+    if (autoconstruct && use_except) {
+      construct_throw_impl (alloc);
     }
   }
   /*--------------------------------------------------------------------------*/
-  malc_owner_impl (malc_owner_impl&& mv) noexcept : base (nullptr)
+  ~malcpp() noexcept
   {
-    this->set_handle (mv.handle());
+    if (autodestruct) {
+      destruct_impl();
+    }
+  }
+  /*--------------------------------------------------------------------------*/
+  malcpp (malcpp&& mv) noexcept : base (nullptr)
+  {
+    set_handle (mv.handle());
     mv.set_handle (nullptr);
   }
   /*--------------------------------------------------------------------------*/
-  malc_owner_impl& operator= (malc_owner_impl&& mv) noexcept
+  malcpp& operator= (malcpp&& mv) noexcept
   {
     if (&mv == this) {
       return *this;
     }
-    this->set_handle (mv.handle());
+    set_handle (mv.handle());
     mv.set_handle (nullptr);
     return *this;
   }
   /*--------------------------------------------------------------------------*/
-  ~malc_owner_impl() noexcept
+protected:
+  template <class, bool, bool> friend class detail::construct_enable;
+  template <class, bool, bool> friend class detail::destruct_enable;
+  /*--------------------------------------------------------------------------*/
+  void destruct_impl() noexcept
   {
-    if (do_destruct) {
-      destruct();
+    if (!this->handle()) {
+      return;
     }
+    (void) malc_destroy (this->handle());
+    bl_dealloc (get_alloc_tbl(), this->handle());
+    this->set_handle (nullptr);
   }
   /*--------------------------------------------------------------------------*/
-  bl_err construct() noexcept
+  bl_err construct_impl (bl_alloc_tbl alloc) noexcept
   {
     if (this->handle()) {
       return bl_mkerr (bl_invalid);
     }
-    bl_alloc_tbl alloc;
-    alloc = bl_get_default_alloc();
     void* ptr = (malc*) bl_alloc(
       &alloc,
       malc_get_size() + std::alignment_of<bl_alloc_tbl>::value + sizeof alloc
@@ -448,32 +526,21 @@ public:
     return err;
   }
   /*--------------------------------------------------------------------------*/
-  void construct (throw_tag d)
+  void construct_throw_impl (bl_alloc_tbl alloc)
   {
-    bl_err e = construct();
+    bl_err e = construct_impl (alloc);
     if (e.bl) {
-      throw malc_exception(
+      throw exception(
         this->handle()
-        ? "malc_owner already constructed"
+        ? "malcpp already constructed"
         : "Unable to create malc instance"
         );
     }
   }
-  /*--------------------------------------------------------------------------*/
-  void destruct() noexcept
-  {
-    if (!this->handle()) {
-      return;
-    }
-    (void) malc_destroy (this->handle());
-    bl_dealloc (get_alloc_tbl(), this->handle());
-    this->set_handle (nullptr);
-  }
-  /*--------------------------------------------------------------------------*/
 private:
   /*--------------------------------------------------------------------------*/
-  malc_owner_impl(const malc_owner_impl&) = delete;
-  malc_owner_impl& operator=(const malc_owner_impl&) = delete;
+  malcpp(const malcpp&) = delete;
+  malcpp& operator=(const malcpp&) = delete;
   /*--------------------------------------------------------------------------*/
   /* packing an alloc table together with malc's memory */
   bl_alloc_tbl* get_alloc_tbl()
@@ -485,13 +552,8 @@ private:
   }
 };
 /*----------------------------------------------------------------------------*/
-typedef malc_owner_impl<true, true, false>   malc_owner;
-typedef malc_owner_impl<false, true, false>  malc_owner_no_construct;
-typedef malc_owner_impl<false, false, false> malc_owner_no_construct_destruct;
-typedef malc_owner_impl<true, true, true>    malc_owner_throw;
-typedef malc_owner_impl<false, true, true>   malc_owner_no_construct_throw;
-typedef malc_owner_impl<false, false, true>
-  malc_owner_no_construct_destruct_throw;
+
+} // namespace malcpp {
 
 #endif
 

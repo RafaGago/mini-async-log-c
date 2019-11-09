@@ -83,31 +83,6 @@ extern MALC_EXPORT bl_err malc_file_get_cfg(
 
 #ifdef __cplusplus
  } // extern "C"
+#endif
 
-class malc_wrapper;
-/*----------------------------------------------------------------------------*/
-class malc_file_dst_adapter {
-public:
-  /*--------------------------------------------------------------------------*/
-  bl_err set_cfg (malc_file_cfg const& cfg) noexcept
-  {
-    return malc_file_set_cfg ((malc_file_dst*) this, &cfg);
-  }
-  /*--------------------------------------------------------------------------*/
-  bl_err get_cfg (malc_file_cfg& cfg) const noexcept
-  {
-    return malc_file_get_cfg ((malc_file_dst*) this, &cfg);
-  }
-  /*--------------------------------------------------------------------------*/
-private:
-  /*--------------------------------------------------------------------------*/
-  friend class malc_wrapper;
-  static malc_dst get_dst_tbl()
-  {
-    return malc_file_dst_tbl;
-  }
-  /*--------------------------------------------------------------------------*/
-};
-/*----------------------------------------------------------------------------*/
-#endif /* __cplusplus */
 #endif /* __MALC_FILE_DESTINATION_H__ */

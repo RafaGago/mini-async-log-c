@@ -122,6 +122,14 @@ limitation of Thread Local Storage.
 extern MALC_EXPORT bl_err
   malc_producer_thread_local_init (malc* l, bl_u32 bytes);
 /*------------------------------------------------------------------------------
+Runs some iterations of malc's consumer function. This is to be used if the
+"malc_cfg.producer.start_own_thread" variable is false, so it is possible to
+share the thread that runs malc's consumer function for other purposes.
+
+This function is thread safe by means of blocking a mutex, so it's safe to
+change the thread that runs it without extra synchronization. The mutex blocks,
+doesn't return early; this function is intended to be run from a single thread.
+
 timeout_us: timeout to block before returning. 0 just runs one iteration.
 
 returns bl_ok:            Consumer not in idle-state.

@@ -19,7 +19,8 @@ Features
 - Type-safe format strings. Achieved through C11 type-generic expressions and
   (unfortunately) brutal preprocessor abusing.
 
-- C++ compatible/compilable.
+- C++ wrapped. It can select between throwing and non-throwing wrappers so it
+  can be used with different coding standards.
 
 - The client application can run the logger's consumer thread main loop from an
   existing (maybe shared for other purposes) thread if desired.
