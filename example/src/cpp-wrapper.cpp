@@ -59,14 +59,21 @@ int main (int argc, char const* argv[])
 
   /* logger startup */
   malc_cfg cfg = log.get_cfg();
-  cfg.consumer.start_own_thread = false; /* this thread runs the event-loop */
+  cfg.consumer.start_own_thread = true; /* this thread runs the event-loop */
   log.init (cfg);
 
   /* threads can start logging */
-  std::thread thr (&log_thread);
-  thr.detach();
-  while (log.run_consume_task (10000)) {}
-
-  return 0;
+  int err = 0;
+  std::thread thr;
+  try {
+    thr = std::thread (&log_thread);
+  }
+  catch (...)
+  {
+    log.terminate();
+    err = 1;
+  }
+  thr.join();
+  return err;
 }
 /*----------------------------------------------------------------------------*/

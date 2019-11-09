@@ -383,14 +383,23 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
   }
   bl_mpsc_i_node* qn;
   bl_uword count = 0;
+  bl_uword retries;
   do {
+    retries = 0;
     while (1) {
       qn = nullptr;
       err = bl_mpsc_i_consume (&l->q, &qn, 0);
       if (err.bl != bl_busy) {
         break;
       }
-      bl_processor_pause();
+      ++retries;
+      if (retries > 5) {
+        bl_thread_yield();
+      }
+      else {
+        bl_processor_pause();
+        bl_processor_pause();
+      }
     }
     if (bl_likely (!err.bl)) {
       ++count;
