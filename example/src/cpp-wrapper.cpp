@@ -25,11 +25,11 @@ int main (int argc, char const* argv[])
   malcpp::dst_cfg dcfg = stdouterr.get_cfg();
   dcfg.show_timestamp  = false;
   dcfg.show_severity   = false;
-  dcfg.severity        = malc_sev_warning;
+  dcfg.severity        = malcpp::sev_warning;
   stdouterr.set_cfg (dcfg);
 
   /* destination specific configuration*/
-  (void) stdouterr.get().set_stderr_severity (malc_sev_debug);
+  (void) stdouterr.get().set_stderr_severity (malcpp::sev_debug);
 
   /* destination register */
   auto file = log.add_destination<malcpp::file_dst>();
@@ -38,7 +38,7 @@ int main (int argc, char const* argv[])
   dcfg = file.get_cfg();
   dcfg.show_timestamp = true;
   dcfg.show_severity  = true;
-  dcfg.severity       = malc_sev_debug;
+  dcfg.severity       = malcpp::sev_debug;
   file.set_cfg (dcfg);
 
   /* destination specific configuration*/
