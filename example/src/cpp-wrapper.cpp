@@ -22,8 +22,6 @@ void log_thread()
   log.producer_thread_local_init (128 * 1024);
   log_error (err, "Hello malc");
   log_warning (err, "testing {}, {}, {.1}", 1, 2, 3.f);
-  (void) log.terminate(); /* terminating the logger. Will force the
-                             event loop on main's thread to exit */
 }
 /*----------------------------------------------------------------------------*/
 int main (int argc, char const* argv[])
@@ -65,14 +63,7 @@ int main (int argc, char const* argv[])
   /* threads can start logging */
   int err = 0;
   std::thread thr;
-  try {
-    thr = std::thread (&log_thread);
-  }
-  catch (...)
-  {
-    log.terminate();
-    err = 1;
-  }
+  thr = std::thread (&log_thread);
   thr.join();
   return err;
 }

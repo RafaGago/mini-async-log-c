@@ -57,6 +57,7 @@ struct malc {
   deserializer        ds;
   entry_parser        ep;
   destinations        dst;
+  bl_mutex            produce_mutex;
   bl_declare_cache_pad_member;
 };
 /*----------------------------------------------------------------------------*/
@@ -156,9 +157,13 @@ MALC_EXPORT bl_err malc_create (malc* l, bl_alloc_tbl const* alloc)
   if (err.bl) {
     return err;
   }
-  err = memory_init (&l->mem, alloc);
+  err = bl_mutex_init (&l->produce_mutex);
   if (err.bl) {
     return err;
+  }
+  err = memory_init (&l->mem, alloc);
+  if (err.bl) {
+    goto mutex_destroy;
   }
   err = deserializer_init (&l->ds, alloc);
   if (err.bl) {
@@ -185,6 +190,8 @@ MALC_EXPORT bl_err malc_create (malc* l, bl_alloc_tbl const* alloc)
   bl_atomic_uword_store_rlx (&l->state, st_stopped);
   return bl_mkok();
 
+mutex_destroy:
+  bl_mutex_destroy (&l->produce_mutex);
 deserializer_destroy:
   deserializer_destroy (&l->ds, alloc);
 memory_destroy:
@@ -196,8 +203,28 @@ MALC_EXPORT bl_err malc_destroy (malc* l)
 {
   bl_uword expected = st_stopped;
   if (!bl_atomic_uword_strong_cas_rlx (&l->state, &expected, st_destructing)) {
-    return bl_mkerr (bl_preconditions);
+    if (expected != st_terminating && expected != st_running) {
+      return bl_mkerr (bl_preconditions);
+    }
+    /* trying to manually shut malc down */
+    bl_err err;
+    if (expected == st_running) {
+      err = malc_terminate (l, true);
+      if (bl_unlikely (err.bl && err.bl != bl_preconditions)) {
+        /* allocation or some very uncommon error */
+        return err;
+      }
+    }
+    do {
+      err = malc_run_consume_task (l, 0);
+    }
+    while (!err.bl || err.bl == bl_nothing_to_do);
+    if (err.bl != bl_preconditions) {
+      /* allocation or some very uncommon error */
+      return err;
+    }
   }
+  bl_mutex_destroy (&l->produce_mutex);
   bl_time_extras_destroy();
   memory_destroy (&l->mem, l->alloc);
   deserializer_destroy (&l->ds, l->alloc);
@@ -371,18 +398,28 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
 {
   bl_timept64 deadline;
   bl_timept64 now = bl_fast_timept_get();
+  bl_uword count  = 0;
   bl_err err =
     bl_fast_timept_deadline_init_usec_explicit (&deadline, now, timeout_us);
 
   if (bl_unlikely (err.bl)) {
     return err;
   }
+  err = bl_mutex_lock (&l->produce_mutex);
+  if (bl_unlikely (err.bl)) {
+    return err;
+  }
+  if (timeout_us && bl_fast_timept_deadline_expired (deadline)) {
+    /* blocked at the mutex for too long.*/
+    count = 1; /* to return OK instead of nothing to do */
+    goto unlock;
+  }
   bl_uword state = bl_atomic_uword_load (&l->state, bl_mo_acquire);
   if (bl_unlikely (state != st_running && state != st_terminating)) {
+    bl_mutex_unlock (&l->produce_mutex);
     return bl_mkerr (bl_preconditions);
   }
   bl_mpsc_i_node* qn;
-  bl_uword count = 0;
   bl_uword retries;
   do {
     retries = 0;
@@ -511,10 +548,10 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
         "destinations_terminate" are visibile to the thread that called
         "malc_terminate" */
         bl_atomic_uword_store (&l->state, st_stopped, bl_mo_release);
-        return bl_mkok();
-
+        goto unlock;
       default:
         bl_assert (0 && "bug or malicious code");
+        break;
       }
       bl_nonblock_backoff_init_default(
         &l->cbackoff, l->consumer.backoff_max_us
@@ -538,6 +575,8 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
     }
   }
   while (!bl_fast_timept_deadline_expired_explicit (deadline, now));
+unlock:
+  bl_mutex_unlock (&l->produce_mutex);
   return bl_mkerr (count ? bl_ok : bl_nothing_to_do);
 }
 /*----------------------------------------------------------------------------*/

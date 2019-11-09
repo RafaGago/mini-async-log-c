@@ -87,7 +87,6 @@ int main (int argc, char const* argv[])
   }
   log_error (err, "Hello malc");
   log_warning (err, "testing {}, {}, {.1}", 1, 2, 3.f);
-  (void) log.terminate();
   return 0;
 }
 /*----------------------------------------------------------------------------*/

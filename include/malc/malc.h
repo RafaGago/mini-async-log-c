@@ -79,8 +79,9 @@ Notice that unfortunately this parameter name is negated because it previously
 was called "is_consume_task_thread" and I didn't want to silently break already
 working code.
 
-"malc_destroy" will only succeed if a successful call to "malc_terminate" has
-succeeded before.
+Calling this function on termination is optional. "malc_destroy" will always try
+to run the shutdown sequence described above. This is mostly useful when you
+want to disable logging before destroying malc.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_terminate (malc* l, bool dontblock);
 /*------------------------------------------------------------------------------
@@ -95,14 +96,14 @@ done for three reasons:
   to place thread local resources on threads that are not going to use it.
 
 2.Threads activating the thread local buffer can _never_ outlive the data
-  logger, they have to be "join"ed before calling "malc_terminate"(*): when a
-  thread goes out of scope its TLS/TSS destructor automatically sends the
-  buffer memory to the consumer task as a deallocation command. Its memory is
-  deallocated from the consume task thread to ensure that the TLS buffer isn't
-  deallocated before all the entries of the now-dying thread have been
-  processed.
+  logger, they have to be "join"ed before calling "malc_terminate"(*) or
+  "malc_destroy": when a thread goes out of scope its TLS/TSS destructor
+  automatically sends the buffer memory to the consumer task as a deallocation
+  command. Its memory is deallocated from the consume task thread to ensure that
+  the TLS buffer isn't deallocated before all the entries of the now-dying
+  thread have been processed.
 
-  It is very bl_likely that the user that manually calls this function has full
+  It is very likely that the user that manually calls this function has full
   control of the thread and can comply with this requirement. If not there are
   other log entry allocation methods available.
 
