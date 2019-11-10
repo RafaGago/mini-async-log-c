@@ -1,21 +1,18 @@
-#ifndef __MALC_COMMON_H__
-#define __MALC_COMMON_H__
+#ifndef __MALC_IMPL_COMMON_H__
+#define __MALC_IMPL_COMMON_H__
 
+/* non user-facing macros and data types */
 
 #include <bl/base/integer.h>
 #include <bl/base/error.h>
 
 #include <malc/libexport.h>
-
+#include <malc/common.h>
 /*----------------------------------------------------------------------------*/
 #if MALC_BUILTIN_COMPRESSION == 0 && MALC_PTR_COMPRESSION == 0
   #define MALC_COMPRESSION 0
 #else
   #define MALC_COMPRESSION 1
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef __cplusplus
-  extern "C" {
 #endif
 /*----------------------------------------------------------------------------*/
 typedef enum malc_encodings {
@@ -38,20 +35,8 @@ typedef enum malc_encodings {
   malc_type_memref  = 'p',
   malc_type_refdtor = 'q',
   malc_type_error   = 'r',
-  malc_sev_debug    = '3',
-  malc_sev_trace    = '4',
-  malc_sev_note     = '5',
-  malc_sev_warning  = '6',
-  malc_sev_error    = '7',
-  malc_sev_critical = '8',
-  malc_sev_off      = '9',
 }
 malc_type_ids;
-/*----------------------------------------------------------------------------*/
-static inline bool malc_is_valid_severity (bl_uword sev)
-{
-  return (sev >= malc_sev_debug) && (sev <= malc_sev_critical);
-}
 /*----------------------------------------------------------------------------*/
 typedef struct malc_lit {
   char const* lit;
@@ -105,24 +90,5 @@ typedef struct malc_const_entry {
 }
 malc_const_entry;
 /*----------------------------------------------------------------------------*/
-struct malc;
-struct malc_serializer;
-/*----------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_log_entry_prepare(
-  struct malc*            l,
-  struct malc_serializer* ext_ser,
-  malc_const_entry const* entry,
-  bl_uword                payload_size
-  );
-/*----------------------------------------------------------------------------*/
-extern MALC_EXPORT void malc_log_entry_commit(
-  struct malc* l, struct malc_serializer const* ext_ser
-  );
-/*----------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_uword malc_get_min_severity (struct malc const* l);
-/*----------------------------------------------------------------------------*/
-#ifdef __cplusplus
-}
-#endif
 
 #endif  /* #ifndef __MALC_COMMON_H__ */

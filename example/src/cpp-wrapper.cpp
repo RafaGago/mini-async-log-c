@@ -8,6 +8,11 @@ static inline malc* get_malc_logger_instance()
   return log.handle();
 }
 /*----------------------------------------------------------------------------*/
+// TODO: REMOVE:  A full C++ non-macro based implementation is on its way,
+// including malc.h only while the new implementation isn't ready.
+#undef MALC_COMMON_NAMESPACED
+#include <malc/malc.h>
+/*----------------------------------------------------------------------------*/
 void log_thread()
 {
   bl_err err;
@@ -42,13 +47,13 @@ int main (int argc, char const* argv[])
   file.set_cfg (dcfg);
 
   /* destination specific configuration*/
-  malc_file_cfg fcfg;
+  malcpp::file_dst_cfg fcfg;
   (void) file.get().get_cfg (fcfg);
   fcfg.prefix = "malc-cpp-wrapper-example";
   (void) file.get().set_cfg (fcfg);
 
   /* logger startup */
-  malc_cfg cfg = log.get_cfg();
+  malcpp::cfg cfg = log.get_cfg();
   cfg.consumer.start_own_thread = true; /* this thread runs the event-loop */
   log.init (cfg);
 

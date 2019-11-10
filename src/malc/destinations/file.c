@@ -181,7 +181,7 @@ static bl_err malc_fwrite (malc_file_dst* d, char const* s, bl_uword slen)
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_file_dst_write(
-    void* instance, bl_timept64 now, bl_uword sev_val, malc_log_strings const* strs
+    void* instance, bl_u64 nsec, bl_uword sev_val, malc_log_strings const* strs
     )
 {
   malc_file_dst* d = (malc_file_dst*) instance;
@@ -281,7 +281,8 @@ MALC_EXPORT bl_err malc_file_set_cfg(
   if (err.bl) {
     return err;
   }
-  bl_uword pfcount = d->max_log_files ? bl_round_next_pow2_u (d->max_log_files) : 1;
+  bl_uword pfcount =
+    d->max_log_files ? bl_round_next_pow2_u (d->max_log_files) : 1;
   return past_files_init (&d->files, pfcount, d->alloc);
 }
 /*----------------------------------------------------------------------------*/

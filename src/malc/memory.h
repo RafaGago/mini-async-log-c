@@ -7,7 +7,7 @@
 #include <bl/base/dynarray.h>
 #include <bl/base/static_integer_math.h>
 
-#include <malc/cfg.h>
+#include <malc/common.h>
 #include <malc/tls_buffer.h>
 #include <malc/bounded_buffer.h>
 

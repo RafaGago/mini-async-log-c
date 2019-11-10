@@ -2,6 +2,7 @@
 #include <thread>
 
 #include <malc/malc.hpp>
+
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 class demo_destination {
@@ -51,6 +52,12 @@ private:
   std::string m_name;
 };
 /*----------------------------------------------------------------------------*/
+
+// TODO: REMOVE:  A full C++ non-macro based implementation is on its way,
+// including malc.h only while the new implementation isn't ready.
+#undef MALC_COMMON_NAMESPACED
+#include <malc/malc.h>
+
 // false, false, true; non-throwing with explicit construction but scope-based
 // destruction
 malcpp::malcpp<false, false, true> log;

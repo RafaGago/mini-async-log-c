@@ -2,7 +2,8 @@
 #define __MALC_STDOUTERR_DESTINATION_H__
 
 #include <malc/libexport.h>
-#include <malc/destination.h>
+#include <malc/common.h>
+#include <bl/base/integer.h>
 
 #ifdef __cplusplus
   extern "C" {

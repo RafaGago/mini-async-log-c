@@ -1,89 +1,59 @@
 #ifndef __MALC_DESTINATION_HPP__
 #define __MALC_DESTINATION_HPP__
 
-#include <malc/destination.h>
-#include <malc/destinations/array.h>
-#include <malc/destinations/file.h>
-#include <malc/destinations/stdouterr.h>
+#include <malc/libexport.h>
+#include <malc/common.h>
+#include <bl/base/error.h>
 
 namespace malcpp {
 
+struct malc_file_cfg;
+typedef malc_file_cfg file_dst_cfg;
 /*----------------------------------------------------------------------------*/
 class wrapper;
 /*----------------------------------------------------------------------------*/
-class array_dst {
+class MALC_EXPORT file_dst {
 public:
   /*--------------------------------------------------------------------------*/
-  void set_array (char* mem, bl_uword mem_entries, bl_uword entry_chars) noexcept
-  {
-    malc_array_dst_set_array(
-      (malc_array_dst*) this, mem, mem_entries, entry_chars
-      );
-  }
+  bl_err set_cfg (file_dst_cfg const& cfg) noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_uword size() const noexcept
-  {
-    return malc_array_dst_size ((malc_array_dst const*) this);
-  }
-  /*--------------------------------------------------------------------------*/
-  bl_uword capacity() const noexcept
-  {
-    return malc_array_dst_capacity ((malc_array_dst const*) this);
-  }
-  /*--------------------------------------------------------------------------*/
-  char const* get_entry (bl_uword idx) const noexcept
-  {
-    return malc_array_dst_get_entry ((malc_array_dst const*) this, idx);
-  }
+  bl_err get_cfg (file_dst_cfg& cfg) const noexcept;
   /*--------------------------------------------------------------------------*/
 private:
   /*--------------------------------------------------------------------------*/
   friend class wrapper;
-  static malc_dst get_dst_tbl()
-  {
-    return malc_array_dst_tbl;
-  }
+  static malc_dst get_dst_tbl();
   /*--------------------------------------------------------------------------*/
 };
 /*----------------------------------------------------------------------------*/
-class file_dst {
+class MALC_EXPORT stdouterr_dst {
 public:
   /*--------------------------------------------------------------------------*/
-  bl_err set_cfg (malc_file_cfg const& cfg) noexcept
-  {
-    return malc_file_set_cfg ((malc_file_dst*) this, &cfg);
-  }
-  /*--------------------------------------------------------------------------*/
-  bl_err get_cfg (malc_file_cfg& cfg) const noexcept
-  {
-    return malc_file_get_cfg ((malc_file_dst*) this, &cfg);
-  }
+  bl_err set_stderr_severity (bl_uword sev) noexcept;
   /*--------------------------------------------------------------------------*/
 private:
   /*--------------------------------------------------------------------------*/
   friend class wrapper;
-  static malc_dst get_dst_tbl()
-  {
-    return malc_file_dst_tbl;
-  }
+  static malc_dst get_dst_tbl();
   /*--------------------------------------------------------------------------*/
 };
 /*----------------------------------------------------------------------------*/
-class stdouterr_dst {
+class MALC_EXPORT array_dst {
 public:
   /*--------------------------------------------------------------------------*/
-  bl_err set_stderr_severity (bl_uword sev) noexcept
-  {
-    return malc_stdouterr_set_stderr_severity ((malc_stdouterr_dst*) this, sev);
-  }
+  void
+    set_array(char* mem, bl_uword mem_entries, bl_uword entry_chars) noexcept;
+  /*--------------------------------------------------------------------------*/
+  bl_uword size() const noexcept;
+  /*--------------------------------------------------------------------------*/
+  bl_uword capacity() const noexcept;
+  /*--------------------------------------------------------------------------*/
+  char const* get_entry (bl_uword idx) const noexcept;
   /*--------------------------------------------------------------------------*/
 private:
   /*--------------------------------------------------------------------------*/
   friend class wrapper;
-  static malc_dst get_dst_tbl()
-  {
-    return malc_stdouterr_dst_tbl;
-  }
+  static malc_dst get_dst_tbl();
   /*--------------------------------------------------------------------------*/
 };
 /*----------------------------------------------------------------------------*/

@@ -123,6 +123,16 @@ malc_srcs = [
     'src/malc/destinations/stdouterr.c',
     'src/malc/destinations/file.c',
 ]
+malcpp_srcs = [
+    'src/malc/cpp-wrapper/destinations.cpp',
+    'src/malc/cpp-wrapper/wrapper.cpp',
+    'src/malc/cpp-wrapper/malcpp-e-c-nd.cpp',
+    'src/malc/cpp-wrapper/malcpp-ne-nc-nd.cpp',
+    'src/malc/cpp-wrapper/malcpp-ne-nc-d.cpp',
+    'src/malc/cpp-wrapper/malcpp-e-nc-d.cpp',
+    'src/malc/cpp-wrapper/malcpp-e-nc-nd.cpp',
+    'src/malc/cpp-wrapper/malcpp-e-c-d.cpp',
+]
 malc_test_srcs = [
     'test/src/malc/tests_main.c',
     'test/src/malc/tls_buffer_test.c',
@@ -136,7 +146,6 @@ malc_test_srcs = [
 malc_smoke_test_srcs = [
     'smoke_test/src/malc/smoke.c',
 ]
-
 malc_lib = build_target(
     'malc',
     malc_srcs,
@@ -147,11 +156,28 @@ malc_lib = build_target(
     install             : true
     )
 pkg_mod.generate(
-    libraries   : malc_lib,
+    malc_lib,
     version     : '0.0.1',
     name        : 'libmalc',
     filebase    : 'malc',
     description : 'mini-async-log-c'
+    )
+
+malcpp_lib = build_target(
+    'malcpp',
+    malcpp_srcs,
+    target_type         : libtype,
+    include_directories : include_dirs,
+    link_with           : [ malc_lib ],
+    c_args              : cflags + lib_cflags,
+    install             : true
+    )
+pkg_mod.generate(
+    malcpp_lib,
+    version     : '0.0.1',
+    name        : 'libmalcpp',
+    filebase    : 'malcpp',
+    description : 'mini-async-log-c cpp wrapper'
     )
 
 if not get_option ('bare')
@@ -219,56 +245,54 @@ if not get_option ('bare')
     test ('malc-stress-test-queue', st, args : [ 'queue', '30', '1' ])
     test ('malc-stress-test-queue-cpu', st, args : [ 'queue-cpu', '30', '1' ])
 
-    if cc.get_id() == 'gcc' or cc.get_id() == 'clang' # C++ compiler assumed if not
-        configure_file(
-            input : 'smoke_test/src/malc/smoke.c',
-            output : 'smoke.cpp',
-            copy: true
-            )
-        test(
-            'malc-smoke-cpp',
-            executable(
-                'malc-smoke-cpp',
-                [ meson.build_root() + '/smoke.cpp' ],
-                include_directories : smoke_test_include_dirs,
-                link_with           : malc_lib,
-                link_args           : test_link_args,
-                cpp_args            : cflags + test_cflags,
-                dependencies        : threads
-            ))
-        test(
-            'malc-cpp-wrapper',
-            executable(
-                'malc-example-cpp-wrapper',
-                [ 'example/src/cpp-wrapper.cpp' ],
-                include_directories : smoke_test_include_dirs,
-                link_with           : [ malc_lib, base_lib ],
-                link_args           : test_link_args,
-                cpp_args            : cflags,
-                dependencies        : threads
-            ))
+    configure_file(
+        input : 'smoke_test/src/malc/smoke.c',
+        output : 'smoke.cpp',
+        copy: true
+        )
+    test(
+        'malc-smoke-cpp',
         executable(
-            'malc-example-cpp-custom-destination',
-            [ 'example/src/cpp-custom-destination.cpp' ],
+            'malc-smoke-cpp',
+            [ meson.build_root() + '/smoke.cpp' ],
             include_directories : smoke_test_include_dirs,
             link_with           : malc_lib,
             link_args           : test_link_args,
-            c_args              : cflags,
+            cpp_args            : cflags + test_cflags,
             dependencies        : threads
-            )
-        configure_file(
-            input : 'example/src/stress-test.c',
-            output : 'stress-test.cpp',
-            copy: true
-            )
+        ))
+    test(
+        'malc-cpp-wrapper',
         executable(
-            'malc-example-stress-test-cpp',
-            [ meson.build_root() + '/stress-test.cpp' ],
+            'malc-example-cpp-wrapper',
+            [ 'example/src/cpp-wrapper.cpp' ],
             include_directories : smoke_test_include_dirs,
-            link_with           : malc_lib,
+            link_with           : [ malcpp_lib, base_lib ],
             link_args           : test_link_args,
             cpp_args            : cflags,
             dependencies        : threads
+        ))
+    executable(
+        'malc-example-cpp-custom-destination',
+        [ 'example/src/cpp-custom-destination.cpp' ],
+        include_directories : smoke_test_include_dirs,
+        link_with           : malcpp_lib,
+        link_args           : test_link_args,
+        c_args              : cflags,
+        dependencies        : threads
         )
-    endif
+    configure_file(
+        input : 'example/src/stress-test.c',
+        output : 'stress-test.cpp',
+        copy: true
+        )
+    executable(
+        'malc-example-stress-test-cpp',
+        [ meson.build_root() + '/stress-test.cpp' ],
+        include_directories : smoke_test_include_dirs,
+        link_with           : malc_lib,
+        link_args           : test_link_args,
+        cpp_args            : cflags,
+        dependencies        : threads
+        )
 endif

@@ -6,11 +6,23 @@
 #include <type_traits>
 #include <cassert>
 
-#include <malc/malc.h>
+/* including the common structs in malcpp's namespace */
+#define MALC_COMMON_NAMESPACED 1
 #include <malc/destinations.hpp>
 #include <bl/base/default_allocator.h>
 
+struct malc;
+
+/* implementation note: some of the classes here are implemented in a separate
+object (cpp) instead of on the headers to require including as little C
+definitions as possible into the global namespace, not to hide the
+implementation, a this is only wrapping C in C++ .*/
+
 namespace malcpp {
+
+typedef malc_cfg         cfg;
+typedef malc_dst_cfg     dst_cfg;
+typedef malc_log_strings log_strings;
 
 enum {
   sev_debug    = malc_sev_debug,
@@ -22,10 +34,6 @@ enum {
   sev_off      = malc_sev_off,
 };
 
-typedef malc_cfg         cfg;
-typedef malc_dst_cfg     dst_cfg;
-typedef malc_log_strings log_strings;
-
 class wrapper;
 /*----------------------------------------------------------------------------*/
 class exception : public std::runtime_error
@@ -34,6 +42,30 @@ class exception : public std::runtime_error
 };
 /*----------------------------------------------------------------------------*/
 namespace detail {
+/* created to avoid including C headers for destinations */
+class MALC_EXPORT dst_access_untyped {
+public:
+  /*--------------------------------------------------------------------------*/
+  dst_access_untyped() noexcept;
+  /*--------------------------------------------------------------------------*/
+  bl_err get_cfg (dst_cfg& c) const noexcept;
+  /*--------------------------------------------------------------------------*/
+  bl_err set_cfg (dst_cfg const& c) const noexcept;
+/*----------------------------------------------------------------------------*/
+  bool is_valid() const noexcept;
+  /*----------------------------------------------------------------------------*/
+  malc* owner() const noexcept;
+  /*----------------------------------------------------------------------------*/
+  bl_u32 id() const noexcept;
+  /*--------------------------------------------------------------------------*/
+protected:
+  friend class malcpp::wrapper;
+  /*--------------------------------------------------------------------------*/
+  bl_err untyped_try_get (void*& instance) const noexcept;
+  /*--------------------------------------------------------------------------*/
+  malc*  m_owner;
+  bl_u32 m_id;
+};
 
 static void throw_if_error (bl_err err)
 {
@@ -41,21 +73,14 @@ static void throw_if_error (bl_err err)
     throw exception (bl_strerror (err));
   }
 }
-
 } // namespace detail
 /*----------------------------------------------------------------------------*/
 /* A class to be returned by the "wrapper" to encapsulate destination
 related configuration. */
 /*----------------------------------------------------------------------------*/
 template <class T>
-class dst_access {
+class dst_access : public detail::dst_access_untyped {
 public:
-  /*--------------------------------------------------------------------------*/
-  dst_access() noexcept
-  {
-    m_owner = nullptr;
-    m_id    = (bl_u32) -1ll;
-  }
   /*--------------------------------------------------------------------------*/
   /* Gets the underlying instance owned by malc. Don't store the pointer
   returned by this function until you have finished adding destinations, as malc
@@ -63,49 +88,10 @@ public:
   realloc.*/
   T* try_get() const noexcept
   {
-    if (!is_valid()) {
-      return nullptr;
-    }
     void* inst;
-    bl_err e = malc_get_destination_instance (owner(), &inst, id());
-    return e.bl ? nullptr : static_cast<T*> (inst);
+    bl_err e = this->untyped_try_get (inst);
+    return !e.bl ? static_cast<T*> (inst) :nullptr;
   }
-  /*--------------------------------------------------------------------------*/
-  bl_err get_cfg (dst_cfg& c) const noexcept
-  {
-    if (!is_valid()) {
-      return bl_mkerr (bl_invalid);
-    }
-    return malc_get_destination_cfg (owner(), &c, id());
-  }
-  /*--------------------------------------------------------------------------*/
-  bl_err set_cfg (dst_cfg const& c) const noexcept
-  {
-    if (!is_valid()) {
-      return bl_mkerr (bl_invalid);
-    }
-    return malc_set_destination_cfg (owner(), &c, id());
-  }
-  /*--------------------------------------------------------------------------*/
-  bool is_valid() const noexcept
-  {
-    return m_owner != nullptr;
-  }
-  /*--------------------------------------------------------------------------*/
-  malc* owner() const noexcept
-  {
-    return m_owner;
-  }
-  /*--------------------------------------------------------------------------*/
-  bl_u32 id() const noexcept
-  {
-    return m_id;
-  }
-  /*--------------------------------------------------------------------------*/
-protected:
-  friend class wrapper;
-  malc*  m_owner;
-  bl_u32 m_id;
 };
 /*----------------------------------------------------------------------------*/
 /* throwing version of "dst_access"*/
@@ -126,12 +112,10 @@ public:
   T& get() const
   {
     if (!is_valid()) {
-      throw exception("\"get\" error on dst_throw instance");
+      throw exception("\"get\" error on dst_access_throw instance: invalid");
     }
     void* inst;
-    detail::throw_if_error(
-      malc_get_destination_instance (owner(), &inst, id())
-      );
+    detail::throw_if_error (this->untyped_try_get (inst));
     return *static_cast<T*> (inst);
   }
   /*--------------------------------------------------------------------------*/
@@ -151,8 +135,6 @@ public:
   using dst_access<T>::id;
   using dst_access<T>::is_valid;
   /*--------------------------------------------------------------------------*/
-private:
-  friend class wrapper;
 };
 /*----------------------------------------------------------------------------*/
 /* Very thin wrapper without ownership. Constructors and destructors don't
@@ -162,90 +144,40 @@ private:
    "malc/malc.h".
    */
 /*----------------------------------------------------------------------------*/
-class wrapper {
+class MALC_EXPORT wrapper {
 public:
   /*--------------------------------------------------------------------------*/
-  wrapper (malc* ptr) noexcept
-  {
-    m_ptr = ptr;
-  }
+  wrapper (malc* ptr) noexcept;
   /*--------------------------------------------------------------------------*/
-  ~wrapper()
-  {
-    m_ptr = nullptr;
-  }
+  ~wrapper();
   /*--------------------------------------------------------------------------*/
-  bl_err get_cfg (cfg& c) const noexcept
-  {
-    assert (m_ptr);
-    return malc_get_cfg (handle(), &c);
-  }
+  bl_err get_cfg (cfg& c) const noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err init (cfg const& c) noexcept
-  {
-    assert (m_ptr);
-    return malc_init (handle(), &c);
-  }
+  bl_err init (cfg const& c) noexcept;
     /*--------------------------------------------------------------------------*/
-  bl_err init() noexcept
-  {
-    assert (m_ptr);
-    return malc_init (handle(), nullptr);
-  }
+  bl_err init() noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err flush() noexcept
-  {
-    assert (m_ptr);
-    return malc_flush (handle());
-  }
+  bl_err flush() noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err terminate (bool dontblock = false) noexcept
-  {
-    assert (m_ptr);
-    return malc_terminate (handle(), dontblock);
-  }
+  bl_err terminate (bool dontblock = false) noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err producer_thread_local_init (bl_u32 bytes) noexcept
-  {
-    assert (m_ptr);
-    return malc_producer_thread_local_init (handle(), bytes);
-  }
+  bl_err producer_thread_local_init (bl_u32 bytes) noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err run_consume_task (bl_uword timeout_us) noexcept
-  {
-    assert (m_ptr);
-    return malc_run_consume_task (handle(), timeout_us);
-  }
+  bl_err run_consume_task (bl_uword timeout_us) noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err add_destination (bl_u32& dest_id, malc_dst const& dst) noexcept
-  {
-    assert (m_ptr);
-    return malc_add_destination (handle(), &dest_id, &dst);
-  }
+  bl_err add_destination (bl_u32& dest_id, malc_dst const& dst) noexcept;
   /*--------------------------------------------------------------------------*/
   bl_err
-    get_destination_instance (void** instance, bl_u32 dest_id) const noexcept
-  {
-    assert (m_ptr);
-    return malc_get_destination_instance (handle(), instance, dest_id);
-  }
+    get_destination_instance (void** instance, bl_u32 dest_id) const noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err get_destination_cfg (dst_cfg& c, bl_u32 dest_id) const noexcept
-  {
-    assert (m_ptr);
-    return malc_get_destination_cfg (handle(), &c, dest_id);
-  }
+  bl_err get_destination_cfg (dst_cfg& c, bl_u32 dest_id) const noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err set_destination_cfg (dst_cfg const& c, bl_u32 dest_id) noexcept
-  {
-    assert (m_ptr);
-    return malc_set_destination_cfg (handle(), &c, dest_id);
-  }
+  bl_err set_destination_cfg (dst_cfg const& c, bl_u32 dest_id) noexcept;
   /*----------------------------------------------------------------------------
-  This function accepts either one of the provided destinations as template
+  This function accepts either one of the provided destinations as a template
   parameter:
 
-  - stdouterr_ds
+  - stdouterr_dst
   - file_dst
   - array_dst
 
@@ -271,25 +203,20 @@ public:
     bl_u32 id;
     dst_access<T> ret;
     malc_dst tbl = detail::destination_adapt<T>::type::get_dst_tbl();
-    bl_err err   = malc_add_destination (handle(), &id, &tbl);
+    bl_err err   = add_destination_impl (id, tbl);
     if (!err.bl) {
       ret.m_owner = handle();
-      ret.m_id    = id;
+      ret.m_id = id;
     }
     return ret;
   }
   /*--------------------------------------------------------------------------*/
-  malc* handle() const noexcept
-  {
-    return m_ptr;
-  }
+  malc* handle() const noexcept;
   /*--------------------------------------------------------------------------*/
 protected:
-  void set_handle (malc* h)
-  {
-    m_ptr = h;
-  }
+  void set_handle (malc* h);
 private:
+  bl_err add_destination_impl(bl_u32& id, malc_dst const& tbl);
   malc* m_ptr;
 };
 /*------------------------------------------------------------------------------
@@ -443,7 +370,7 @@ public:
 template<
   bool use_except = true, bool autoconstruct = true, bool autodestruct = true
   >
-class malcpp :
+class MALC_EXPORT malcpp :
   public detail::wrapper_selector<use_except>::type,
   public detail::construct_enable<
     malcpp<use_except, autoconstruct, autodestruct>, use_except, autoconstruct
@@ -476,7 +403,7 @@ public:
   /*--------------------------------------------------------------------------*/
   malcpp (malcpp&& mv) noexcept : base (nullptr)
   {
-    set_handle (mv.handle());
+    this->set_handle (mv.handle());
     mv.set_handle (nullptr);
   }
   /*--------------------------------------------------------------------------*/
@@ -485,7 +412,7 @@ public:
     if (&mv == this) {
       return *this;
     }
-    set_handle (mv.handle());
+    this->set_handle (mv.handle());
     mv.set_handle (nullptr);
     return *this;
   }
@@ -494,37 +421,9 @@ protected:
   template <class, bool, bool> friend class detail::construct_enable;
   template <class, bool, bool> friend class detail::destruct_enable;
   /*--------------------------------------------------------------------------*/
-  void destruct_impl() noexcept
-  {
-    if (!this->handle()) {
-      return;
-    }
-    (void) malc_destroy (this->handle());
-    bl_dealloc (get_alloc_tbl(), this->handle());
-    this->set_handle (nullptr);
-  }
+  void destruct_impl() noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err construct_impl (bl_alloc_tbl alloc) noexcept
-  {
-    if (this->handle()) {
-      return bl_mkerr (bl_invalid);
-    }
-    void* ptr = (malc*) bl_alloc(
-      &alloc,
-      malc_get_size() + std::alignment_of<bl_alloc_tbl>::value + sizeof alloc
-      );
-    if (!ptr) {
-      return bl_mkerr (bl_alloc);
-    }
-    this->set_handle ((malc*) ptr);
-    *get_alloc_tbl() = alloc;
-    bl_err err = malc_create (this->handle(), get_alloc_tbl());
-    if (err.bl) {
-      bl_dealloc (get_alloc_tbl(), ptr);
-      this->set_handle (nullptr);
-    }
-    return err;
-  }
+  bl_err construct_impl (bl_alloc_tbl alloc) noexcept;
   /*--------------------------------------------------------------------------*/
   void construct_throw_impl (bl_alloc_tbl alloc)
   {
@@ -542,14 +441,7 @@ private:
   malcpp(const malcpp&) = delete;
   malcpp& operator=(const malcpp&) = delete;
   /*--------------------------------------------------------------------------*/
-  /* packing an alloc table together with malc's memory */
-  bl_alloc_tbl* get_alloc_tbl()
-  {
-    bl_uword tbl_addr = ((bl_uword) this->handle()) + malc_get_size();
-    tbl_addr         += std::alignment_of<bl_alloc_tbl>::value;
-    tbl_addr         &= ~(std::alignment_of<bl_alloc_tbl>::value - 1);
-    return (bl_alloc_tbl*) tbl_addr;
-  }
+  bl_alloc_tbl* get_alloc_tbl() noexcept;
 };
 /*----------------------------------------------------------------------------*/
 

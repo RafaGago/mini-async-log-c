@@ -18,7 +18,7 @@
 #include <bl/time_extras/time_extras.h>
 #include <bl/time_extras/deadline.h>
 
-#include <malc/cfg.h>
+#include <malc/common.h>
 #include <malc/memory.h>
 #include <malc/serialization.h>
 

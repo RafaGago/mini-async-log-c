@@ -18,7 +18,7 @@ static bl_err malc_stdouterr_dst_init (void* instance, bl_alloc_tbl const* alloc
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_stdouterr_dst_write(
-    void* instance, bl_timept64 now, bl_uword sev_val, malc_log_strings const* strs
+    void* instance, bl_u64 nsec, bl_uword sev_val, malc_log_strings const* strs
     )
 {
   malc_stdouterr_dst* d = (malc_stdouterr_dst*) instance;

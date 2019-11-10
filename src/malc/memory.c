@@ -8,7 +8,7 @@
 #include <bl/base/utility.h>
 #include <bl/base/integer_manipulation.h>
 
-#include <malc/cfg.h>
+#include <malc/common.h>
 #include <malc/memory.h>
 #include <malc/tls_buffer.h>
 

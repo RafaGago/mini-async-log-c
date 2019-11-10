@@ -14,10 +14,11 @@
 #endif
 
 /* has to be the first, defines preprocessor macros */
-#include <malc/impl/macro/malc_macro.h>
+#include <malc/common.h>
 #include <malc/libexport.h>
-#include <malc/cfg.h>
-#include <malc/destination.h>
+#include <malc/common.h>
+#include <malc/impl/common.h>
+#include <malc/impl/macro/malc_macro.h>
 
 #ifdef __cplusplus
   extern "C" {
@@ -25,16 +26,6 @@
 
 struct malc;
 typedef struct malc malc;
-/* Usage:
-#if MALC_VERSION <= MALC_VERSION_GET (1, 0, 0)
-  Do something for versions LE than 1.0.0
-#endif
-*/
-#define MALC_VERSION_GET(major,minor,rev) \
-  (major * 1000000 + minor * 1000 + rev)
-
-#define MALC_VERSION \
-  MALC_VERSION_GET(MALC_VERSION_MAJOR, MALC_VERSION_MINOR, MALC_VERSION_REV)
 
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_uword malc_get_size (void);

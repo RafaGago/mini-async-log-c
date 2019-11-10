@@ -11,6 +11,7 @@
 #include <bl/base/preprocessor.h>
 
 #include <malc/impl/common.h>
+#include <malc/impl/logging.h>
 #include <malc/impl/serialization.h>
 #ifndef __cplusplus
 #include <malc/impl/macro/c11.h>
@@ -40,7 +41,7 @@
      ((int) malc_get_type_code ((x)) == malc_type_u64) \
     )
 #endif
-
+/*----------------------------------------------------------------------------*/
 #define malc_compress_count(x)\
   (malc_builtin_compress_count (x) + malc_ptr_compress_count (x))
 /*----------------------------------------------------------------------------*/
