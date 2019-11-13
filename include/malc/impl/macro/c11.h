@@ -10,6 +10,7 @@ provides :
 By using C11
 */
 
+#include <malc/common.h>
 #include <malc/impl/common.h>
 #include <malc/impl/serialization.h>
 

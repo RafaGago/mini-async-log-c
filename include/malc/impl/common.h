@@ -1,19 +1,27 @@
-#ifndef __MALC_IMPL_COMMON_H__
-#define __MALC_IMPL_COMMON_H__
+#if (!defined (__MALC_IMPL_COMMON_H__) && !defined (MALC_COMMON_NAMESPACED)) || \
+    (!defined (__MALC_IMPL_COMMON_CPP_H__) && defined (MALC_COMMON_NAMESPACED))
 
+#ifdef MALC_COMMON_NAMESPACED
+#define __MALC_IMPL_COMMON_CPP_H__
+#else
+#define __MALC_IMPL_COMMON_H__
+#endif
 /* non user-facing macros and data types */
 
 #include <bl/base/integer.h>
-#include <bl/base/error.h>
-
 #include <malc/libexport.h>
-#include <malc/common.h>
+
 /*----------------------------------------------------------------------------*/
 #if MALC_BUILTIN_COMPRESSION == 0 && MALC_PTR_COMPRESSION == 0
   #define MALC_COMPRESSION 0
 #else
   #define MALC_COMPRESSION 1
 #endif
+
+#ifdef MALC_COMMON_NAMESPACED
+namespace malcpp { namespace detail {
+#endif
+
 /*----------------------------------------------------------------------------*/
 typedef enum malc_encodings {
   malc_end          = 0,
@@ -90,5 +98,8 @@ typedef struct malc_const_entry {
 }
 malc_const_entry;
 /*----------------------------------------------------------------------------*/
+#ifdef MALC_COMMON_NAMESPACED
+}}  //namespace malcpp { namespace detail {
+#endif
 
-#endif  /* #ifndef __MALC_COMMON_H__ */
+#endif  /* #ifndef __MALC_IMPL_COMMON_H__ */

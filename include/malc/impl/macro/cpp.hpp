@@ -7,11 +7,12 @@ provides :
 -malc_type_size
 -malc_make_var_from_expression
 
-By using C++11
+By using C++11. This is using the C interface by using C++
 */
 
 #include <type_traits>
 
+#include <malc/common.h>
 #include <malc/impl/common.h>
 
 template <typename T>
