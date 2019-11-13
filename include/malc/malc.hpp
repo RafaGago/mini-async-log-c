@@ -11,6 +11,14 @@
 #include <malc/destinations.hpp>
 #include <bl/base/default_allocator.h>
 
+/*----------------------------------------------------------------------------*/
+// TODO: REMOVE:  A full C++ non-macro based implementation is on its way,
+// including malc.h only to get the log macros while the new implementation
+// isn't ready.
+
+#undef MALC_COMMON_NAMESPACED
+#include <malc/malc.h>
+
 struct malc;
 
 /* implementation note: some of the classes here are implemented in a separate

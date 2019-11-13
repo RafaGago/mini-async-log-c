@@ -8,11 +8,6 @@ static inline malc* get_malc_logger_instance()
   return log.handle();
 }
 /*----------------------------------------------------------------------------*/
-// TODO: REMOVE:  A full C++ non-macro based implementation is on its way,
-// including malc.h only while the new implementation isn't ready.
-#undef MALC_COMMON_NAMESPACED
-#include <malc/malc.h>
-/*----------------------------------------------------------------------------*/
 void log_thread()
 {
   bl_err err;
