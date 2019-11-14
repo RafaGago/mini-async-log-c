@@ -70,8 +70,8 @@ BL_EXPORT void entry_parser_destroy (entry_parser* ep)
   bl_dstr_destroy (&ep->str);
 }
 /*----------------------------------------------------------------------------*/
-static char const printf_int_modifs[]       = " -+0123456789WNxXo";
-static char const printf_int_modifs_order[] = "aaaabbbbbbbbbccddd";
+static char const printf_int_modifs[]       = "# -+0123456789WNxXo";
+static char const printf_int_modifs_order[] = "aaaaabbbbbbbbbccddd";
 /*----------------------------------------------------------------------------*/
 static bl_err append_int(
   entry_parser*       ep,
@@ -86,17 +86,24 @@ static bl_err append_int(
   bl_dstr_append_char (&ep->fmt, '%');
   char order = 'a' - 1;
   bl_err err = bl_mkok();
-  /*this is just intended add functionality and avoid the most harmful things
-    that a malicious user could do to printf ("%" ".*" and "."). printf should
-    have its own very hardened parser, no need to do it twice." */
+  /*this is just intended as a quick filter for the most egregious things that
+  could be passed to printf, e.g. added "%", ".*", etc. and to add the extra
+  length modifiers. A good printf implementation on any major platform should
+  have its own battle-tested parser, no need to do it twice." */
   while (fmt_beg < fmt_end) {
     char* v = memchr(
       printf_int_modifs, *fmt_beg, sizeof printf_int_modifs - 1
       );
     if (v) {
       char new_order = printf_int_modifs_order[v - printf_int_modifs];
+      /* '0' is allowed as a flag and as a width number. manually
+      correcting the new_order */
       new_order = (order != 'b' || *v != '0') ? new_order : 'b';
       if (new_order < order) {
+        continue;
+      }
+      if (new_order == 'c' && (order == 'b' || order == 'c')) {
+        /* own length modifs only if there were no length modifs before*/
         continue;
       }
       order = new_order;
@@ -155,8 +162,8 @@ done:
   }
 }
 /*----------------------------------------------------------------------------*/
-static char const printf_float_modifs[]       = " -+0123456789.NfFeEgGaA";
-static char const printf_float_modifs_order[] = "aaaabbbbbbbbbbcdddddddd";
+static char const printf_float_modifs[]       = "# -+0123456789.fFeEgGaA";
+static char const printf_float_modifs_order[] = "aaaaabbbbbbbbbbcccccccc";
 /*----------------------------------------------------------------------------*/
 static bl_err append_float(
   entry_parser*       ep,
@@ -167,18 +174,22 @@ static bl_err append_float(
   )
 {
   bl_dstr_append_char (&ep->fmt, '%');
-  char order       = 'a' - 1;
-  bl_err err       = bl_mkok();
-  char printf_type = 'f';
-  /*this is just intended add functionality and avoid the most harmful things
-    that a malicious user could do to printf ("%" ".*" and "."). printf should
-    have its own very hardened parser, no need to do it twice." */
+  char order        = 'a' - 1;
+  bl_err err        = bl_mkok();
+  char printf_type  = 'f';
+  bl_uword dotcount = 0;
+  /*this is just intended as a quick filter for the most egregious things that
+  could be passed to printf, e.g. added "%", ".*", etc. and to add the extra
+  length modifiers. A good printf implementation on any major platform should
+  have its own battle-tested parser, no need to do it twice." */
   while (fmt_beg < fmt_end) {
     char* v = memchr(
       printf_float_modifs, *fmt_beg, sizeof printf_float_modifs - 1
       );
     if (v) {
       char new_order = printf_float_modifs_order[v - printf_float_modifs];
+      /* '0' is allowed as a flag and as a width/precision number. manually
+      correcting the new_order */
       new_order = (order != 'b' || *v != '0') ? new_order : 'b';
       if (new_order < order) {
         continue;
@@ -187,14 +198,15 @@ static bl_err append_float(
       switch (order) {
       case 'a': /* deliberate fall-through */
       case 'b':
+        if (*v == '.') {
+          ++dotcount;
+          if (dotcount > 1) {
+            continue; /* only one dot allowed */
+          }
+        }
         err = bl_dstr_append_char (&ep->fmt, *v);
         break;
       case 'c':
-        err = bl_dstr_append(
-          &ep->fmt, nibbles_width_table[type - malc_type_i8]
-          );
-      break;
-      case 'd':
         printf_type = *v;
       default: /* deliberate fall-through */
         goto done;

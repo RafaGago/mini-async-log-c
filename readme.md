@@ -40,37 +40,74 @@ Features
 Log format strings
 ==================
 
-The format strings have this form:
+The format strings have this (common) bracket delimited form:
 
 > "this is value 1: {} and this is value 2: {}"
 
-These are like printf strings where the length related specifiers are detected
-automatically. So you never need to specify e.g hh, llu, d, etc.
+The opening brace '{' is escaped by doubling it. The close brace doesn't need
+escaping.
 
-All the strings inside the braces will be passed internally to printf as format
-modifiers, e.g.
+Depending on the data type modifiers inside the brackets are accepted. Those try
+to match own printf's modifiers.
 
-> "this is a fixed 8 char width zero padded integer: {08}"
+As a reminder, "printf" format strings are composed like this:
 
-You can use all the other non-length specifiers:
+%[flags]\[width][.precision]\[length]specifier
+
+Where the valid chars for each field are (on C99):
+
+-flags: #, 0, +, -
+-width: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+-precision: ., 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, .*
+-length: h, hh, l, ll, j, z, t, L
+-specifiers: d, i, u , o, x, X, f, F, e, E, g, G, a, A, c, s, p, n, %
+
+Malc autodetecs the datatypes passed to the log strings, so the "length"
+modifiers and signedness "specifiers" are never required. Which specifiers can
+be used on which data type is also restricted only to those that make sense.
+
+Malc adds two non-numeric width specifiers 'W' and 'N':
+
+-'W' represents the maximum digit count that the biggest/smallest value of an
+ integer type can have.
+-'N' represents the nibble count of a data type (useful to print hex).
+
+On malc there are three width modifier groups [0-9], W and N. The three of them
+are mutually exclusive. Only one of them can be specified, the result of not
+doing so is undefined.
+
+Next comes a summary of the valid modifiers for each type.
+
+integrals
+---------
+
+-flags: #, 0, +, -
+-width: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, W, N
+-specifiers: o, x, X
+
+floating point
+--------------
+
+-flags: #, 0, +, -
+-width: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+-precision: ., 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+-specifiers: f, F, e, E, g, G, a, A
+
+others
+------
+
+Other types, like pointers, strings, etc. accept no modifiers.
+
+examples
+--------
+
+> "this is a fixed 8 char width 0-padded integer: {08}"
 
 > "hex 8 char width zero padded integer: {08x}"
 
-The new "W" specifier is replaced by the maximum character count that an
-integer can allocate (3 for 1 byte, 5 for 2 bytes, 10 for 4 bytes and 20 for 8
-bytes):
+> "0-padded integer to the digits that the datatype's max/min value has: {0W}"
 
-> "full width zero padded integer: {0W}"
-
-The new "N" specifier is replaced by the number of nibbles of an hexadecimal
-integer:
-
-> "full width hex zero padded integer: {0Nx}"
-
-The "*" width and ".*" precision specifiers are unsupported.
-
-The opening brace '{' is escaped by doubling it. The close brace doesn't need
-escaping:
+> "0-padded hex integer to the datatype's nibble count: {0Nx}"
 
 > "Escaped open brace: {{"
 
