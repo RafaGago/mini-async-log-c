@@ -143,6 +143,10 @@ malc_test_srcs = [
     'test/src/malc/array_destination_test.c',
     'test/src/malc/file_destination_test.c',
 ]
+malc_test_cpp_srcs = [
+    'test/src/malcpp/tests_main.cpp',
+    'test/src/malcpp/log_entry_validator.cpp',
+]
 malc_smoke_test_srcs = [
     'smoke_test/src/malc/smoke.c',
 ]
@@ -188,6 +192,17 @@ if not get_option ('bare')
             malc_test_srcs,
             include_directories : test_include_dirs,
             link_with           : malc_lib,
+            link_args           : test_link_args,
+            c_args              : cflags + test_cflags,
+            dependencies        : threads
+        ))
+    test(
+        'malc-test-cpp',
+        executable(
+            'malc-test-cpp',
+            malc_test_cpp_srcs,
+            include_directories : test_include_dirs,
+            link_with           : [ malc_lib, malcpp_lib ],
             link_args           : test_link_args,
             c_args              : cflags + test_cflags,
             dependencies        : threads
@@ -295,4 +310,31 @@ if not get_option ('bare')
         cpp_args            : cflags,
         dependencies        : threads
         )
+
+    # C++ specific compilation failure/pass test targets. these targets won't
+    # build by default and are to be launched by a script invoking ninja, on
+    # Linux this is done on "scripts/malcpp11-fmtstr-test.sh".
+
+    validation_tests = {
+        'cpp-fmtstr-excess-arguments-1': 'fail_excess_arguments_1.cpp',
+        'cpp-fmtstr-excess-arguments-2': 'fail_excess_arguments_2.cpp',
+        'cpp-fmtstr-excess-arguments-3': 'fail_excess_arguments_3.cpp',
+        'cpp-fmtstr-excess-placecholders-1': 'fail_excess_placeholders_1.cpp',
+        'cpp-fmtstr-excess-placecholders-2': 'fail_excess_placeholders_2.cpp',
+        'cpp-fmtstr-excess-placecholders-3': 'fail_excess_placeholders_3.cpp',
+        'cpp-fmtstr-unescaped-brace-1': 'fail_unescaped_brace_1.cpp',
+        'cpp-fmtstr-unescaped-brace-2': 'fail_unescaped_brace_2.cpp',
+        'cpp-fmtstr-same-argcount': 'pass_same_argcount.cpp',
+        }
+    foreach name, filename : validation_tests
+        executable(
+            name,
+            ['test/src/malcpp/compile-time/' + filename ],
+            link_with           : [ malcpp_lib, base_lib ],
+            include_directories : test_include_dirs,
+            cpp_args            : cflags,
+            dependencies        : threads,
+            build_by_default    : false
+            )
+    endforeach
 endif

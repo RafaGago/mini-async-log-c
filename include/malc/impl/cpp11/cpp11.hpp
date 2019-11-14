@@ -35,7 +35,7 @@ enum fmterr : int {
   fmterr_notfound            = -1,
   fmterr_invalid_modifiers   = -2,
   fmterr_excess_placeholders = -3,
-  fmterr_excess_parameters   = -4,
+  fmterr_excess_arguments    = -4,
   fmterr_unclosed_lbracket   = -5,
 };
 //------------------------------------------------------------------------------
@@ -163,13 +163,13 @@ struct parameter {
 //------------------------------------------------------------------------------
 template <class...>
 struct typelist {};
-
+//------------------------------------------------------------------------------
 template <class... types>
 typelist<types...> make_typelist (types... args)
 {
   return typelist<types...>();
 }
-
+//------------------------------------------------------------------------------
 template <class... >
 struct typelist_next;
 
@@ -189,11 +189,11 @@ struct normal_iteration_tag {};
 struct check_remainder_tag {};
 //------------------------------------------------------------------------------
 template <class T>
-struct keep_iterating {
+struct keep_iterating_args {
   using type = normal_iteration_tag;
 };
 template <>
-struct keep_iterating<typelist<> > {
+struct keep_iterating_args<typelist<> > {
   using type = check_remainder_tag;
 };
 //------------------------------------------------------------------------------
@@ -214,9 +214,9 @@ private:
       {
         return fmterr_excess_placeholders;
       }
-      static int excess_parameters_on_log_call()
+      static int excess_arguments_on_log_call()
       {
-        return fmterr_excess_parameters;
+        return fmterr_excess_arguments;
       }
       static int placeholder_has_invalid_modifiers_for_its_type()
       {
@@ -232,9 +232,9 @@ private:
   template <int N, class tlist>
   static constexpr int iterate (const literal& l, int litpos)
   {
+    using iter_tag = typename keep_iterating_args<tlist>::type;
     using next     = typelist_next<tlist>;
-    using itertype = typename keep_iterating<tlist>::type;
-    return consume<N, next> (l ,litpos, itertype());
+    return consume<N, next> (l ,litpos, iter_tag());
   }
   //----------------------------------------------------------------------------
   template <int N, class tlistnext>
@@ -245,7 +245,7 @@ private:
     using first     = typename tlistnext::first;
     using remainder = typename tlistnext::remainder;
     using T = typename std::remove_reference<
-      typename  std::remove_cv<first>::type
+      typename std::remove_cv<first>::type
       >::type;
     /* function chaining because variables can't be created inside constexpr,
     so to declare variables on has to call functions with extra args. The
@@ -261,15 +261,15 @@ private:
     const literal& l, int validate_result
     )
   {
-    // the called functions here aren't constexpr, so they will generate a
+    // the called error functions here aren't constexpr, so they will generate a
     // compile error on static constexts while still allowing unit testing on
     // a non static context.
 
     // deliberately ommitting the 80 char limit to make the message passed
-    // through the data type name readable.
+    // through the data type name readable in one line on the compiler output.
     return
       (validate_result == fmterr_notfound)
-      ? error::when_parsing_arg<N, T>::excess_parameters_on_log_call()
+      ? error::when_parsing_arg<N, T>::excess_arguments_on_log_call()
       : (validate_result == fmterr_invalid_modifiers)
         ? error::when_parsing_arg<N, T>::placeholder_has_invalid_modifiers_for_its_type()
         : (validate_result == fmterr_unclosed_lbracket)
@@ -297,6 +297,12 @@ private:
   template <int N>
   static constexpr int process_last_error (int err)
   {
+    // the called error functions here aren't constexpr, so they will generate a
+    // compile error on static constexts while still allowing unit testing on
+    // a non static context.
+
+    // deliberately ommitting the 80 char limit to make the message passed
+    // through the data type name readable in one line on the compiler output.
     typedef remainder_type_tag notype;
     return
       (err == fmterr_notfound)
