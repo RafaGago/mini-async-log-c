@@ -72,115 +72,120 @@ struct fwd_sequence_gen<0, S...> {
 #endif
 
 //------------------------------------------------------------------------------
-static constexpr int modifiers_validate_int_stage_3(
-  const literal& l, int beg, int end, const literal& modf
-  )
-{
-  return
-    (beg < end)
-    ? (end - beg == 1)
+struct remainder_type_tag {};
+//------------------------------------------------------------------------------
+class modifiers {
+public:
+  //----------------------------------------------------------------------------
+  template<class T>
+  static constexpr typename std::enable_if<
+    std::is_integral<T>::value, int
+    >::type
+    validate (const literal& l, int beg, int end, T*)
+  {
+    return (beg == end)
+      ? fmterr_success
+      : validate_int_stage_1 (l, beg, end, literal (" #+-0"), beg);
+  }
+  //----------------------------------------------------------------------------
+  template<class T>
+  static constexpr typename std::enable_if<
+    std::is_floating_point<T>::value, int
+    >::type
+    validate (const literal& l, int beg, int end, T*)
+  {
+    /*TBI*/
+    return (beg == end) ?  fmterr_success : fmterr_invalid_modifiers;
+  }
+  //----------------------------------------------------------------------------
+  template<class T>
+  static constexpr typename std::enable_if<
+    std::is_same<T, remainder_type_tag>::value, int
+    >::type
+    validate (const literal& l, int beg, int end, T*)
+  {
+    /* This is called when all function parameters are processed to check if
+    there are still placeholders on the string. At this point anything we return
+    other than "fmterr_notfound" will be an error.
+
+    If there is a consecutive open and close bracket we consider it as a found
+    placeholder, it will be reported  as "fmt_excess_placeholders". If they are
+    non-consecutive we consider that the user forgot to escape the left bracket.
+    Both return will generate an error on the parser. */
+    return (beg == end) ?  fmterr_success : fmterr_unclosed_lbracket;
+  }
+  //----------------------------------------------------------------------------
+  template <class T>
+  static constexpr int validate (const literal& l, int beg, int end, ...)
+  {
+    /* unknown types have no modifiers, type validation happens later.
+    "..." the elipsis operator gives this overload the lowest priority when
+    searching for resolution candidates. */
+    return (beg == end) ?  fmterr_success : fmterr_invalid_modifiers;
+  }
+private:
+  //----------------------------------------------------------------------------
+  static constexpr int validate_int_stage_3(
+    const literal& l, int beg, int end, const literal& modf
+    )
+  {
+    return
+      (beg < end)
+      ? (end - beg == 1)
+        ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
+          //keep validating the same stage
+          ? validate_int_stage_3 (l, beg + 1, end, modf)
+          //unknown modifier
+          : fmterr_invalid_modifiers
+        //only one specifier allowed
+        : fmterr_invalid_modifiers
+      : fmterr_success;
+  }
+  //----------------------------------------------------------------------------
+  static constexpr int validate_int_stage_2(
+    const literal& l,
+    int beg,
+    int end,
+    const literal& modf,
+    int own = 0,
+    int num = 0
+    )
+  {
+    return
+      (beg < end)
       ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
         //keep validating the same stage
-        ? modifiers_validate_int_stage_3 (l, beg + 1, end, modf)
-        //unknown modifier
-        : fmterr_invalid_modifiers
-      //only one specifier allowed
-      : fmterr_invalid_modifiers
-    : fmterr_success;
-}
-//------------------------------------------------------------------------------
-static constexpr int modifiers_validate_int_stage_2(
-  const literal& l,
-  int beg,
-  int end,
-  const literal& modf,
-  int own = 0,
-  int num = 0
-  )
-{
-  return
-    (beg < end)
-    ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
-      //keep validating the same stage
-      ? (l[beg] == 'W' || l[beg] == 'N')
-        ? (own == 0 && num == 0)
-          ? modifiers_validate_int_stage_2 (l, beg + 1, end, modf, own + 1, num)
-          : fmterr_invalid_modifiers
-        : (own == 0)
-          ? modifiers_validate_int_stage_2 (l, beg + 1, end, modf, own, num + 1)
-          : fmterr_invalid_modifiers
-      //next stage
-      : modifiers_validate_int_stage_3 (l, beg, end, literal ("xXo"))
-    : fmterr_success;
-}
-//------------------------------------------------------------------------------
-static constexpr int modifiers_validate_int_stage_1(
-  const literal& l, int beg, int end, const literal& modf, int stgbeg
-  )
-{
-  return
-    (beg < end)
-    ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
-      //keep validating the same stage
-      ? modifiers_validate_int_stage_1 (l, beg + 1, end, modf, stgbeg)
-      //next stage
+        ? (l[beg] == 'W' || l[beg] == 'N')
+          ? (own == 0 && num == 0)
+            ? validate_int_stage_2 (l, beg + 1, end, modf, own + 1, num)
+            : fmterr_invalid_modifiers
+          : (own == 0)
+            ? validate_int_stage_2 (l, beg + 1, end, modf, own, num + 1 )
+            : fmterr_invalid_modifiers
+        //next stage
+        : validate_int_stage_3 (l, beg, end, literal ("xXo"))
+      : fmterr_success;
+  }
+  //----------------------------------------------------------------------------
+  static constexpr int validate_int_stage_1(
+    const literal& l, int beg, int end, const literal& modf, int stgbeg
+    )
+  {
+    return
+      (beg < end)
+      ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
+        //keep validating the same stage
+        ? validate_int_stage_1 (l, beg + 1, end, modf, stgbeg)
+        //next stage
+        : l.has_repeated_chars (stgbeg, beg)
+          ? fmterr_invalid_modifiers
+          : validate_int_stage_2 (l, beg, end, literal ("WN0123456789"))
       : l.has_repeated_chars (stgbeg, beg)
         ? fmterr_invalid_modifiers
-        : modifiers_validate_int_stage_2 (l, beg, end, literal ("WN0123456789"))
-    : l.has_repeated_chars (stgbeg, beg)
-      ? fmterr_invalid_modifiers
-      : fmterr_success;
-}
-//------------------------------------------------------------------------------
-template<class T>
-static constexpr typename std::enable_if<
-  std::is_integral<T>::value, int
-  >::type
-  modifiers_validate (const literal& l, int beg, int end, T*)
-{
-  return (beg == end)
-    ? fmterr_success
-    : modifiers_validate_int_stage_1 (l, beg, end, literal (" #+-0"), beg);
-}
-//------------------------------------------------------------------------------
-template<class T>
-static constexpr typename std::enable_if<
-  std::is_floating_point<T>::value, int
-  >::type
-  modifiers_validate (const literal& l, int beg, int end, T*)
-{
-  /*TBI*/
-  return (beg == end) ?  fmterr_success : fmterr_invalid_modifiers;
-}
-//------------------------------------------------------------------------------
-struct remainder_type_tag {};
-template<class T>
-static constexpr typename std::enable_if<
-  std::is_same<T, remainder_type_tag>::value, int
-  >::type
-  modifiers_validate (const literal& l, int beg, int end, T*)
-{
-  /* This is called when all function parameters are processed to check if there
-  are still placeholders on the string. At this point anything we return other
-  than "fmterr_notfound" will be an error.
-
-  If there is a consecutive open and close bracket we consider it as a found
-  placeholder, it will be reported  as "fmt_excess_placeholders". If they are
-  non-consecutive we consider that the user forgot to escape the left bracket.
-  Both return will generate an error on the parser. */
-  return (beg == end) ?  fmterr_success : fmterr_unclosed_lbracket;
-}
-//------------------------------------------------------------------------------
-template <class T>
-static constexpr int modifiers_validate(
-  const literal& l, int beg, int end, ...
-  )
-{
-  /* unknown types have no modifiers, type validation happens later
-  "..." the elipsis operator gives this overload the lowest priority when
-  searching for resolution candidates. */
-  return (beg == end) ?  fmterr_success : fmterr_invalid_modifiers;
-}
+        : fmterr_success;
+  }
+  //----------------------------------------------------------------------------
+};
 //------------------------------------------------------------------------------
 class placeholder {
 public:
@@ -239,7 +244,7 @@ private:
     many times*/
     return (end != fmterr_notfound)
       ? validate_next_step3_validation(
-          end, modifiers_validate (l, beg, end, (T*) nullptr)
+          end, modifiers::validate (l, beg, end, (T*) nullptr)
           )
       : fmterr_unclosed_lbracket;
   }
@@ -391,7 +396,8 @@ private:
     // a non static context.
 
     // deliberately ommitting the 80 char limit to make the message passed
-    // through the data type name readable in one line on the compiler output.
+    // through the data type and function name readable in one line on the
+    // compiler output.
     typedef remainder_type_tag notype;
     return
       (err == fmterr_notfound)
