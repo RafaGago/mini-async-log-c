@@ -325,6 +325,7 @@ if not get_option ('bare')
         'cpp-fmtstr-unescaped-brace-1': 'fail_unescaped_brace_1.cpp',
         'cpp-fmtstr-unescaped-brace-2': 'fail_unescaped_brace_2.cpp',
         'cpp-fmtstr-same-argcount': 'pass_same_argcount.cpp',
+        'cpp-fmtstr-bad-int-modifiers': 'fail_bad_int_modifiers.cpp',
         }
     foreach name, filename : validation_tests
         executable(
