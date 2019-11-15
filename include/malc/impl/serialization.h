@@ -14,6 +14,20 @@
 #include <malc/impl/common.h>
 
 /*----------------------------------------------------------------------------*/
+typedef struct malc_serializer {
+    bl_u8*   node_mem;
+#if MALC_COMPRESSION == 1
+    bl_u8*   compressed_header;
+    bl_uword compressed_header_idx;
+#endif
+    bl_u8*   field_mem;
+}
+malc_serializer;
+/*----------------------------------------------------------------------------*/
+#ifdef MALC_COMMON_NAMESPACED
+namespace malcpp { namespace detail {
+#endif
+/*----------------------------------------------------------------------------*/
 typedef struct malc_compressed_32 {
   bl_u32 v;
   bl_u32 format_nibble; /*1 bit sign + 3 bit size (0-7)*/
@@ -103,16 +117,6 @@ static inline malc_compressed_ptr malc_get_compressed_ptr (void* v)
 #else
   #error "Unsupported bl_word size or bad compiler detection"
 #endif
-/*----------------------------------------------------------------------------*/
-typedef struct malc_serializer {
-    bl_u8*   node_mem;
-#if MALC_COMPRESSION == 1
-    bl_u8*   compressed_header;
-    bl_uword compressed_header_idx;
-#endif
-    bl_u8*   field_mem;
-}
-malc_serializer;
 /*----------------------------------------------------------------------------*/
 static inline void wrong (void) {}
 /*----------------------------------------------------------------------------*/
@@ -306,6 +310,10 @@ static inline void MALC_SERIALIZE(_comprefdtor)(
   malc_serialize_compressed_ptr (s, v.context);
 }
 #endif /* #if MALC_COMPRESSION == 1*/
+/*----------------------------------------------------------------------------*/
+#ifdef MALC_COMMON_NAMESPACED
+}}  //namespace malcpp { namespace detail {
+#endif
 /*----------------------------------------------------------------------------*/
 #ifndef __cplusplus /* C++ uses function overload, not type generic macros */
 

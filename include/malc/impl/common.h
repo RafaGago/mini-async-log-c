@@ -10,18 +10,23 @@
 
 #include <bl/base/integer.h>
 #include <malc/libexport.h>
-
 /*----------------------------------------------------------------------------*/
 #if MALC_BUILTIN_COMPRESSION == 0 && MALC_PTR_COMPRESSION == 0
   #define MALC_COMPRESSION 0
 #else
   #define MALC_COMPRESSION 1
 #endif
-
+/*----------------------------------------------------------------------------*/
+typedef struct malc_const_entry {
+  char const* format;
+  char const* info; /* first char is the severity */
+  bl_u16      compressed_count;
+}
+malc_const_entry;
+/*----------------------------------------------------------------------------*/
 #ifdef MALC_COMMON_NAMESPACED
 namespace malcpp { namespace detail {
 #endif
-
 /*----------------------------------------------------------------------------*/
 typedef enum malc_encodings {
   malc_end          = 0,
@@ -90,13 +95,6 @@ typedef struct malc_refdtor {
   void*           context;
 }
 malc_refdtor;
-/*----------------------------------------------------------------------------*/
-typedef struct malc_const_entry {
-  char const* format;
-  char const* info; /* first char is the severity */
-  bl_u16      compressed_count;
-}
-malc_const_entry;
 /*----------------------------------------------------------------------------*/
 #ifdef MALC_COMMON_NAMESPACED
 }}  //namespace malcpp { namespace detail {

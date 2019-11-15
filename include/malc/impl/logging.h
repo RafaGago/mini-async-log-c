@@ -1,6 +1,9 @@
 #ifndef __MALC_LOGGING_INTERNAL__
 #define __MALC_LOGGING_INTERNAL__
 
+#include <bl/base/error.h>
+#include <bl/base/integer.h>
+
 #ifdef __cplusplus
   extern "C" {
 #endif

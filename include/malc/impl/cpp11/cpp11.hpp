@@ -4,6 +4,8 @@
 #include <type_traits>
 #define MALC_COMMON_NAMESPACED
 #include <malc/impl/common.h>
+#include <malc/impl/logging.h>
+#include <malc/impl/serialization.h>
 
 namespace malcpp { namespace detail { namespace fmt {
 
@@ -451,7 +453,18 @@ private:
         : error::when_parsing_arg<N, notype>::excess_placeholders_in_format_string();
   }
 };
+/*----------------------------------------------------------------------------*/
+#define MALCPP_LOG_IF_PRIVATE(cond, err, malc_ptr, sev, ...) \
+/* Reminder: The first __VA_ARG__ is the format string */\
+  do { \
+    if ((cond) && ((sev) >= MALC_GET_MIN_SEVERITY_FNAME ((malc_ptr)))) { \
+      err = ::malcpp::detail::log (malc_ptr, sev, __VA_ARGS__); \
+    } \
+    err.sys += 0; /*remove unused variable warnings */ \
+  } \
+  while (0);
 //------------------------------------------------------------------------------
+
 #if 0
 template <int N, class... types>
 bl_err log (void* handle, int severity, const char(&arr)[N], types... args)
