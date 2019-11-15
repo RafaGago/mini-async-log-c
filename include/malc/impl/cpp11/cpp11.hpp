@@ -85,7 +85,7 @@ public:
   {
     return (beg == end)
       ? fmterr_success
-      : validate_int_stage_1 (l, beg, end, literal (" #+-0"), beg);
+      : validate_int (l, beg, end, literal (" #+-0"), beg);
   }
   //----------------------------------------------------------------------------
   template<class T>
@@ -95,7 +95,9 @@ public:
     validate (const literal& l, int beg, int end, T*)
   {
     /*TBI*/
-    return (beg == end) ?  fmterr_success : fmterr_invalid_modifiers;
+    return (beg == end)
+      ? fmterr_success
+      : validate_float (l, beg, end, literal (" #+-0"), beg);
   }
   //----------------------------------------------------------------------------
   template<class T>
@@ -121,11 +123,11 @@ public:
     /* unknown types have no modifiers, type validation happens later.
     "..." the elipsis operator gives this overload the lowest priority when
     searching for resolution candidates. */
-    return (beg == end) ?  fmterr_success : fmterr_invalid_modifiers;
+    return (beg == end) ? fmterr_success : fmterr_invalid_modifiers;
   }
 private:
   //----------------------------------------------------------------------------
-  static constexpr int validate_int_stage_3(
+  static constexpr int validate_specifiers(
     const literal& l, int beg, int end, const literal& modf
     )
   {
@@ -133,8 +135,8 @@ private:
       (beg < end)
       ? (end - beg == 1)
         ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
-          //keep validating the same stage
-          ? validate_int_stage_3 (l, beg + 1, end, modf)
+          //keep validating
+          ? validate_specifiers (l, beg + 1, end, modf)
           //unknown modifier
           : fmterr_invalid_modifiers
         //only one specifier allowed
@@ -142,7 +144,7 @@ private:
       : fmterr_success;
   }
   //----------------------------------------------------------------------------
-  static constexpr int validate_int_stage_2(
+  static constexpr int validate_int_width(
     const literal& l,
     int beg,
     int end,
@@ -157,29 +159,71 @@ private:
         //keep validating the same stage
         ? (l[beg] == 'W' || l[beg] == 'N')
           ? (own == 0 && num == 0)
-            ? validate_int_stage_2 (l, beg + 1, end, modf, own + 1, num)
+            ? validate_int_width (l, beg + 1, end, modf, own + 1, num)
             : fmterr_invalid_modifiers
           : (own == 0)
-            ? validate_int_stage_2 (l, beg + 1, end, modf, own, num + 1 )
+            ? validate_int_width (l, beg + 1, end, modf, own, num + 1 )
             : fmterr_invalid_modifiers
         //next stage
-        : validate_int_stage_3 (l, beg, end, literal ("xXo"))
+        : validate_specifiers (l, beg, end, literal ("xXo"))
       : fmterr_success;
   }
   //----------------------------------------------------------------------------
-  static constexpr int validate_int_stage_1(
+  static constexpr int validate_int(
     const literal& l, int beg, int end, const literal& modf, int stgbeg
+    )
+  {
+    // this function validates the flags or jumps to the width modifiers
+    return
+      (beg < end)
+      ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
+        //keep validating the same stage
+        ? validate_int (l, beg + 1, end, modf, stgbeg)
+        //next stage
+        : l.has_repeated_chars (stgbeg, beg)
+          ? fmterr_invalid_modifiers
+          : validate_int_width (l, beg, end, literal ("WN0123456789"))
+      : l.has_repeated_chars (stgbeg, beg)
+        ? fmterr_invalid_modifiers
+        : fmterr_success;
+  }
+  //----------------------------------------------------------------------------
+  static constexpr int validate_float_width_precision(
+    const literal& l, int beg, int end, const literal& modf, int has_dot = 0
     )
   {
     return
       (beg < end)
       ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
         //keep validating the same stage
-        ? validate_int_stage_1 (l, beg + 1, end, modf, stgbeg)
+        ? (has_dot == 0 || l[beg] != '.')
+          ? validate_float_width_precision(
+            l, beg + 1, end, modf, has_dot + (l[beg] == '.')
+            )
+          // duplicated dot
+          : fmterr_invalid_modifiers
+        //next stage
+        : validate_specifiers (l, beg, end, literal ("fFeEgGaA"))
+      : fmterr_success;
+  }
+  //----------------------------------------------------------------------------
+  static constexpr int validate_float(
+    const literal& l, int beg, int end, const literal& modf, int stgbeg
+    )
+  {
+    // this function validates the flags or jumps to the width/precision
+    // modifiers
+    return
+      (beg < end)
+      ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
+        //keep validating the same stage
+        ? validate_float (l, beg + 1, end, modf, stgbeg)
         //next stage
         : l.has_repeated_chars (stgbeg, beg)
           ? fmterr_invalid_modifiers
-          : validate_int_stage_2 (l, beg, end, literal ("WN0123456789"))
+          : validate_float_width_precision(
+            l, beg, end, literal (".0123456789")
+            )
       : l.has_repeated_chars (stgbeg, beg)
         ? fmterr_invalid_modifiers
         : fmterr_success;
@@ -244,7 +288,7 @@ private:
     many times*/
     return (end != fmterr_notfound)
       ? validate_next_step3_validation(
-          end, modifiers::validate (l, beg, end, (T*) nullptr)
+          end, modifiers::validate<T> (l, beg, end, (T*) nullptr)
           )
       : fmterr_unclosed_lbracket;
   }
