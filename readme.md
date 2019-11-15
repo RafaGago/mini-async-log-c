@@ -31,6 +31,9 @@ Features
 
 - Compile-time removable severities.
 
+- Lazy evaluated parameters. If the log call is filtered out because of a low
+  severity it doesn't get evaluated.
+
 - Zero-copy logging of strings/memory ranges: achieved by just invoking a
   destruction callback from where manual deallocation or reference counting can
   be done.
