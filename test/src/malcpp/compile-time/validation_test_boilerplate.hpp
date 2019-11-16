@@ -11,9 +11,9 @@ class trigger_compile_errors {};
 #define malc_pp_vargs_ignore_first(a, ...) __VA_ARGS__
 
 #define valtest(...) \
-  trigger_compile_errors< \
+  malcpp::detail::fmt::static_validation< \
     malcpp::detail::fmt::format_string::validate< \
-      decltype (malcpp::detail::fmt::make_typelist( \
+      decltype (malcpp::detail::make_typelist( \
         malc_pp_vargs_ignore_first (__VA_ARGS__) \
         )) \
       > (malc_pp_vargs_first (__VA_ARGS__)) \

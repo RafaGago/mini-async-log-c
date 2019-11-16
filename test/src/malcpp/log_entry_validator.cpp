@@ -8,7 +8,9 @@ using namespace malcpp::detail::fmt;
 template <int N, class... types>
 int fmt (const char(&arr)[N], types... args)
 {
-  return format_string::validate<typelist<types...> > (arr);
+  return fmtret::get_code(
+    format_string::validate<::malcpp::detail::typelist<types...> > (arr)
+    );
 }
 /*----------------------------------------------------------------------------*/
 static void matching_placeholders (void **state)

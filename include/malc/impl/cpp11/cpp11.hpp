@@ -2,13 +2,41 @@
 #define __MALC_CPP11__
 
 #include <type_traits>
+#include <tuple>
 #define MALC_COMMON_NAMESPACED
+#include <malc/common.h>
+#include <malc/log_macros.h>
 #include <malc/impl/common.h>
 #include <malc/impl/logging.h>
 #include <malc/impl/serialization.h>
 
-namespace malcpp { namespace detail { namespace fmt {
+namespace malcpp { namespace detail {
+//------------------------------------------------------------------------------
+template <class...>
+struct typelist {};
+//------------------------------------------------------------------------------
+template <class... types>
+typelist<types...> make_typelist (types... args)
+{
+  return typelist<types...>();
+}
+//------------------------------------------------------------------------------
+template <class... >
+struct typelist_next;
 
+template <>
+struct typelist_next<typelist<> > {
+  using first     = typelist<>;
+  using remainder = typelist<>;
+};
+
+template <class T, class... types>
+struct typelist_next <typelist<T, types...> > {
+  using first     = T;
+  using remainder = typelist<types...>;
+};
+//------------------------------------------------------------------------------
+namespace fmt { // string format validation
 //------------------------------------------------------------------------------
 class literal {
 public:
@@ -58,21 +86,25 @@ enum fmterr : int {
   fmterr_unclosed_lbracket   = -5,
 };
 //------------------------------------------------------------------------------
-#if 0
-// this will be needed for tuples
-//------------------------------------------------------------------------------
-template<int ...>
-struct fwd_sequence { };
-
-template<int N, int ...S>
-struct fwd_sequence_gen : fwd_sequence_gen<N-1, N-1, S...> { };
-
-template<int ...S>
-struct fwd_sequence_gen<0, S...> {
-  typedef fwd_sequence<S...> type;
+struct fmtret {
+  static const unsigned argbits = 16;
+  //------------------------------------------------------------------------------
+  static constexpr unsigned make (int code, unsigned arg)
+  {
+    return arg | (((unsigned) (code * -1)) << argbits);
+  }
+  //------------------------------------------------------------------------------
+  static constexpr int get_code (unsigned fmtretval)
+  {
+    return ((int)(fmtretval >> argbits)) * -1;
+  }
+  //------------------------------------------------------------------------------
+  static constexpr unsigned get_arg (unsigned fmtretval)
+  {
+    return fmtretval & ((1 << argbits) - 1);
+  }
+  //------------------------------------------------------------------------------
 };
-#endif
-
 //------------------------------------------------------------------------------
 struct remainder_type_tag {};
 //------------------------------------------------------------------------------
@@ -304,30 +336,6 @@ private:
   //----------------------------------------------------------------------------
 };
 //------------------------------------------------------------------------------
-template <class...>
-struct typelist {};
-//------------------------------------------------------------------------------
-template <class... types>
-typelist<types...> make_typelist (types... args)
-{
-  return typelist<types...>();
-}
-//------------------------------------------------------------------------------
-template <class... >
-struct typelist_next;
-
-template <>
-struct typelist_next<typelist<> > {
-  using first     = typelist<>;
-  using remainder = typelist<>;
-};
-
-template <class T, class... types>
-struct typelist_next <typelist<T, types...> > {
-  using first     = T;
-  using remainder = typelist<types...>;
-};
-//------------------------------------------------------------------------------
 struct normal_iteration_tag {};
 struct check_remainder_tag {};
 //------------------------------------------------------------------------------
@@ -350,30 +358,8 @@ public:
   }
 private:
   //----------------------------------------------------------------------------
-  struct error {
-    template <int N, class type>
-    struct when_parsing_arg {
-      static int excess_placeholders_in_format_string()
-      {
-        return fmterr_excess_placeholders;
-      }
-      static int excess_arguments_on_log_call()
-      {
-        return fmterr_excess_arguments;
-      }
-      static int invalid_modifiers_in_placeholder()
-      {
-        return fmterr_invalid_modifiers;
-      }
-      static int unclosed_bracket_in_format_string()
-      {
-        return fmterr_unclosed_lbracket;
-      }
-    };
-  };
-  //----------------------------------------------------------------------------
   template <int N, class tlist>
-  static constexpr int iterate (const literal& l, int litpos)
+  static constexpr unsigned iterate (const literal& l, int litpos)
   {
     using iter_tag = typename keep_iterating_args<tlist>::type;
     using next     = typelist_next<tlist>;
@@ -381,7 +367,7 @@ private:
   }
   //----------------------------------------------------------------------------
   template <int N, class tlistnext>
-  static constexpr int consume(
+  static constexpr unsigned consume(
     const literal& l, int litpos, normal_iteration_tag
     )
   {
@@ -400,25 +386,20 @@ private:
   }
   //----------------------------------------------------------------------------
   template <int N, class tlistnext, class T, class remainder>
-  static constexpr int verify_next(
+  static constexpr unsigned verify_next(
     const literal& l, int validate_result
     )
   {
-    // the called error functions here aren't constexpr, so they will generate a
-    // compile error on static constexts while still allowing unit testing on
-    // a non static context.
     return
       (validate_result == fmterr_notfound)
-      ? error::when_parsing_arg<N, T>::excess_arguments_on_log_call()
-      : (validate_result == fmterr_invalid_modifiers)
-        ? error::when_parsing_arg<N, T>::invalid_modifiers_in_placeholder()
-        : (validate_result == fmterr_unclosed_lbracket)
-          ? error::when_parsing_arg<N, T>::unclosed_bracket_in_format_string()
-          : iterate<N + 1, remainder> (l ,validate_result);
+      ? fmtret::make (fmterr_excess_arguments, N)
+      : (validate_result < fmterr_success)
+        ? fmtret::make (validate_result, N)
+        : iterate<N + 1, remainder> (l , validate_result);
   }
   //----------------------------------------------------------------------------
   template <int N, class tlistnext>
-  static constexpr int consume(
+  static constexpr unsigned consume(
     const literal& l, int litpos, check_remainder_tag
     )
   {
@@ -435,44 +416,524 @@ private:
   }
   //----------------------------------------------------------------------------
   template <int N>
-  static constexpr int process_last_error (int err)
+  static constexpr unsigned process_last_error (int err)
   {
-    // the called error functions here aren't constexpr, so they will generate a
-    // compile error on static constexts while still allowing unit testing on
-    // a non static context.
-
-    // deliberately ommitting the 80 char limit to make the message passed
-    // through the data type and function name readable in one line on the
-    // compiler output.
-    typedef remainder_type_tag notype;
     return
       (err == fmterr_notfound)
-      ? fmterr_success
+      ? fmtret::make (fmterr_success, N)
       : (err == fmterr_unclosed_lbracket)
-        ? error::when_parsing_arg<N, notype>::unclosed_bracket_in_format_string()
-        : error::when_parsing_arg<N, notype>::excess_placeholders_in_format_string();
+        ? fmtret::make (fmterr_unclosed_lbracket, N)
+        : fmtret::make (fmterr_excess_placeholders, N);
   }
 };
 /*----------------------------------------------------------------------------*/
-#define MALCPP_LOG_IF_PRIVATE(cond, err, malc_ptr, sev, ...) \
-/* Reminder: The first __VA_ARG__ is the format string */\
-  do { \
-    if ((cond) && ((sev) >= MALC_GET_MIN_SEVERITY_FNAME ((malc_ptr)))) { \
-      err = ::malcpp::detail::log (malc_ptr, sev, __VA_ARGS__); \
-    } \
-    err.sys += 0; /*remove unused variable warnings */ \
-  } \
-  while (0);
-//------------------------------------------------------------------------------
-
-#if 0
-template <int N, class... types>
-bl_err log (void* handle, int severity, const char(&arr)[N], types... args)
+#define MALCPP_INVARG_LIT \
+  "malc: invalid printf formating modifiers for the given type on the "
+#define MALCPP_INVARG_LIT_SFX " placeholder."
+/*----------------------------------------------------------------------------*/
+template <int res, unsigned arg>
+struct generate_compile_errors {
+  static constexpr bool excessargs()
+  {
+    return (res != fmterr_excess_arguments);
+  }
+  static constexpr bool excesspchs()
+  {
+    return (res != fmterr_excess_placeholders);
+  }
+  static constexpr bool unclosedb()
+  {
+    return (res != fmterr_unclosed_lbracket);
+  }
+  static constexpr bool invmodif (unsigned num)
+  {
+    return (res != fmterr_invalid_modifiers) || arg != num;
+  }
+  static constexpr bool invmodif()
+  {
+    return (res != fmterr_invalid_modifiers) || arg < 50;
+  }
+  static_assert(
+    excessargs(), "malc: too little placeholders in format string"
+    );
+  static_assert (excesspchs(), "malc: too many placeholders in format string.");
+  static_assert (unclosedb(), "malc: unclosed left bracket in format string.");
+  static_assert (invmodif (1), MALCPP_INVARG_LIT "1st" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (2), MALCPP_INVARG_LIT "2nd" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (3), MALCPP_INVARG_LIT "3rd" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (4), MALCPP_INVARG_LIT "4th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (5), MALCPP_INVARG_LIT "5th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (6), MALCPP_INVARG_LIT "6th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (7), MALCPP_INVARG_LIT "7th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (8), MALCPP_INVARG_LIT "8th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (9), MALCPP_INVARG_LIT "9th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (10), MALCPP_INVARG_LIT "10th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (11), MALCPP_INVARG_LIT "11th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (12), MALCPP_INVARG_LIT "12th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (13), MALCPP_INVARG_LIT "13th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (14), MALCPP_INVARG_LIT "14th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (15), MALCPP_INVARG_LIT "15th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (16), MALCPP_INVARG_LIT "16th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (17), MALCPP_INVARG_LIT "17th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (18), MALCPP_INVARG_LIT "18th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (19), MALCPP_INVARG_LIT "19th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (20), MALCPP_INVARG_LIT "20th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (21), MALCPP_INVARG_LIT "21th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (22), MALCPP_INVARG_LIT "22th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (23), MALCPP_INVARG_LIT "23th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (24), MALCPP_INVARG_LIT "24th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (25), MALCPP_INVARG_LIT "25th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (26), MALCPP_INVARG_LIT "26th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (27), MALCPP_INVARG_LIT "27th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (28), MALCPP_INVARG_LIT "28th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (29), MALCPP_INVARG_LIT "29th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (30), MALCPP_INVARG_LIT "30th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (31), MALCPP_INVARG_LIT "31th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (32), MALCPP_INVARG_LIT "32th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (33), MALCPP_INVARG_LIT "33th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (34), MALCPP_INVARG_LIT "34th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (35), MALCPP_INVARG_LIT "35th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (36), MALCPP_INVARG_LIT "36th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (37), MALCPP_INVARG_LIT "37th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (38), MALCPP_INVARG_LIT "38th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (39), MALCPP_INVARG_LIT "39th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (40), MALCPP_INVARG_LIT "40th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (41), MALCPP_INVARG_LIT "41th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (42), MALCPP_INVARG_LIT "42th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (43), MALCPP_INVARG_LIT "43th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (44), MALCPP_INVARG_LIT "44th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (45), MALCPP_INVARG_LIT "45th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (46), MALCPP_INVARG_LIT "46th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (47), MALCPP_INVARG_LIT "47th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (48), MALCPP_INVARG_LIT "48th" MALCPP_INVARG_LIT_SFX);
+  static_assert (invmodif (49), MALCPP_INVARG_LIT "49th" MALCPP_INVARG_LIT_SFX);
+  static_assert(
+    invmodif(),
+    "malc: invalid printf formating modifiers for the given type on a placeholder over the 49th"
+    );
+};
+/*----------------------------------------------------------------------------*/
+template <unsigned arg>
+struct generate_compile_errors<fmterr_success, arg> {};
+/*----------------------------------------------------------------------------*/
+template <unsigned fmtretval>
+static void static_validation()
 {
-  return 0;
-}
-#endif
+  generate_compile_errors<
+    fmtret::get_code (fmtretval), fmtret::get_arg (fmtretval)
+    >();
+};
+/*----------------------------------------------------------------------------*/
+} //namespace fmtstr {
+/*----------------------------------------------------------------------------*/
+namespace serialization {
+/*----------------------------------------------------------------------------*/
+template <typename T>
+struct type_base {
+  static inline bl_uword size (T v)      { return sizeof v; }
+  static inline T        transform (T v) { return v; }
+};
 
-}}} // namespace malcpp { namespace detail { namespace fmtstr {
+template<typename T>
+struct type {};
+
+template<>
+struct type<float> : public type_base<float> {
+  static const char id = malc_type_float;
+};
+
+template<>
+struct type<double> : public type_base<double> {
+  static const char id = malc_type_double;
+};
+
+template<>
+struct type<bl_i8> :public type_base<bl_i8> {
+  static const char id = malc_type_i8;
+};
+
+template<>
+struct type<bl_u8> : public type_base<bl_u8> {
+  static const char id = malc_type_u8;
+};
+
+template<> struct type<bl_i16> : public type_base<bl_i16> {
+  static const char id = malc_type_i16;
+};
+
+template<> struct type<bl_u16> : public type_base<bl_u16> {
+    static const char id = malc_type_u16;
+};
+/*----------------------------------------------------------------------------*/
+#if MALC_BUILTIN_COMPRESSION == 0
+/*----------------------------------------------------------------------------*/
+template<> struct type<bl_i32> : public type_base<bl_i32> {
+  static const char id = malc_type_i32;
+};
+
+template<> struct type<bl_u32> : public type_base<bl_u32> {
+  static const char id = malc_type_u32;
+};
+
+template<> struct type<bl_i64> : public type_base<bl_i64> {
+  static const char id = malc_type_i64;
+};
+
+template<> struct type<bl_u64> : public type_base<bl_u64> {
+  static const char id = malc_type_u64;
+};
+/*----------------------------------------------------------------------------*/
+#else /* #if MALC_BUILTIN_COMPRESSION == 0 */
+/*----------------------------------------------------------------------------*/
+// as the compression the only that does is to look for trailing zeros, the
+// integers under 4 bytes and floating point values are omitted. This
+// compression works best if a lot of 64-bit integers with small values are
+// passed.
+template<>
+struct type<bl_i32> {
+  static const char id = malc_type_i32;
+  static inline malc_compressed_32 transform (bl_i32 v)
+  {
+    return malc_get_compressed_i32 (v);
+  }
+};
+
+template<>
+struct type<bl_u32> {
+  static const char id = malc_type_u32;
+  static inline malc_compressed_32 transform (bl_u32 v)
+  {
+    return malc_get_compressed_u32 (v);
+  }
+};
+
+template<>
+struct type<bl_i64> {
+  static const char id = malc_type_i64;
+  static inline malc_compressed_64 transform (bl_i64 v)
+  {
+    return malc_get_compressed_i64 (v);
+  }
+};
+
+template<>
+struct type<bl_u64> {
+  static const char id = malc_type_u64;
+  static inline malc_compressed_64 transform (bl_u64 v)
+  {
+    return malc_get_compressed_u64 (v);
+  }
+};
+/*----------------------------------------------------------------------------*/
+#endif /* #else  #if MALC_BUILTIN_COMPRESSION == 0 */
+/*----------------------------------------------------------------------------*/
+#if MALC_PTR_COMPRESSION == 0
+/*----------------------------------------------------------------------------*/
+template<> struct type<void*> : public type_base<void*> {
+    static const char id = malc_type_ptr;
+};
+
+template<> struct type<malc_lit> : public type_base<malc_lit> {
+    static const char id = malc_type_lit;
+};
+
+template<> struct type<malc_strref> {
+  static const char id = malc_type_strref;
+  static inline malc_strref transform (malc_strref v) { return v; }
+  static inline bl_uword size (malc_strref v)
+  {
+    return bl_sizeof_member (malc_strref, str) +
+           bl_sizeof_member (malc_strref, len);
+  }
+};
+
+template<> struct type<malc_memref> {
+  static const char id = malc_type_memref;
+  static inline malc_memref transform (malc_memref v) { return v; }
+  static inline bl_uword size (malc_memref v)
+  {
+    return bl_sizeof_member (malc_memref, mem) +
+           bl_sizeof_member (malc_memref, size);
+  }
+};
+
+template<>
+struct type<malc_refdtor> {
+  static const char id = malc_type_refdtor;
+  static inline malc_refdtor transform (malc_refdtor v) { return v; }
+  static inline bl_uword size (malc_refdtor v)
+  {
+    return bl_sizeof_member (malc_refdtor, func) +
+           bl_sizeof_member (malc_refdtor, context);
+  }
+};
+/*----------------------------------------------------------------------------*/
+#else // #if MALC_PTR_COMPRESSION == 0
+/*----------------------------------------------------------------------------*/
+template<>
+struct type<void*> {
+  static const char id = malc_type_ptr;
+  static inline malc_compressed_ptr transform (void* v)
+  {
+    return malc_get_compressed_ptr (v);
+  }
+};
+
+template<>
+struct type<malc_lit> {
+  static const char id = malc_type_lit;
+  static inline malc_compressed_ptr transform (malc_lit v)
+  {
+    return malc_get_compressed_ptr ((void*) v.lit);
+  }
+};
+
+template<>
+struct type<malc_strref> {
+  static const char id = malc_type_strref;
+  static inline malc_compressed_ref transform (malc_strref v)
+  {
+    malc_compressed_ref r;
+    r.ref  = malc_get_compressed_ptr ((void*) v.str);
+    r.size = v.len;
+    return r;
+  }
+};
+
+template<>
+struct type<malc_memref> {
+  static const char id = malc_type_memref;
+  static inline malc_compressed_ref transform (malc_memref v)
+  {
+    malc_compressed_ref r;
+    r.ref  = malc_get_compressed_ptr ((void*) v.mem);
+    r.size = v.size;
+    return r;
+  }
+};
+
+template<>
+struct type<malc_refdtor> {
+  static const char id = malc_type_refdtor;
+  static inline malc_compressed_refdtor transform (malc_refdtor v)
+  {
+    malc_compressed_refdtor r;
+    r.func    = malc_get_compressed_ptr ((void*) v.func);
+    r.context = malc_get_compressed_ptr ((void*) v.context);
+    return r;
+  }
+};
+/*----------------------------------------------------------------------------*/
+#endif // #if MALC_PTR_COMPRESSION == 0
+/*----------------------------------------------------------------------------*/
+template<>
+struct type<const void*> : public type<void*> {};
+
+template<>
+struct type<volatile void*> : public type<void*> {};
+
+template<>
+struct type<const volatile void*> : public type<void*> {};
+
+template<>
+struct type<void* const> : public type<void*> {};
+
+template<>
+struct type<const void* const> : public type<void*> {};
+
+template<>
+struct type<volatile void* const> : public type<void*> {};
+
+template<>
+struct type<const volatile void* const> : public type<void*> {};
+
+template<>
+struct type<malc_strcp> {
+  static const char id  = malc_type_strcp;
+  static inline malc_strcp transform (malc_strcp v) { return v; }
+  static inline bl_uword size (malc_strcp v)
+  {
+    return bl_sizeof_member (malc_strcp, len) + v.len;
+  }
+};
+
+template<>
+struct type<malc_memcp> {
+  static const char id = malc_type_memcp;
+  static inline malc_memcp transform (malc_memcp v) { return v; }
+  static inline bl_uword size (malc_memcp v)
+  {
+    return bl_sizeof_member (malc_memcp, size) + v.size;
+  }
+};
+/*----------------------------------------------------------------------------*/
+#if MALC_COMPRESSION == 1
+/*----------------------------------------------------------------------------*/
+template<>
+struct type<malc_compressed_32> {
+  static inline bl_uword size (malc_compressed_32 v)
+  {
+    return malc_compressed_get_size (v.format_nibble);
+  }
+};
+
+template<>
+struct type<malc_compressed_64> {
+  static inline bl_uword size (malc_compressed_64 v)
+  {
+    return malc_compressed_get_size (v.format_nibble);
+  }
+};
+
+template<>
+struct type<malc_compressed_ref> {
+  static inline bl_uword size (malc_compressed_ref v)
+  {
+    return bl_sizeof_member (malc_compressed_ref, size) +
+           malc_compressed_get_size (v.ref.format_nibble);
+  }
+};
+
+template<>
+struct type<malc_compressed_refdtor> {
+  static inline bl_uword size (malc_compressed_refdtor v)
+  {
+    return malc_compressed_get_size (v.func.format_nibble) +
+           malc_compressed_get_size (v.context.format_nibble);
+  }
+};
+/*----------------------------------------------------------------------------*/
+#endif /* #if MALC_COMPRESSION == 1 */
+/*----------------------------------------------------------------------------*/
+} // namespace serialization {
+/*----------------------------------------------------------------------------*/
+template<class T>
+using remove_cvref =
+  typename std::remove_cv<typename std::remove_reference<T>::type>::type;
+/*----------------------------------------------------------------------------*/
+template <int sev, class T>
+struct info {};
+
+template <int sev, template <class...> class T, class... Args>
+struct info<sev, T<Args...> >
+{
+  static const char* generate()
+  {
+    static const char info[] = {
+      (char) sev,
+      (::malcpp::detail::serialization::type<remove_cvref<Args> >::id) ...,
+      0
+    };
+    return info;
+  }
+};
+/*----------------------------------------------------------------------------*/
+template <int END, int N = 0>
+struct args_it {
+  template <class T>
+  static inline bl_uword get_payload_size (const T& tup)
+  {
+    bl_uword v = serialization::type<
+      remove_cvref<decltype (std::get<N>(tup))>
+        >::size (std::get<N>(tup));
+    return v + args_it<END, N + 1>::get_payload_size (tup);
+  }
+
+  template <class T>
+  static inline void serialize (malc_serializer& ser, const T& tup)
+  {
+    malc_serialize (&ser, std::get<N>(tup));
+    args_it<END, N + 1>::serialize (ser, tup);
+  }
+};
+
+template <int END>
+struct args_it<END, END> {
+  template <class T>
+  static inline bl_uword get_payload_size (const T& tup)
+  {
+    return 0;
+  }
+
+  template <class T>
+  static inline void serialize (malc_serializer& ser, const T& tup)
+  {}
+};
+/*----------------------------------------------------------------------------*/
+template <class... types>
+static bl_err log (malc_const_entry const& en, malc* l, types... args)
+{
+  using argit = args_it<sizeof...(types)>;
+  auto values = std::make_tuple(
+    serialization::type<types>::transform (args)...
+    );
+  malc_serializer s;
+  bl_err err = malc_log_entry_prepare(
+    l, &s, &en, argit::get_payload_size (values)
+    );
+  if (err.bl) {
+    return err;
+  }
+  argit::serialize (s, values);
+  malc_log_entry_commit (l, &s);
+  return err;
+}
+//------------------------------------------------------------------------------
+}} // namespace malcpp { namespace detail {
+/*----------------------------------------------------------------------------*/
+
+/* Implementation of  MALC_LOG_IF_PRIVATE/MALC_LOG_PRIVATE */
+
+// Untested: The buggy visual studio preprocessor may give problems here...
+#define MALCPP_VARGS_GET_FIRST(a, ...) a "" // concat "": err if not a literal
+#define MALCPP_VARGS_GET_ARGS(a, ...) __VA_ARGS__
+#define MALCPP_TOKCONCAT_INDIRECT(a, ...) a ## __VA_ARGS__
+#define MALCPP_TOKCONCAT(a, ...) MALCPP_TOKCONCAT_INDIRECT (a, __VA_ARGS__)
+/*----------------------------------------------------------------------------*/
+#define MALCPP_LOG_IF_PRIVATE(cond, err, sev, lit, ...) \
+/* Reminder: This can't be done without macros because the arguments must  */ \
+/* be only evaluated (lazily) when logging */ \
+  do { \
+    /* Trigger string literal validation */ \
+    ::malcpp::detail::fmt::static_validation< \
+      ::malcpp::detail::fmt::format_string::validate< \
+        decltype (malcpp::detail::make_typelist( \
+          MALCPP_VARGS_GET_ARGS (__VA_ARGS__) \
+          )) \
+        > (lit "") /* concat with "" to error on non-literal format strings*/ \
+      >(); \
+    if ((cond) && ((sev) >= malc_get_min_severity ((malc_ptr)))) { \
+      /* Save known data at compile time, so we don't pass it to the logger */ \
+      static const malc_const_entry MALCPP_TOKCONCAT (malcppent, __LINE__) =  {\
+        lit, \
+        ::malcpp::detail::info< \
+          sev, \
+          decltype (malcpp::detail::make_typelist( \
+            MALCPP_VARGS_GET_ARGS (__VA_ARGS__) \
+          ))>::generate(), \
+        0 \
+      }; \
+      /* Make the log call, the malc ptr will always be the first ARG, */ \
+      /* otherwise the __VA_ARGS__ expansion should be more complicated. */ \
+      err = ::malcpp::detail::log( \
+        MALCPP_TOKCONCAT (malcppent, __LINE__), __VA_ARGS__ \
+        ); \
+    } \
+    err.bl += 0; /* Silence unused warnings */ \
+  } \
+  while (0)
+
+#define MALC_LOG_IF_PRIVATE(cond, err, malc_ptr, sev, ...) \
+    MALCPP_LOG_IF_PRIVATE( \
+      (cond), \
+      (err), \
+      (sev), \
+      MALCPP_VARGS_GET_FIRST (__VA_ARGS__), \
+      malc_ptr, \
+      MALCPP_VARGS_GET_ARGS (__VA_ARGS__) \
+      )
+
+#define MALC_LOG_PRIVATE(err, malc_ptr, sev, ...) \
+    MALC_LOG_IF_PRIVATE (1, (err), (malc_ptr), (sev), __VA_ARGS__)
 
 #endif /* __MALC_CPP11__ */

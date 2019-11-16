@@ -19,6 +19,7 @@
 #include <malc/common.h>
 #include <malc/impl/common.h>
 #include <malc/impl/macro/malc_macro.h>
+#include <malc/log_macros.h>
 
 #ifdef __cplusplus
   extern "C" {
@@ -265,73 +266,6 @@ static inline malc_refdtor logrefdtor (malc_refdtor_fn func, void* context)
   malc_refdtor r = { func, context };
   return r;
 }
-/*----------------------------------------------------------------------------*/
-#if !defined (MALC_NO_SHORT_LOG_MACROS)
-
-#define log_debug(err, ...)    malc_debug    ((err), __VA_ARGS__)
-#define log_trace(err, ...)    malc_trace    ((err), __VA_ARGS__)
-#define log_notice(err, ...)   malc_notice   ((err), __VA_ARGS__)
-#define log_warning(err, ...)  malc_warning  ((err), __VA_ARGS__)
-#define log_error(err, ...)    malc_error    ((err), __VA_ARGS__)
-#define log_critical(err, ...) malc_critical ((err), __VA_ARGS__)
-
-#define log_debug_i(err, malc_ptr, ...)\
-  malc_debug_i    ((err), (malc_ptr), __VA_ARGS__)
-
-#define log_trace_i(err, malc_ptr, ...)\
-  malc_trace_i    ((err), (malc_ptr), __VA_ARGS__)
-
-#define log_notice_i(err, malc_ptr, ...)\
-  malc_notice_i   ((err), (malc_ptr), __VA_ARGS__)
-
-#define log_warning_i(err, malc_ptr, ...)\
-  malc_warning_i  ((err), (malc_ptr), __VA_ARGS__)
-
-#define log_error_i(err, malc_ptr, ...)\
-  malc_error_i    ((err), (malc_ptr), __VA_ARGS__)
-
-#define log_critical_i(err, malc_ptr, ...)\
-  malc_critical_i ((err), (malc_ptr), __VA_ARGS__)
-
-#define log_debug_if(condition, err, ...)\
-  malc_debug_if    ((condition), (err), __VA_ARGS__)
-
-#define log_trace_if(condition, err, ...)\
-  malc_trace_if    ((condition), (err), __VA_ARGS__)
-
-#define log_notice_if(condition, err, ...)\
-  malc_notice_if   ((condition), (err), __VA_ARGS__)
-
-#define log_warning_if(condition, err, ...)\
-  malc_warning_if  ((condition), (err), __VA_ARGS__)
-
-#define log_error_if(condition, err, ...)\
-  malc_error_if    ((condition), (err), __VA_ARGS__)
-
-#define log_critical_if(condition, err, ...)\
-  malc_critical_if ((condition), (err), __VA_ARGS__)
-
-#define log_debug_i_if(condition, err, malc_ptr, ...)\
-  malc_debug_i_if    ((condition), (err), (malc_ptr), __VA_ARGS__)
-
-#define log_trace_i_if(condition, err, malc_ptr, ...)\
-  malc_trace_i_if    ((condition), (err), (malc_ptr), __VA_ARGS__)
-
-#define log_notice_i_if(condition, err, malc_ptr, ...)\
-  malc_notice_i_if   ((condition), (err), (malc_ptr), __VA_ARGS__)
-
-#define log_warning_i_if(condition, err, malc_ptr, ...)\
-  malc_warning_i_if  ((condition), (err), (malc_ptr), __VA_ARGS__)
-
-#define log_error_i_if(condition, err, malc_ptr, ...)\
-  malc_error_i_if    ((condition), (err), (malc_ptr), __VA_ARGS__)
-
-#define log_critical_i_if(condition, err, malc_ptr, ...)\
-  malc_critical_i_if ((condition), (err), (malc_ptr), __VA_ARGS__)
-
-#define log_fileline malc_fileline
-
-#endif /*#if !defined (MALC_NO_SHORT_MACROS)*/
 
 #ifdef __cplusplus
   } /* extern "C" { */
