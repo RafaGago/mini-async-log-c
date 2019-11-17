@@ -17,12 +17,16 @@
   #define MALC_COMPRESSION 1
 #endif
 /*----------------------------------------------------------------------------*/
-typedef struct malc_const_entry {
-  char const* format;
-  char const* info; /* first char is the severity */
-  bl_u16      compressed_count;
-}
-malc_const_entry;
+#ifndef MALC_IMPL_COMMON_HAS_MALC_ENTRY
+  #define MALC_IMPL_COMMON_HAS_MALC_ENTRY 1
+  /* avoid defining twice on the wrapper */
+  typedef struct malc_const_entry {
+    char const* format;
+    char const* info; /* first char is the severity */
+    bl_u16      compressed_count;
+  }
+  malc_const_entry;
+#endif
 /*----------------------------------------------------------------------------*/
 #ifdef MALC_COMMON_NAMESPACED
 namespace malcpp { namespace detail {

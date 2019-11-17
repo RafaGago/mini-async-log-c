@@ -260,22 +260,6 @@ if not get_option ('bare')
     test ('malc-stress-test-queue', st, args : [ 'queue', '30', '1' ])
     test ('malc-stress-test-queue-cpu', st, args : [ 'queue-cpu', '30', '1' ])
 
-    configure_file(
-        input : 'smoke_test/src/malc/smoke.c',
-        output : 'smoke.cpp',
-        copy: true
-        )
-    test(
-        'malc-smoke-cpp',
-        executable(
-            'malc-smoke-cpp',
-            [ meson.build_root() + '/smoke.cpp' ],
-            include_directories : smoke_test_include_dirs,
-            link_with           : malc_lib,
-            link_args           : test_link_args,
-            cpp_args            : cflags + test_cflags,
-            dependencies        : threads
-        ))
     test(
         'malc-cpp-wrapper',
         executable(
@@ -292,20 +276,6 @@ if not get_option ('bare')
         [ 'example/src/cpp-custom-destination.cpp' ],
         include_directories : smoke_test_include_dirs,
         link_with           : malcpp_lib,
-        link_args           : test_link_args,
-        c_args              : cflags,
-        dependencies        : threads
-        )
-    configure_file(
-        input : 'example/src/stress-test.c',
-        output : 'stress-test.cpp',
-        copy: true
-        )
-    executable(
-        'malc-example-stress-test-cpp',
-        [ meson.build_root() + '/stress-test.cpp' ],
-        include_directories : smoke_test_include_dirs,
-        link_with           : malc_lib,
         link_args           : test_link_args,
         cpp_args            : cflags,
         dependencies        : threads

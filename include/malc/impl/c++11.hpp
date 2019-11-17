@@ -1,11 +1,16 @@
 #ifndef __MALC_CPP11__
 #define __MALC_CPP11__
 
+#ifndef MALC_COMMON_NAMESPACED
+  #error "Don't try to include this file directly"
+#endif
+
 #include <type_traits>
 #include <tuple>
-#define MALC_COMMON_NAMESPACED
+
+#include <bl/base/preprocessor_basic.h>
+
 #include <malc/common.h>
-#include <malc/log_macros.h>
 #include <malc/impl/common.h>
 #include <malc/impl/logging.h>
 #include <malc/impl/serialization.h>
@@ -860,8 +865,10 @@ struct args_it<END, END> {
   {}
 };
 /*----------------------------------------------------------------------------*/
-template <class... types>
-static bl_err log (malc_const_entry const& en, malc* l, types... args)
+template <class T, class... types>
+static bl_err log(
+  malc_const_entry const& en, T& malc, const char*, types... args
+  )
 {
   using argit = args_it<sizeof...(types)>;
   auto values = std::make_tuple(
@@ -869,71 +876,54 @@ static bl_err log (malc_const_entry const& en, malc* l, types... args)
     );
   malc_serializer s;
   bl_err err = malc_log_entry_prepare(
-    l, &s, &en, argit::get_payload_size (values)
+    malc.handle(), &s, &en, argit::get_payload_size (values)
     );
   if (err.own) {
     return err;
   }
   argit::serialize (s, values);
-  malc_log_entry_commit (l, &s);
+  malc_log_entry_commit (malc.handle(), &s);
   return err;
 }
 //------------------------------------------------------------------------------
 }} // namespace malcpp { namespace detail {
 /*----------------------------------------------------------------------------*/
-
 /* Implementation of  MALC_LOG_IF_PRIVATE/MALC_LOG_PRIVATE */
-
-// Untested: The buggy visual studio preprocessor may give problems here...
-#define MALCPP_VARGS_GET_FIRST(a, ...) a "" // concat "": err if not a literal
-#define MALCPP_VARGS_GET_ARGS(a, ...) __VA_ARGS__
-#define MALCPP_TOKCONCAT_INDIRECT(a, ...) a ## __VA_ARGS__
-#define MALCPP_TOKCONCAT(a, ...) MALCPP_TOKCONCAT_INDIRECT (a, __VA_ARGS__)
 /*----------------------------------------------------------------------------*/
-#define MALCPP_LOG_IF_PRIVATE(cond, err, sev, lit, ...) \
+#define MALC_LOG_IF_PRIVATE(cond, malcref, sev, ...) \
 /* Reminder: This can't be done without macros because the arguments must  */ \
 /* be only evaluated (lazily) when logging */ \
-  do { \
+  [&]() { \
+    bl_err err = bl_mkok(); \
     /* Trigger string literal validation */ \
     ::malcpp::detail::fmt::static_validation< \
       ::malcpp::detail::fmt::format_string::validate< \
         decltype (malcpp::detail::make_typelist( \
-          MALCPP_VARGS_GET_ARGS (__VA_ARGS__) \
+          bl_pp_vargs_ignore_first (__VA_ARGS__) \
           )) \
-        > (lit "") /* concat with "" to error on non-literal format strings*/ \
+        > (bl_pp_vargs_first (__VA_ARGS__) "") /* concat with "" to error on non-literal format strings*/ \
       >(); \
-    if ((cond) && ((sev) >= malc_get_min_severity ((malc_ptr)))) { \
+    if ((cond) && (sev) >= malc_get_min_severity (malcref.handle())) { \
       /* Save known data at compile time, so we don't pass it to the logger */ \
-      static const malc_const_entry MALCPP_TOKCONCAT (malcppent, __LINE__) =  {\
-        lit, \
+      static const malc_const_entry bl_pp_tokconcat (malcppent, __LINE__) =  {\
+        bl_pp_vargs_first (__VA_ARGS__), \
         ::malcpp::detail::info< \
           sev, \
           decltype (malcpp::detail::make_typelist( \
-            MALCPP_VARGS_GET_ARGS (__VA_ARGS__) \
+            bl_pp_vargs_ignore_first (__VA_ARGS__) \
           ))>::generate(), \
         0 \
       }; \
       /* Make the log call, the malc ptr will always be the first ARG, */ \
       /* otherwise the __VA_ARGS__ expansion should be more complicated. */ \
       err = ::malcpp::detail::log( \
-        MALCPP_TOKCONCAT (malcppent, __LINE__), __VA_ARGS__ \
+        bl_pp_tokconcat (malcppent, __LINE__), malcref, __VA_ARGS__ \
         ); \
     } \
-    err.own += 0; /* Silence unused warnings */ \
-  } \
-  while (0)
+    return err; \
+  }()
 
-#define MALC_LOG_IF_PRIVATE(cond, err, malc_ptr, sev, ...) \
-    MALCPP_LOG_IF_PRIVATE( \
-      (cond), \
-      (err), \
-      (sev), \
-      MALCPP_VARGS_GET_FIRST (__VA_ARGS__), \
-      malc_ptr, \
-      MALCPP_VARGS_GET_ARGS (__VA_ARGS__) \
-      )
-
-#define MALC_LOG_PRIVATE(err, malc_ptr, sev, ...) \
-    MALC_LOG_IF_PRIVATE (1, (err), (malc_ptr), (sev), __VA_ARGS__)
+#define MALC_LOG_PRIVATE(malcref, sev, ...) \
+    MALC_LOG_IF_PRIVATE (1, (malcref), (sev), __VA_ARGS__)
 
 #endif /* __MALC_CPP11__ */

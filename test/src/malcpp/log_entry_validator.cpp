@@ -1,7 +1,7 @@
-
 #include <bl/cmocka_pre.h>
 
-#include <malc/impl/cpp11/cpp11.hpp>
+#define MALC_COMMON_NAMESPACED
+#include <malc/impl/c++11.hpp>
 
 using namespace malcpp::detail::fmt;
 /*----------------------------------------------------------------------------*/

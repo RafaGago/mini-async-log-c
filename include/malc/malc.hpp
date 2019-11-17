@@ -7,17 +7,16 @@
 #include <cassert>
 
 /* including the common structs in malcpp's namespace */
-#define MALC_COMMON_NAMESPACED 1
-#include <malc/destinations.hpp>
 #include <bl/base/default_allocator.h>
 
-/*----------------------------------------------------------------------------*/
-// TODO: REMOVE:  A full C++ non-macro based implementation is on its way,
-// including malc.h only to get the log macros while the new implementation
-// isn't ready.
+#define MALC_COMMON_NAMESPACED 1
 
-#undef MALC_COMMON_NAMESPACED
-#include <malc/malc.h>
+#ifndef MALC_LIBRARY_COMPILATION
+  #include <malc/config.h>
+#endif
+#include <malc/destinations.hpp>
+#include <malc/log_macros.h>
+#include <malc/impl/c++11.hpp>
 
 struct malc;
 
@@ -395,6 +394,8 @@ private:
   typedef typename detail::wrapper_selector<use_except>::type base;
 public:
   /*--------------------------------------------------------------------------*/
+  static constexpr bool throws = use_except;
+  /*--------------------------------------------------------------------------*/
   malcpp (bl_alloc_tbl alloc = bl_get_default_alloc()) : base (nullptr)
   {
     if (autoconstruct && use_except) {
@@ -453,10 +454,113 @@ private:
 };
 /*----------------------------------------------------------------------------*/
 
+/* functions to use with the logging types */
+
+/*------------------------------------------------------------------------------
+Passes a literal to malc. By using this function you tell the logger that
+this string will outlive the data logger and doesn't need to be copied, it can
+be taken by reference/pointer.
+
+This is mainly intended to be used for passing string literals, but it can be
+used (with caution) for non-literal strings that are known to outlive the data
+logger unmodified. That's why the function is actually allowing the literal to
+decay to char const*.
+------------------------------------------------------------------------------*/
+static inline detail::malc_lit lit (char const* literal)
+{
+  bl_assert (literal);
+  detail::malc_lit l = { literal };
+  return l;
+}
+/*------------------------------------------------------------------------------
+Passes a string by value (deep copy) to malc.
+------------------------------------------------------------------------------*/
+static inline detail::malc_strcp strcp (char const* str, bl_u16 len)
+{
+  bl_assert ((str && len) || len == 0);
+  detail::malc_strcp s = { str, len };
+  return s;
+}
+/*----------------------------------------------------------------------------*/
+static inline detail::malc_strcp strcpl (char const* str)
+{
+  bl_uword len = strlen (str);
+  return strcp (str, (bl_u16) (len < 65536 ? len : 65535));
+}
+/*------------------------------------------------------------------------------
+Passes a memory area by value (deep copy) to malc. It will be printed as hex.
+------------------------------------------------------------------------------*/
+static inline detail::malc_memcp memcp (void const* mem, bl_u16 size)
+{
+  bl_assert ((mem && size) || size == 0);
+  detail::malc_memcp b = { (bl_u8 const*) mem, size };
+  return b;
+}
+/*------------------------------------------------------------------------------
+Passes a string by reference to malc. Needs that you provide a destructor for
+this dynamic string as the last parameter on the call (see "logrefdtor"). To be
+used to avoid copying big chunks of data.
+------------------------------------------------------------------------------*/
+static inline detail::malc_strref strref (char const* str, bl_u16 len)
+{
+  bl_assert ((str && len) || len == 0);
+  detail::malc_strref s = { str, len };
+  return s;
+}
+/*----------------------------------------------------------------------------*/
+static inline detail::malc_strref strrefl (char const* str)
+{
+  bl_uword len = strlen (str);
+  return strref (str, (bl_u16) (len < 65536 ? len : 65535));
+}
+/*------------------------------------------------------------------------------
+Passes a memory area by reference to malc. Needs that you provide a destructor
+for this memory area as the last parameter on the call (see "logrefdtor"), To be
+used to avoid copying big chunks of data.
+------------------------------------------------------------------------------*/
+static inline detail::malc_memref memref (void const* mem, bl_u16 size)
+{
+  bl_assert ((mem && size) || size == 0);
+  detail::malc_memref b = { (bl_u8 const*) mem, size };
+  return b;
+}
+/*------------------------------------------------------------------------------
+typedef void (*malc_refdtor_fn)(
+  void* context, malc_ref const* refs, bl_uword refs_count
+  );
+
+Passed by reference parameter destructor.
+
+This is mandatory to be used as the last parameter on log calls that contain a
+parameter passed by reference ("logstrref" or "logmemref"). It does make the
+consumer (logger) thread to invoke a callback that can be used to do memory
+cleanup/recycling/reference decreasing etc.
+
+This means that blocking on the callback will block the logger consumer thread,
+so callbacks should be kept short, ideally doing an bl_atomic reference count
+decrement, a deallocation or something similar. Thread safety issues should be
+considered too.
+
+Note that in case of error or a filtered out severity the destructor will be run
+in-place by the calling thread. This can make the feature unusable for some use
+cases, e.g. when the deallocation is costly and blocking and the calling thread
+has to progress fast.
+
+The copy by value functions don't add any extra operations on failure or
+filtering out, so they can be considered an alternative for when the
+deallocation behavior described above is a problem.
+------------------------------------------------------------------------------*/
+static inline detail::malc_refdtor refdtor(
+  detail::malc_refdtor_fn func, void* context
+  )
+{
+  detail::malc_refdtor r = { func, context };
+  return r;
+}
+/*----------------------------------------------------------------------------*/
 } // namespace malcpp {
 
 #endif
-
 /*----------------------------------------------------------------------------*/
 /* Note: An improved C++ version of "logstrcpy" and "logstrref" are not possible
    only with thin wrappers:

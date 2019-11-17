@@ -14,12 +14,15 @@
 #endif
 
 /* has to be the first, defines preprocessor macros */
-#include <malc/common.h>
 #include <malc/libexport.h>
 #include <malc/common.h>
 #include <malc/impl/common.h>
-#include <malc/impl/macro/malc_macro.h>
-#include <malc/log_macros.h>
+
+#ifndef __cplusplus
+  /* use logging functions for C11 */
+  #include <malc/log_macros.h>
+  #include <malc/impl/c11.h>
+#endif
 
 #ifdef __cplusplus
   extern "C" {

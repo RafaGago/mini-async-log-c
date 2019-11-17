@@ -56,9 +56,9 @@ private:
 // destruction
 malcpp::malcpp<false, false, true> log;
 /*----------------------------------------------------------------------------*/
-static inline malc* get_malc_logger_instance()
+static inline decltype(log)& get_malc_logger_instance()
 {
-  return log.handle();
+  return log;
 }
 /*----------------------------------------------------------------------------*/
 int main (int argc, char const* argv[])

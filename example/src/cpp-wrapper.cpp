@@ -3,9 +3,9 @@
 
 malcpp::malcpp<> log;
 /*----------------------------------------------------------------------------*/
-static inline malc* get_malc_logger_instance()
+static inline decltype(log)& get_malc_logger_instance()
 {
-  return log.handle();
+  return log;
 }
 /*----------------------------------------------------------------------------*/
 void log_thread()
