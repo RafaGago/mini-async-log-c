@@ -1,7 +1,7 @@
 Description
 ===========
 
-A C11 low-latency wait-free producer (when using Thread Local Storage)
+A C11/C++11 low-latency wait-free producer (when using Thread Local Storage)
 asynchronous data logger with type-safe strings.
 
 Based on the lessons learned on its older C++ counterpart mini-async-log.
@@ -16,14 +16,16 @@ Features
   bounded buffer (configurable to have one for each CPU) and custom allocators
   (defaults to the heap).
 
-- Type-safe format strings. Achieved through C11 type-generic expressions and
-  (unfortunately) brutal preprocessor abusing.
+- Type-safe format strings. On C11 achieved through C11 type-generic expressions
+  and (unfortunately) brutal preprocessor abusing. On C++11 they are validated
+  at compile time too.
 
 - C++ wrapped. It can select between throwing and non-throwing wrappers so it
-  can be used with different coding standards.
+  can be used in project with non-throwing coding standards.
 
-- The client application can run the logger's consumer thread main loop from an
-  existing (maybe shared for other purposes) thread if desired.
+- Not a singleton. No hidden threads: the client application can run the
+  logger's consumer thread main loop from an existing (maybe shared for other
+  purposes) thread if desired.
 
 - Basic security features: Log entry rate limiting and newline removal.
 
@@ -117,7 +119,7 @@ examples
 Build and test
 ==================
 
-Meson 0.41 is used. Ubuntu:
+Meson is used. Ubuntu:
 
 > sudo apt install ninja-build python3-pip
 > sudo -H pip3 install meson
@@ -129,6 +131,6 @@ Meson 0.41 is used. Ubuntu:
 
 Windows:
 
-Untested. It's almost surely broken. If it's broken on the preprocessor code
-(Visual Studio preprocessor quirks) then the preprocessor hackery can be
-replaced with template hackery.
+Untested. It's almost surely broken, as the thin-wrapping C multiplatform
+library I'm using hasn't run in Windows in ages, as I have no Windows installs
+available.
