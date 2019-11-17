@@ -42,7 +42,7 @@ bl_err malcpp<e,c,d>::construct_impl (bl_alloc_tbl alloc) noexcept
   this->set_handle (ptr);
   *get_alloc_tbl() = alloc;
   bl_err err = malc_create (this->handle(), get_alloc_tbl());
-  if (err.bl) {
+  if (err.own) {
     bl_dealloc (get_alloc_tbl(), ptr);
     this->set_handle (nullptr);
   }

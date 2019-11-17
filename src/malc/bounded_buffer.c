@@ -47,14 +47,14 @@ bl_err boundedb_reset(
   bl_uword count = per_cpu ? bl_get_cpu_count() : 1;
   for (bl_uword i = 0; i < count; ++i) {
     err = cpuq_grow (&b->queues, 1, alloc);
-    if (err.bl) {
+    if (err.own) {
       goto do_destroy;
     }
     bl_mpmc_bpm* q = cpuq_at (&b->queues, i);
     err  = bl_mpmc_bpm_init(
       q, alloc, slot_count, max_slots, slot_size, 16, false
       );
-    if (err.bl) {
+    if (err.own) {
       goto do_destroy;
     }
   }

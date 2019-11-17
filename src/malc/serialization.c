@@ -212,7 +212,7 @@ static inline bl_err DECODE_NAME_BUILD(_strcp)(
   )
 {
   bl_err err = DECODE_NAME_BUILD(_16) (ch, mem, mem_end, &v->len);
-  if (bl_unlikely (err.bl)) {
+  if (bl_unlikely (err.own)) {
     return err;
   }
   if (bl_unlikely (*mem + v->len > mem_end)) {
@@ -228,7 +228,7 @@ static inline bl_err DECODE_NAME_BUILD(_strref)(
   )
 {
   bl_err err = DECODE_NAME_BUILD(_16) (ch, mem, mem_end, &v->len);
-  if (bl_unlikely (err.bl)) {
+  if (bl_unlikely (err.own)) {
     return err;
   }
   return DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->str);
@@ -239,7 +239,7 @@ static inline bl_err DECODE_NAME_BUILD(_memcp)(
   )
 {
   bl_err err = DECODE_NAME_BUILD(_16) (ch, mem, mem_end, &v->size);
-  if (bl_unlikely (err.bl)) {
+  if (bl_unlikely (err.own)) {
     return err;
   }
   if (bl_unlikely (*mem + v->size > mem_end)) {
@@ -255,7 +255,7 @@ static inline bl_err DECODE_NAME_BUILD(_memref)(
   )
 {
   bl_err err = DECODE_NAME_BUILD(_16) (ch, mem, mem_end, &v->size);
-  if (bl_unlikely (err.bl)) {
+  if (bl_unlikely (err.own)) {
     return err;
   }
   return DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->mem);
@@ -266,7 +266,7 @@ static inline bl_err DECODE_NAME_BUILD(_refdtor)(
   )
 {
   bl_err err = DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->func);
-  if (bl_unlikely (err.bl)) {
+  if (bl_unlikely (err.own)) {
     return err;
   }
   return DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->context);
@@ -391,11 +391,11 @@ bl_err deserializer_init (deserializer* ds, bl_alloc_tbl const* alloc)
   ds->ch = &ds->chval;
 #endif
   bl_err err = log_args_init (&ds->args, 16, alloc);
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   err = log_refs_init (&ds->refs, 16, alloc);
-  if (err.bl) {
+  if (err.own) {
     log_args_destroy (&ds->args, alloc);
   }
   return err;
@@ -431,14 +431,14 @@ bl_err deserializer_execute(
 #if MALC_COMPRESSION == 0
   void* entry;
   bl_err err = decode (ds->ch, &mem, mem_end, &entry);
-  if (bl_unlikely (err.bl)) {
+  if (bl_unlikely (err.own)) {
     return err;
   }
   ds->entry = (malc_const_entry const*) entry;
   if (has_timestamp) {
     ds->t = 0;
     err   = decode (ds->ch, &mem, mem_end, &ds->t);
-    if (bl_unlikely (err.bl)) {
+    if (bl_unlikely (err.own)) {
       return err;
     }
   }
@@ -451,15 +451,15 @@ bl_err deserializer_execute(
   ds->ch->hdr = mem; /* internal fields compressed header location = mem */
   ++mem;             /* internal fields data location = mem + 1*/
   bl_err err = decode_compressed_ptr(ds->ch, &mem, mem_end, &entry);
-  if (bl_unlikely (err.bl)) {
+  if (bl_unlikely (err.own)) {
     return err;
   }
   ds->entry = (malc_const_entry const*) entry;
   if (has_timestamp) {
     ds->t = 0;
-    bl_static_assert_ns (sizeof ds->t == (64 / 8));
+    bl_static_assert_ns_funcscope (sizeof ds->t == (64 / 8));
     err = decode_compressed_64 (ds->ch, &mem, mem_end, &ds->t);
-    if (bl_unlikely (err.bl)) {
+    if (bl_unlikely (err.own)) {
       return err;
     }
   }
@@ -516,7 +516,7 @@ bl_err deserializer_execute(
     case malc_type_strref:
     case malc_type_memref:
       err = decode (ds->ch, &mem, mem_end, &larg.vstrref);
-      if (bl_likely (!err.bl)) {
+      if (bl_likely (!err.own)) {
         malc_ref r;
         r.ref  = larg.vstrref.str;
         r.size = larg.vstrref.len;
@@ -532,10 +532,10 @@ bl_err deserializer_execute(
       return bl_mkerr (bl_invalid);
       break;
     } /* switch */
-    if (!err.bl && push_this_arg) {
+    if (!err.own && push_this_arg) {
       err = log_args_insert_tail (&ds->args, &larg, alloc);
     }
-    if (bl_unlikely (err.bl)) {
+    if (bl_unlikely (err.own)) {
       return err;
     }
     ++partype;

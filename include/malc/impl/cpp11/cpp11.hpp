@@ -871,7 +871,7 @@ static bl_err log (malc_const_entry const& en, malc* l, types... args)
   bl_err err = malc_log_entry_prepare(
     l, &s, &en, argit::get_payload_size (values)
     );
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   argit::serialize (s, values);
@@ -919,7 +919,7 @@ static bl_err log (malc_const_entry const& en, malc* l, types... args)
         MALCPP_TOKCONCAT (malcppent, __LINE__), __VA_ARGS__ \
         ); \
     } \
-    err.bl += 0; /* Silence unused warnings */ \
+    err.own += 0; /* Silence unused warnings */ \
   } \
   while (0)
 

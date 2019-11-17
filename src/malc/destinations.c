@@ -105,7 +105,7 @@ bl_err destinations_add (destinations* d, bl_u32* dest_id, malc_dst const* dst)
 
   if (dst->init) {
     bl_err err = dst->init (destination_get_instance (dest), d->alloc);
-    if (err.bl) {
+    if (err.own) {
       /* memory chunk is left as-is without shrinking it */
       return err;
     }

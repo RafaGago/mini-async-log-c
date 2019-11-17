@@ -52,12 +52,12 @@ BL_EXPORT bl_err entry_parser_init(
 {
   bl_dstr_init (&ep->str, alloc);
   bl_err err = bl_dstr_set_capacity (&ep->str, 1024);
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   bl_dstr_init (&ep->fmt, alloc);
   err = bl_dstr_set_capacity (&ep->fmt, 32);
-  if (err.bl) {
+  if (err.own) {
     bl_dstr_destroy (&ep->str);
   }
   ep->sanitize_log_entries = false;
@@ -129,7 +129,7 @@ static bl_err append_int(
       default: /* deliberate fall-through */
         goto done;
       }
-      if (err.bl) {
+      if (err.own) {
         return err;
       }
     }
@@ -137,11 +137,11 @@ static bl_err append_int(
   }
 done:
   err = bl_dstr_append (&ep->fmt, printf_length);
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   err = bl_dstr_append_char (&ep->fmt, printf_type);
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   switch (type) {
@@ -211,7 +211,7 @@ static bl_err append_float(
       default: /* deliberate fall-through */
         goto done;
       }
-      if (err.bl) {
+      if (err.own) {
         return err;
       }
     }
@@ -219,7 +219,7 @@ static bl_err append_float(
   }
 done:
   err = bl_dstr_append_char (&ep->fmt, printf_type);
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   if (type == malc_type_float) {
@@ -237,7 +237,7 @@ static bl_err append_mem (entry_parser* ep, bl_u8 const* mem, bl_uword size)
   bl_uword last = size % ((sizeof buff - 1) / 2);
 
   bl_err err = bl_dstr_set_capacity (&ep->str, bl_dstr_len (&ep->str) + (size * 2));
-  if (bl_unlikely (err.bl)) {
+  if (bl_unlikely (err.own)) {
       return err;
   }
   for (bl_uword i = 0; i < runs; ++i) {
@@ -245,7 +245,7 @@ static bl_err append_mem (entry_parser* ep, bl_u8 const* mem, bl_uword size)
       bl_bytes_to_hex_string (buff, sizeof buff, mem, (sizeof buff - 1) / 2) > 0
       );
     err = bl_dstr_append_l (&ep->str, buff, sizeof buff - 1);
-    if (bl_unlikely (err.bl)) {
+    if (bl_unlikely (err.own)) {
       return err;
     }
     mem += (sizeof buff - 1) / 2;
@@ -324,12 +324,12 @@ static bl_err parse_text(
     if (*it == 0) {
       if (bl_unlikely (fmt_beg)) {
         err = bl_dstr_append_lit (&ep->str, MALC_EP_UNCLOSED_FMT);
-        if (err.bl) {
+        if (err.own) {
          return err;
         }
       }
       err = bl_dstr_append_l (&ep->str, text_beg, it - text_beg);
-      if (err.bl) {
+      if (err.own) {
         return err;
       }
       break;
@@ -338,7 +338,7 @@ static bl_err parse_text(
     if ((it[0] == '{' && it[1] == '{')) {
       if (bl_likely (!fmt_beg)) {
         err = bl_dstr_append_l (&ep->str, text_beg, it - text_beg + 1);
-        if (err.bl) {
+        if (err.own) {
           return err;
         }
         it      += 2;
@@ -346,7 +346,7 @@ static bl_err parse_text(
       }
       else {
         err = bl_dstr_append_lit (&ep->str, MALC_EP_ESC_BRACES_IN_FMT);
-        if (err.bl) {
+        if (err.own) {
           return err;
         }
         it += 2;
@@ -358,14 +358,14 @@ static bl_err parse_text(
       if (bl_likely (!fmt_beg)) {
         fmt_beg = it + 1;
         err = bl_dstr_append_l (&ep->str, text_beg, it - text_beg);
-        if (err.bl) {
+        if (err.own) {
           return err;
         }
         text_beg = fmt_beg;
       }
       else {
         err = bl_dstr_append_lit (&ep->str, MALC_EP_MISPLACED_OPEN_BRACES);
-        if (err.bl) {
+        if (err.own) {
           return err;
         }
       }
@@ -380,7 +380,7 @@ static bl_err parse_text(
         else {
           err = bl_dstr_append_lit (&ep->str, MALC_EP_MISSING_ARG);
         }
-        if (err.bl) {
+        if (err.own) {
           return err;
         }
         text_beg = it + 1;
@@ -412,7 +412,7 @@ BL_EXPORT bl_err entry_parser_get_log_strings(
     return bl_mkerr (bl_invalid);
   }
   /* meson old versions ignored base library flags */
-  bl_static_assert_ns (sizeof e->timestamp == sizeof (bl_u64));
+  bl_static_assert_ns_funcscope (sizeof e->timestamp == sizeof (bl_u64));
   snprintf(
     ep->timestamp,
     TSTAMP_INTEGER + 2,
@@ -438,11 +438,11 @@ BL_EXPORT bl_err entry_parser_get_log_strings(
 
   if (ep->sanitize_log_entries) {
     err = bl_dstr_replace_lit (&ep->str, "\n", "", 0, 0);
-    if (bl_unlikely (err.bl)) {
+    if (bl_unlikely (err.own)) {
       return err;
     }
     err = bl_dstr_replace_lit (&ep->str, "\r", "", 0, 0);
-    if (bl_unlikely (err.bl)) {
+    if (bl_unlikely (err.own)) {
       return err;
     }
   }

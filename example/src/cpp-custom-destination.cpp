@@ -64,9 +64,9 @@ static inline malc* get_malc_logger_instance()
 int main (int argc, char const* argv[])
 {
   bl_err err = log.construct();
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "unable to construct malc\n");
-    return err.bl;
+    return err.own;
   }
   /* destination register */
   auto dst = log.add_destination<demo_destination>();
@@ -79,15 +79,15 @@ int main (int argc, char const* argv[])
   /* logger startup */
   malcpp::cfg cfg;
   err = log.get_cfg (cfg);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "bug when retrieving the logger configuration\n");
-    return err.bl;
+    return err.own;
   }
   cfg.consumer.start_own_thread = true;
   err = log.init (cfg);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "unable to start logger\n");
-    return err.bl;
+    return err.own;
   }
   err = log_error ("Hello malc");
   err = log_warning ("testing {}, {}, {.1}", 1, 2, 3.f);

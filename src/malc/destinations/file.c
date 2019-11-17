@@ -40,11 +40,11 @@ static bl_err malc_file_dst_init (void* instance, bl_alloc_tbl const* alloc)
   d->time_based_name = true;
   d->can_remove_old_data_on_full_disk = false;
   bl_err err = bl_dstr_set_lit (&d->suffix, ".log");
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   err = past_files_init (&d->files, 1, alloc);
-  if (err.bl) {
+  if (err.own) {
     bl_dstr_destroy (&d->suffix);
   }
   return err;
@@ -74,7 +74,7 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
   bl_err err = bl_dstr_set_capacity(
       &name, bl_dstr_len (&d->prefix) + 1 + 16 + 1 + 16 + bl_dstr_len (&d->suffix)
       );
-  if (err.bl) {
+  if (err.own) {
       return err;
   }
   if (d->time_based_name) {
@@ -112,7 +112,7 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
   char* fname = bl_dstr_steal_ownership (&name);
   d->f = fopen (fname, "w");
   if (!d->f) {
-    err.bl  = (bl_err_uint) bl_file;
+    err.own  = (bl_err_uint) bl_file;
     err.sys = (bl_err_uint) errno;
     bl_dealloc (d->alloc, fname);
     return err;
@@ -155,7 +155,7 @@ static bl_err malc_fwrite (malc_file_dst* d, char const* s, bl_uword slen)
           d->file_size = 0;
           malc_file_dst_drop_last_file (d, true);
           bl_err err   = malc_file_dst_open_new_file (d);
-          if (err.bl) {
+          if (err.own) {
             return err;
           }
         }
@@ -207,20 +207,20 @@ static bl_err malc_file_dst_write(
   bl_err err;
   if (!d->f) {
     err = malc_file_dst_open_new_file (d);
-    if (err.bl) {
+    if (err.own) {
       return err;
     }
   }
   err = malc_fwrite (d, strs->timestamp, strs->timestamp_len);
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   err = malc_fwrite (d, strs->sev, strs->sev_len);
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   malc_fwrite (d, strs->text, strs->text_len);
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   return malc_fwrite (d, "\n", bl_lit_len ("\n"));
@@ -274,11 +274,11 @@ MALC_EXPORT bl_err malc_file_set_cfg(
   d->time_based_name = cfg->time_based_name;
   d->can_remove_old_data_on_full_disk = cfg->can_remove_old_data_on_full_disk;
   bl_err err = bl_dstr_set (&d->prefix, cfg->prefix);
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   err = bl_dstr_set (&d->suffix, cfg->suffix);
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   bl_uword pfcount =

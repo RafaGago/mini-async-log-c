@@ -386,7 +386,7 @@ inline void malc_do_run_refdtor_cpp(
             bl_pp_vargs_ignore_first (__VA_ARGS__) \
             )\
           );\
-        if (err.bl) {\
+        if (err.own) {\
           /*enable in-place deallocation of dynamic variables after err*/ \
           bl_pp_tokconcat(malc_do_deallocate_, __LINE__) = 1; \
           break;\
@@ -410,7 +410,7 @@ inline void malc_do_run_refdtor_cpp(
           &bl_pp_tokconcat (malc_const_entry_, __LINE__),\
           0\
           );\
-        if (err.bl) {\
+        if (err.own) {\
           /*no args, don't need to care about in-place deallocation of */ \
           /* dynamic variables after err*/ \
           break;\

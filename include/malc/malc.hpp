@@ -77,7 +77,7 @@ protected:
 
 static void throw_if_error (bl_err err)
 {
-  if (err.bl) {
+  if (err.own) {
     throw exception (bl_strerror (err));
   }
 }
@@ -98,7 +98,7 @@ public:
   {
     void* inst;
     bl_err e = this->untyped_try_get (inst);
-    return !e.bl ? static_cast<T*> (inst) :nullptr;
+    return !e.own ? static_cast<T*> (inst) :nullptr;
   }
 };
 /*----------------------------------------------------------------------------*/
@@ -212,7 +212,7 @@ public:
     dst_access<T> ret;
     malc_dst tbl = detail::destination_adapt<T>::type::get_dst_tbl();
     bl_err err   = add_destination_impl (id, tbl);
-    if (!err.bl) {
+    if (!err.own) {
       ret.m_owner = handle();
       ret.m_id = id;
     }
@@ -271,10 +271,10 @@ public:
   bool run_consume_task (bl_uword timeout_us)
   {
     bl_err err = wrapper::run_consume_task (timeout_us);
-    if (!err.bl || err.bl == bl_nothing_to_do) {
+    if (!err.own || err.own == bl_nothing_to_do) {
       return true;
     }
-    if (err.bl == bl_preconditions) {
+    if (err.own == bl_preconditions) {
       return false;
     }
     detail::throw_if_error (err);
@@ -436,7 +436,7 @@ protected:
   void construct_throw_impl (bl_alloc_tbl alloc)
   {
     bl_err e = construct_impl (alloc);
-    if (e.bl) {
+    if (e.own) {
       throw exception(
         this->handle()
         ? "malcpp already constructed"

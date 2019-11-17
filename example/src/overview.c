@@ -91,7 +91,7 @@ int log_thread (void* ctx)
 
   (void) malc_terminate (ilog, false); /* terminating the logger. Will force the
                                           event loop to exit */
-  return err.bl;
+  return err.own;
 }
 /*----------------------------------------------------------------------------*/
 int add_configure_destinations (void)
@@ -102,14 +102,14 @@ int add_configure_destinations (void)
 
   /* destination register */
   err = malc_add_destination (ilog, &stdouterr_id, &malc_stdouterr_dst_tbl);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "Error creating the stdout/stderr destination\n");
-    return err.bl;
+    return err.own;
   }
   err = malc_add_destination (ilog, &file_id, &malc_file_dst_tbl);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "Error creating the file destination\n");
-    return err.bl;
+    return err.own;
   }
   /* from here and below it's just sink/destination configuration when the
   defaults are not suitable. Here is just done for demo purposes. */
@@ -123,51 +123,51 @@ int add_configure_destinations (void)
 
   dcfg.severity = malc_sev_warning;
   err = malc_set_destination_cfg (ilog, &dcfg, stdouterr_id);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "Unable to set generic stdout/stderr destination config\n");
-    return err.bl;
+    return err.own;
   }
   dcfg.severity = malc_sev_debug;
   err = malc_set_destination_cfg (ilog, &dcfg, file_id);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "Unable to set generic file destination config\n");
-    return err.bl;
+    return err.own;
   }
   /* destination specific cfg. */
   malc_stdouterr_dst* stdouterr;
   err = malc_get_destination_instance (ilog, (void**) &stdouterr, stdouterr_id);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "bug when retrieving the stdout/stderr destination\n");
-    return err.bl;
+    return err.own;
   }
   malc_file_dst* file;
   err = malc_get_destination_instance (ilog, (void**) &file, file_id);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "bug when retrieving the stdout/stderr destination\n");
-    return err.bl;
+    return err.own;
   }
   /* severities equal and above error will be output on stderr (just for demo
   purposes, as it's already the default) */
   err = malc_stdouterr_set_stderr_severity (stdouterr, malc_sev_error);
-  if (err.bl) {
+  if (err.own) {
     fprintf(
       stderr, "Unable to set specific stdout/stderr destination config\n"
       );
-    return err.bl;
+    return err.own;
   }
   malc_file_cfg fcfg;
   err = malc_file_get_cfg (file, &fcfg);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "Unable to get specific file destination config\n");
-    return err.bl;
+    return err.own;
   }
   fcfg.prefix = "malc-overview";
   fcfg.suffix = ".log";
   err = malc_file_set_cfg (file, &fcfg);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "Unable to set specific file destination config\n");
   }
-  return err.bl;
+  return err.own;
 }
 /*----------------------------------------------------------------------------*/
 int main (int argc, char const* argv[])
@@ -181,31 +181,31 @@ int main (int argc, char const* argv[])
     return bl_alloc;
   }
   err = malc_create (ilog, &alloc);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "Error creating the malc instance\n");
     goto dealloc;
   }
-  err.bl = add_configure_destinations();
-  if (err.bl) {
+  err.own = add_configure_destinations();
+  if (err.own) {
     goto destroy;
   }
   /* logger startup */
   malc_cfg cfg;
   err = malc_get_cfg (ilog, &cfg);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "bug when retrieving the logger configuration\n");
     goto destroy;
   }
   cfg.consumer.start_own_thread = false;
   err = malc_init (ilog, &cfg);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "unable to start logger\n");
     goto destroy;
   }
   /* threads can start logging */
   bl_thread t;
   err = bl_thread_init (&t, log_thread, nullptr);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "unable to start a log thread\n");
     goto destroy;
   }
@@ -213,13 +213,13 @@ int main (int argc, char const* argv[])
   do {
     err = malc_run_consume_task (ilog, 10000);
   }
-  while (!err.bl || err.bl == bl_nothing_to_do);
+  while (!err.own || err.own == bl_nothing_to_do);
   err = bl_mkok();
 
 destroy:
   (void) malc_destroy (ilog);
 dealloc:
   bl_dealloc (&alloc, ilog);
-  return err.bl;
+  return err.own;
 }
 /*----------------------------------------------------------------------------*/

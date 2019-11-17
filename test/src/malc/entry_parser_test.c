@@ -34,7 +34,7 @@ static int eparser_test_setup (void **state)
 {
   static eparser_context c;
   c.alloc = bl_get_default_alloc();
-  assert_int_equal (entry_parser_init (&c.ep, &c.alloc).bl, bl_ok);
+  assert_int_equal (entry_parser_init (&c.ep, &c.alloc).own, bl_ok);
   memset (&c.le, 0, sizeof c.le);
   memset (&c.strs, 0, sizeof c.strs);
   *state = &c;
@@ -53,7 +53,7 @@ static void entry_parser_test_timestamp (void **state)
   eparser_context* c = (eparser_context*) *state;
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_error, "NOTHING");
   assert_int_equal(
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own
     );
   assert_string_equal (c->strs.timestamp, "00000000000.000000000");
 }
@@ -64,37 +64,37 @@ static void entry_parser_test_severities (void **state)
 
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_debug, "NOTHING");
   assert_int_equal(
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own
     );
   assert_string_equal (c->strs.sev, MALC_EP_DEBUG);
 
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_trace, "NOTHING");
   assert_int_equal(
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own
     );
   assert_string_equal (c->strs.sev, MALC_EP_TRACE);
 
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_note, "NOTHING");
   assert_int_equal(
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own
     );
   assert_string_equal (c->strs.sev, MALC_EP_NOTE);
 
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_warning, "NOTHING");
   assert_int_equal(
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own
     );
   assert_string_equal (c->strs.sev, MALC_EP_WARN);
 
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_error, "NOTHING");
   assert_int_equal(
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own
     );
   assert_string_equal (c->strs.sev, MALC_EP_ERROR);
 
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_critical, "NOTHING");
   assert_int_equal(
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own
     );
   assert_string_equal (c->strs.sev, MALC_EP_CRIT);
 }
@@ -126,7 +126,7 @@ static void entry_parser_test_severities (void **state)
   c->le.args       = &bl_pp_add_line(la); \
   c->le.args_count = 1; \
   assert_int_equal( \
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl \
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own \
     );
 /*----------------------------------------------------------------------------*/
 #define parser_run_ptr_arg(c, fmtstr, arg) \
@@ -142,7 +142,7 @@ static void entry_parser_test_severities (void **state)
   c->le.args       = &bl_pp_add_line(la); \
   c->le.args_count = 1; \
   assert_int_equal( \
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl \
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own \
     );
 /*----------------------------------------------------------------------------*/
 #define parser_run_float_arg(c, fmtstr, arg) \
@@ -160,7 +160,7 @@ static void entry_parser_test_severities (void **state)
   c->le.args       = &bl_pp_add_line(la); \
   c->le.args_count = 1; \
   assert_int_equal( \
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl \
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own \
     );
 /*----------------------------------------------------------------------------*/
 #define parser_run_aggregate_arg(c, fmt, arg) \
@@ -185,7 +185,7 @@ static void entry_parser_test_severities (void **state)
   c->le.args       = &bl_pp_add_line(la); \
   c->le.args_count = 1; \
   assert_int_equal( \
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl \
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own \
     );
 /*----------------------------------------------------------------------------*/
 static void entry_parser_test_uints (void **state)
@@ -496,7 +496,7 @@ static void entry_parser_test_strref (void **state)
     c->le.entry, malc_sev_error, "PREFIX {} SUFFIX", args.vstrref, c->le.refdtor
     );
   assert_int_equal(
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own
     );
   assert_true(
     snprintf (cmp, sizeof cmp, "PREFIX %s SUFFIX", "a literal") > 0
@@ -526,7 +526,7 @@ static void entry_parser_test_memref (void **state)
     c->le.entry, malc_sev_error, "PREFIX {} SUFFIX", args.vmemref, c->le.refdtor
     );
   assert_int_equal(
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own
     );
   assert_true(
     snprintf (cmp, sizeof cmp, "PREFIX %s SUFFIX", expected) > 0
@@ -548,7 +548,7 @@ static void entry_parser_missing_args (void **state)
 
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_debug, "PREFIX {} SUFFIX");
   assert_int_equal(
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own
     );
   assert_string_equal("PREFIX " MALC_EP_MISSING_ARG " SUFFIX", c->strs.text);
 }
@@ -559,7 +559,7 @@ static void entry_parser_escaped_braces (void **state)
 
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_debug, "PREFIX {{} SUFFIX");
   assert_int_equal(
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own
     );
   assert_string_equal ("PREFIX {} SUFFIX", c->strs.text);
 }
@@ -570,7 +570,7 @@ static void entry_parser_unclosed_fmt (void **state)
 
   SER_TEST_GET_ENTRY (c->le.entry, malc_sev_debug, "PREFIX { SUFFIX");
   assert_int_equal(
-    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).bl
+    bl_ok, entry_parser_get_log_strings (&c->ep, &c->le, &c->strs).own
     );
   assert_string_equal ("PREFIX " MALC_EP_UNCLOSED_FMT " SUFFIX", c->strs.text);
 }

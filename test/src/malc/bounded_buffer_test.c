@@ -43,17 +43,17 @@ static void boundedb_alloc_dealloc_test (void **state)
   bl_err err = boundedb_reset(
     &c->b, &c->alloc, slot_size * slots, slot_size, 1, false
     );
-  assert_int_equal (err.bl, bl_ok);
+  assert_int_equal (err.own, bl_ok);
 
   for (bl_uword round = 0; round < 2; ++round) {
     bl_u8* mem[slots];
     for (bl_uword i = 0; i < slots; ++i) {
       err = boundedb_alloc (&c->b, &mem[i], 1);
-      assert_int_equal (err.bl, bl_ok);
+      assert_int_equal (err.own, bl_ok);
     }
     bl_u8* dummy;
     err = boundedb_alloc (&c->b, &dummy, 1);
-    assert_int_equal (err.bl, bl_alloc);
+    assert_int_equal (err.own, bl_alloc);
     for (bl_uword i = 0; i < slots; ++i) {
       boundedb_dealloc (&c->b, mem[i], 1);
     }

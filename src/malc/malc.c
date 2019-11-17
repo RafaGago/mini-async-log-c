@@ -77,7 +77,7 @@ typedef struct info_byte {
 }
 info_byte;
 /*----------------------------------------------------------------------------*/
-bl_static_assert_global_ns (bl_pow2_u (8 - 1 - alloc_tag_bits) >= q_cmd_max);
+bl_static_assert_ns (bl_pow2_u (8 - 1 - alloc_tag_bits) >= q_cmd_max);
 /*----------------------------------------------------------------------------*/
 typedef struct qnode {
   bl_mpsc_i_node hook;
@@ -103,7 +103,7 @@ static void malc_tls_destructor (void* mem, void* context)
   queue. This guarantees that all log entries belonging to this memory chunk
   have been processed before. */
 
-  bl_static_assert_ns (sizeof (qnode) <= sizeof (tls_buffer));
+  bl_static_assert_ns_funcscope (sizeof (qnode) <= sizeof (tls_buffer));
   malc*  l = (malc*) context;
   qnode* n = (qnode*) mem;
   n->slots = 0;
@@ -154,23 +154,23 @@ MALC_EXPORT bl_err malc_create (malc* l, bl_alloc_tbl const* alloc)
     return bl_mkerr (bl_invalid);
   }
   bl_err err = bl_time_extras_init();
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   err = bl_mutex_init (&l->produce_mutex);
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   err = memory_init (&l->mem, alloc);
-  if (err.bl) {
+  if (err.own) {
     goto mutex_destroy;
   }
   err = deserializer_init (&l->ds, alloc);
-  if (err.bl) {
+  if (err.own) {
     goto memory_destroy;
   }
   err = entry_parser_init (&l->ep, alloc);
-  if (err.bl) {
+  if (err.own) {
     goto deserializer_destroy;
   }
   destinations_init (&l->dst, alloc);
@@ -210,7 +210,7 @@ MALC_EXPORT bl_err malc_destroy (malc* l)
     bl_err err;
     if (expected == st_running) {
       err = malc_terminate (l, true);
-      if (bl_unlikely (err.bl && err.bl != bl_preconditions)) {
+      if (bl_unlikely (err.own && err.own != bl_preconditions)) {
         /* allocation or some very uncommon error */
         return err;
       }
@@ -218,8 +218,8 @@ MALC_EXPORT bl_err malc_destroy (malc* l)
     do {
       err = malc_run_consume_task (l, 0);
     }
-    while (!err.bl || err.bl == bl_nothing_to_do);
-    if (err.bl != bl_preconditions) {
+    while (!err.own || err.own == bl_nothing_to_do);
+    if (err.own != bl_preconditions) {
       /* allocation or some very uncommon error */
       return err;
     }
@@ -261,7 +261,7 @@ static int malc_thread (void* d)
   do {
     err = malc_run_consume_task ((malc*) d, 200000);
   }
-  while (!err.bl || err.bl == bl_nothing_to_do);
+  while (!err.own || err.own == bl_nothing_to_do);
   return 0;
 }
 /*----------------------------------------------------------------------------*/
@@ -279,7 +279,7 @@ MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg_readonly)
     return bl_mkerr (bl_invalid);
   }
   bl_err err = destinations_validate_rate_limit_settings (&l->dst, &cfg.sec);
-  if (err.bl) {
+  if (err.own) {
     return err;
   }
   /* booleanization */
@@ -297,16 +297,16 @@ MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg_readonly)
   l->producer = cfg.producer;
   l->ep.sanitize_log_entries = cfg.sec.sanitize_log_entries;
   err = destinations_set_rate_limit_settings (&l->dst, &cfg.sec);
-  if (err.bl) {
+  if (err.own) {
     goto finish;
   }
   err = memory_bounded_buffer_init (&l->mem, l->alloc);
-  if (err.bl) {
+  if (err.own) {
     goto finish;
   }
   if (l->consumer.start_own_thread) {
     err = bl_thread_init (&l->thread, malc_thread, l);
-    if (!err.bl) {
+    if (!err.own) {
       while (bl_atomic_uword_load_rlx (&l->state) == st_initializing) {
         bl_thread_yield();
       }
@@ -316,7 +316,7 @@ MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg_readonly)
     malc_producer_thread_env_init (l);
   }
 finish:
-  if (err.bl) {
+  if (err.own) {
     bl_atomic_uword_store_rlx (&l->state, expected);
   }
   return err;
@@ -342,7 +342,7 @@ MALC_EXPORT bl_err malc_terminate (malc* l, bool dont_block)
   /* force the the thread local storage destructor to run now (if any) instead
      of doing it when the thread goes out of scope */
   bl_err err = memory_tls_try_run_destructor (&l->mem);
-  if (err.bl) {
+  if (err.own) {
     bl_dealloc (l->alloc, n);
     return err;
   }
@@ -385,7 +385,7 @@ MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, bl_u32 bytes)
   bl_err err = memory_tls_init_unregistered(
     &l->mem, bytes, l->alloc, &malc_tls_destructor, l, &n->mem
     );
-  if (err.bl) {
+  if (err.own) {
     bl_dealloc (l->alloc, n);
     return err;
   }
@@ -402,11 +402,11 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
   bl_err err =
     bl_fast_timept_deadline_init_usec_explicit (&deadline, now, timeout_us);
 
-  if (bl_unlikely (err.bl)) {
+  if (bl_unlikely (err.own)) {
     return err;
   }
   err = bl_mutex_lock (&l->produce_mutex);
-  if (bl_unlikely (err.bl)) {
+  if (bl_unlikely (err.own)) {
     return err;
   }
   if (timeout_us && bl_fast_timept_deadline_expired (deadline)) {
@@ -426,7 +426,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
     while (1) {
       qn = nullptr;
       err = bl_mpsc_i_consume (&l->q, &qn, 0);
-      if (err.bl != bl_busy) {
+      if (err.own != bl_busy) {
         break;
       }
       ++retries;
@@ -438,7 +438,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
         bl_processor_pause();
       }
     }
-    if (bl_likely (!err.bl)) {
+    if (bl_likely (!err.own)) {
       ++count;
       qnode* n = bl_to_type_containing (qn, hook, qnode);
       switch (n->info.cmd) {
@@ -453,11 +453,11 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
           n->info.has_timestamp,
           l->alloc
           );
-        if (!err.bl) {
+        if (!err.own) {
           log_entry le = deserializer_get_log_entry (&l->ds);
           malc_log_strings strs;
           bl_err entry_err = entry_parser_get_log_strings (&l->ep, &le, &strs);
-          if (bl_likely (!entry_err.bl)) {
+          if (bl_likely (!entry_err.own)) {
             /*NOTE: Possible problem when using the rate_filter:
 
             The format string pointer (to a constant) is used raw as an entry
@@ -524,7 +524,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
           bl_atomic_uword_load_rlx (&l->state) == st_terminating && "Malc BUG"
           );
         bl_assert(
-          bl_mpsc_i_consume (&l->q, &qn, 0).bl == bl_empty &&
+          bl_mpsc_i_consume (&l->q, &qn, 0).own == bl_empty &&
           "client code BUG: sending messages after termination. May leak."
           );
         bl_dealloc (l->alloc, n);
@@ -557,7 +557,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
         &l->cbackoff, l->consumer.backoff_max_us
         );
     }
-    else if (err.bl == bl_empty) {
+    else if (err.own == bl_empty) {
       bl_timeoft64 next_sleep_us =
         bl_nonblock_backoff_next_sleep_us (&l->cbackoff);
       bool do_backoff       = true;
@@ -658,7 +658,7 @@ MALC_EXPORT bl_err malc_log_entry_prepare(
   alloc_tag tag;
   bl_u8* mem    = nullptr;
   bl_err err = memory_alloc (&l->mem, &mem, &tag, slots);
-  if (bl_unlikely (err.bl)) {
+  if (bl_unlikely (err.own)) {
     return err;
   }
   qnode* n = (qnode*) mem;
