@@ -12,8 +12,8 @@ void log_thread()
 {
   bl_err err;
   log.producer_thread_local_init (128 * 1024);
-  log_error (err, "Hello malc");
-  log_warning (err, "testing {}, {}, {.1}", 1, 2, 3.f);
+  err = log_error ("Hello malc");
+  err = log_warning ("testing {}, {}, {.1}", 1, 2, 3.f);
 }
 /*----------------------------------------------------------------------------*/
 int main (int argc, char const* argv[])

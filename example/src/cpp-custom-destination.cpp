@@ -89,8 +89,8 @@ int main (int argc, char const* argv[])
     fprintf (stderr, "unable to start logger\n");
     return err.bl;
   }
-  log_error (err, "Hello malc");
-  log_warning (err, "testing {}, {}, {.1}", 1, 2, 3.f);
+  err = log_error ("Hello malc");
+  err = log_warning ("testing {}, {}, {.1}", 1, 2, 3.f);
   return 0;
 }
 /*----------------------------------------------------------------------------*/

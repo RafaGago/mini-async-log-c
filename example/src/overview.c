@@ -24,46 +24,42 @@ void dtor_using_free (void* context, malc_ref const* refs, bl_uword refs_count)
 int log_thread (void* ctx)
 {
   bl_err err;
-
   /* int */
-  log_error (err, "10: {}", 10);
-  log_error (err, "10 using \"03\" specifier: {03}", 10);
-  log_error (err, "10 using \"+03\" specifier: {+03}", 10);
-  log_error (err, "10 using \"03x\" specifier: {03x}", 10);
-  log_error (err, "10 using \"03x\" specifier: {03X}", 10);
-  log_error(
-    err,
+  err = log_error ("10: {}", 10);
+  err = log_error ("10 using \"03\" specifier: {03}", 10);
+  err = log_error ("10 using \"+03\" specifier: {+03}", 10);
+  err = log_error ("10 using \"03x\" specifier: {03x}", 10);
+  err = log_error ("10 using \"03x\" specifier: {03X}", 10);
+  err = log_error(
     "10 using \"0Nx\" specifier. N = number of nibbles: {0Nx}",
     (bl_u32) 10
     );
-  log_error(
-    err,
+  err = log_error(
     "10 using \"0Wx\" specifier. W = max number of int digits: {0W}",
     (bl_u32) 10
     );
 
   /* floating point */
-  log_error (err, "1.: {}", 1.);
-  log_error (err, "1. using \".3\" specifier: {.3}", 1.);
-  log_error (err, "1. using \"012.3\" specifier: {012.3}", 1.);
-  log_error (err, "1. using \"+012.3\" specifier: {+012.3}", 1.);
-  log_error (err, "1. using \"-012.3\" specifier: {-012.3}", 1.);
-  log_error (err, "1. using \"e\" specifier: {e}", 1.);
-  log_error (err, "1. using \"g\" specifier: {g}", 1.);
-  log_error (err, "1. using \"a\" specifier: {a}", 1.);
-  log_error (err, "1. using \"E\" specifier: {E}", 1.);
-  log_error (err, "1. using \"G\" specifier: {G}", 1.);
-  log_error (err, "1. using \"A\" specifier: {A}", 1.);
+  err = log_error ("1.: {}", 1.);
+  err = log_error ("1. using \".3\" specifier: {.3}", 1.);
+  err = log_error ("1. using \"012.3\" specifier: {012.3}", 1.);
+  err = log_error ("1. using \"+012.3\" specifier: {+012.3}", 1.);
+  err = log_error ("1. using \"-012.3\" specifier: {-012.3}", 1.);
+  err = log_error ("1. using \"e\" specifier: {e}", 1.);
+  err = log_error ("1. using \"g\" specifier: {g}", 1.);
+  err = log_error ("1. using \"a\" specifier: {a}", 1.);
+  err = log_error ("1. using \"E\" specifier: {E}", 1.);
+  err = log_error ("1. using \"G\" specifier: {G}", 1.);
+  err = log_error ("1. using \"A\" specifier: {A}", 1.);
 
   /* bytes */
   bl_u8 const mem[] = { 10, 11, 12, 13 };
-  log_error (err, "[10,11,12,13] by value: {}", logmemcpy (mem, sizeof mem));
+  err = log_error ("[10,11,12,13] by value: {}", logmemcpy (mem, sizeof mem));
 
   bl_u8* dmem = malloc (sizeof mem);
   assert (dmem);
   memcpy (dmem, mem, sizeof mem);
-  log_error(
-    err,
+  err = log_error(
     "[10,11,12,13] by ref: {}",
     logmemref (dmem, sizeof mem),
     logrefdtor (dtor_using_free, nullptr)
@@ -71,32 +67,31 @@ int log_thread (void* ctx)
 
   /* strings */
   char const str[] = "a demo string";
-  log_error (err, "a string by value: {}", logstrcpy (str, sizeof str - 1));
+  err = log_error ("a string by value: {}", logstrcpy (str, sizeof str - 1));
 
   char* dstr = malloc (sizeof str);
   assert (dstr);
   memcpy (dstr, str, sizeof str);
-  log_error(
-    err,
+  err = log_error(
     "a string by ref: {}",
     logstrref (dstr, sizeof str - 1),
     logrefdtor (dtor_using_free, nullptr)
     );
 
-  log_error (err, "a literal: {}", loglit (1 ? "literal one" : "literal two"));
+  err = log_error ("a literal: {}", loglit (1 ? "literal one" : "literal two"));
 
   /* severities */
-  log_debug (err, "this is not seen on stdout (sev > debug)");
+  err = log_debug ("this is not seen on stdout (sev > debug)");
 
   /* if */
-  log_error_if (err, 1, "conditional debug line");
+  err = log_error_if (1, "conditional debug line");
 
   /* brace escape */
-  log_error (err, "brace escape only requires to skip the open brace: {{}");
+  err = log_error ("brace escape only requires to skip the open brace: {{}");
 
   (void) malc_terminate (ilog, false); /* terminating the logger. Will force the
                                           event loop to exit */
-  return 0;
+  return err.bl;
 }
 /*----------------------------------------------------------------------------*/
 int add_configure_destinations (void)

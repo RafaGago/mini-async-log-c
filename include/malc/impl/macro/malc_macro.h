@@ -334,127 +334,131 @@ inline void malc_do_run_refdtor_cpp(
     MALC_LOG_REF_ARRAY_DEALLOC_SEARCH_EXEC, bl_pp_empty, __VA_ARGS__ \
     )
 /*----------------------------------------------------------------------------*/
-#define MALC_LOG_IF_PRIVATE(cond, err, malc_ptr, sev, ...) \
-  /* Reminder: The first __VA_ARG__ is the format string */\
-  do { \
-    bl_pp_if (bl_pp_has_vargs (bl_pp_vargs_ignore_first (__VA_ARGS__)))(\
-      /* Validating that the functions containing refs have a ref destructor*/\
-      /* as the last argument*/\
-      MALC_LOG_VALIDATE_REF_AND_CLEANUP(\
-        bl_pp_vargs_ignore_first (__VA_ARGS__)\
-        )\
-      /* The passed expressions (args) are stored into variables, this  */\
-      /* is to keep function-like semantics (evaluating every expression */\
-      /* only once) and to do some data compression (if configured to). */\
-      /* A register optimizer will find unnecessary copies trivial to */\
-      /* remove. Variables are called I, II, III, IIII, IIIII, etc... by */\
-      /* the preprocessor library.*/ \
-      MALC_LOG_DECLARE_TMP_VARIABLES (bl_pp_vargs_ignore_first (__VA_ARGS__))\
-      /* In case we don't log we will have to deallocate in place the*/\
-      /* dynamic entries: "malc_strref" and "malc_memref". This is a*/\
-      /* boolean to trigger the deallocation.*/\
-      bl_uword bl_pp_tokconcat(malc_do_deallocate_, __LINE__) = 0; \
-    ) /*end if*/\
-    do { \
-      if ((cond) && ((sev) >= MALC_GET_MIN_SEVERITY_FNAME ((malc_ptr)))) { \
-        /* Create a static const data holder that saves data about this  */\
-        /* call: a pointer to the format literal, a string with the type  */\
-        /* of each field on each char and the number of compressed fields*/\
-        MALC_LOG_CREATE_CONST_ENTRY ((sev), __VA_ARGS__); \
-        bl_pp_if_else (bl_pp_has_vargs (bl_pp_vargs_ignore_first (__VA_ARGS__)))(\
-          malc_serializer bl_pp_tokconcat(malc_serializer_, __LINE__);\
-          /* We prepare the serializer, MALC_GET_SERIALIZED_TYPES_SIZE */\
-          /* will contain the size of the payload to be written. This */\
-          /* function will make a single allocation that puts in a */\
-          /* contiguous cache-friendly memory chunk:*/\
-          \
-          /* -an intrusive linked list node. */\
-          /* -const info about the entry */\
-          /* -extra free space to be able to write the payload */\
-          \
-          /* These things are wrapped on the serializer object.*/\
-          err = MALC_LOG_ENTRY_PREPARE_FNAME(\
-            (malc_ptr),\
-            &bl_pp_tokconcat (malc_serializer_, __LINE__),\
-            &bl_pp_tokconcat (malc_const_entry_, __LINE__),\
-            MALC_GET_SERIALIZED_TYPES_SIZE( \
-              bl_pp_vargs_ignore_first (__VA_ARGS__) \
-              )\
-            );\
-          if (err.bl) {\
-            /*enable in-place deallocation of dynamic variables after err*/ \
-            bl_pp_tokconcat(malc_do_deallocate_, __LINE__) = 1; \
-            break;\
-          }\
-          /* passing all the variables on the serializer, which already */\
-          /* knows the total size. */\
-          MALC_SERIALIZE_TMP_VALUES (bl_pp_vargs_ignore_first (__VA_ARGS__));\
-        , /*else: no args, just a plain format string*/\
-          malc_serializer bl_pp_tokconcat(malc_serializer_, __LINE__);\
-          /* We prepare the serializer wit no payload to be written. This */\
-          /* function will make a single allocation that puts in a */\
-          /* contiguous cache-friendly memory chunk:*/\
-          \
-          /* -an intrusive linked list node. */\
-          /* -const info about the entry */\
-          \
-          /* These things are wrapped on the serializer object.*/\
-          err = MALC_LOG_ENTRY_PREPARE_FNAME(\
-            (malc_ptr),\
-            &bl_pp_tokconcat (malc_serializer_, __LINE__),\
-            &bl_pp_tokconcat (malc_const_entry_, __LINE__),\
-            0\
-            );\
-          if (err.bl) {\
-            /*no args, don't need to care about in-place deallocation of */ \
-            /* dynamic variables after err*/ \
-            break;\
-          }\
-        ) /*end if*/\
-        /* Once all the data is written we commit the data to the queue*/\
-        MALC_LOG_ENTRY_COMMIT_FNAME(\
-          (malc_ptr),\
-          &bl_pp_tokconcat (malc_serializer_, __LINE__)\
-          );\
-      } \
-      else { \
-        (err) = bl_mkok(); \
-        bl_pp_if (bl_pp_has_vargs (bl_pp_vargs_ignore_first (__VA_ARGS__)))(\
-          /* enable in-place deallocation of dynamic variables after */\
-          /* filtering out an entry*/ \
-          bl_pp_tokconcat(malc_do_deallocate_, __LINE__) = 1; \
-        ) /*end if*/\
-      } \
-      --(err.sys); ++(err.sys); /*remove unused variable warnings */ \
-    } \
-    while (0); \
-    bl_pp_if (bl_pp_has_vargs (bl_pp_vargs_ignore_first (__VA_ARGS__)))( \
-      /* Dynamic entry deallocation code. Only generated when there are */ \
-      /* arguments other than the format literal*/\
-      \
-      /* Notice that the conditional below will (hopefully) get optimized */ \
-      /* away when "MALC_GET_REF_COUNT" is == 0, as it is a compile time */ \
-      /* constant*/ \
-      if (bl_pp_tokconcat(malc_do_deallocate_, __LINE__) == 1 && \
-        (MALC_GET_REF_COUNT (bl_pp_vargs_ignore_first (__VA_ARGS__))) > 0 \
-        ) { \
-        /* We create an array with reoom for all the dynamic entries and a */ \
-        /* counter*/ \
-        malc_ref bl_pp_tokconcat(malc_deallocrefs_, __LINE__)[ \
-          MALC_GET_REF_COUNT (bl_pp_vargs_ignore_first (__VA_ARGS__)) \
-          ]; \
-        bl_uword bl_pp_tokconcat(malc_deallocrefs_idx, __LINE__) = 0; \
-        /* We populate the array */ \
-        MALC_LOG_FILL_REF_ARRAY (bl_pp_vargs_ignore_first (__VA_ARGS__)) \
-        /* run the destructor */ \
-        MALC_LOG_REF_ARRAY_DEALLOC (bl_pp_vargs_ignore_first (__VA_ARGS__)) \
-      } \
-    ) /*end if*/\
-  } \
-  while (0)
+#if !defined (__GNUC__) && !defined (__clang__)
+  #error "MALC_LOG_IF_PRIVATE needs a compiler that allows macro statement expressions"
+#endif
 /*----------------------------------------------------------------------------*/
-#define MALC_LOG_PRIVATE(err, malc_ptr, sev, ...) \
-  MALC_LOG_IF_PRIVATE (1, (err), (malc_ptr), (sev), __VA_ARGS__)
+#define MALC_LOG_IF_PRIVATE(cond, malc_ptr, sev, ...) \
+  /* Reminder: The first __VA_ARG__ is the format string */\
+  ({\
+  bl_err err = bl_mkok(); \
+  bl_pp_if (bl_pp_has_vargs (bl_pp_vargs_ignore_first (__VA_ARGS__)))(\
+    /* Validating that the functions containing refs have a ref destructor*/\
+    /* as the last argument*/\
+    MALC_LOG_VALIDATE_REF_AND_CLEANUP(\
+      bl_pp_vargs_ignore_first (__VA_ARGS__)\
+      )\
+    /* The passed expressions (args) are stored into variables, this  */\
+    /* is to keep function-like semantics (evaluating every expression */\
+    /* only once) and to do some data compression (if configured to). */\
+    /* A register optimizer will find unnecessary copies trivial to */\
+    /* remove. Variables are called I, II, III, IIII, IIIII, etc... by */\
+    /* the preprocessor library.*/ \
+    MALC_LOG_DECLARE_TMP_VARIABLES (bl_pp_vargs_ignore_first (__VA_ARGS__))\
+    /* In case we don't log we will have to deallocate in place the*/\
+    /* dynamic entries: "malc_strref" and "malc_memref". This is a*/\
+    /* boolean to trigger the deallocation.*/\
+    bl_uword bl_pp_tokconcat(malc_do_deallocate_, __LINE__) = 0; \
+  ) /*end if*/\
+  do { \
+    if ((cond) && ((sev) >= MALC_GET_MIN_SEVERITY_FNAME ((malc_ptr)))) { \
+      /* Create a static const data holder that saves data about this  */\
+      /* call: a pointer to the format literal, a string with the type  */\
+      /* of each field on each char and the number of compressed fields*/\
+      MALC_LOG_CREATE_CONST_ENTRY ((sev), __VA_ARGS__); \
+      bl_pp_if_else (bl_pp_has_vargs (bl_pp_vargs_ignore_first (__VA_ARGS__)))(\
+        malc_serializer bl_pp_tokconcat(malc_serializer_, __LINE__);\
+        /* We prepare the serializer, MALC_GET_SERIALIZED_TYPES_SIZE */\
+        /* will contain the size of the payload to be written. This */\
+        /* function will make a single allocation that puts in a */\
+        /* contiguous cache-friendly memory chunk:*/\
+        \
+        /* -an intrusive linked list node. */\
+        /* -const info about the entry */\
+        /* -extra free space to be able to write the payload */\
+        \
+        /* These things are wrapped on the serializer object.*/\
+        err = MALC_LOG_ENTRY_PREPARE_FNAME(\
+          (malc_ptr),\
+          &bl_pp_tokconcat (malc_serializer_, __LINE__),\
+          &bl_pp_tokconcat (malc_const_entry_, __LINE__),\
+          MALC_GET_SERIALIZED_TYPES_SIZE( \
+            bl_pp_vargs_ignore_first (__VA_ARGS__) \
+            )\
+          );\
+        if (err.bl) {\
+          /*enable in-place deallocation of dynamic variables after err*/ \
+          bl_pp_tokconcat(malc_do_deallocate_, __LINE__) = 1; \
+          break;\
+        }\
+        /* passing all the variables on the serializer, which already */\
+        /* knows the total size. */\
+        MALC_SERIALIZE_TMP_VALUES (bl_pp_vargs_ignore_first (__VA_ARGS__));\
+      , /*else: no args, just a plain format string*/\
+        malc_serializer bl_pp_tokconcat(malc_serializer_, __LINE__);\
+        /* We prepare the serializer wit no payload to be written. This */\
+        /* function will make a single allocation that puts in a */\
+        /* contiguous cache-friendly memory chunk:*/\
+        \
+        /* -an intrusive linked list node. */\
+        /* -const info about the entry */\
+        \
+        /* These things are wrapped on the serializer object.*/\
+        err = MALC_LOG_ENTRY_PREPARE_FNAME(\
+          (malc_ptr),\
+          &bl_pp_tokconcat (malc_serializer_, __LINE__),\
+          &bl_pp_tokconcat (malc_const_entry_, __LINE__),\
+          0\
+          );\
+        if (err.bl) {\
+          /*no args, don't need to care about in-place deallocation of */ \
+          /* dynamic variables after err*/ \
+          break;\
+        }\
+      ) /*end if*/\
+      /* Once all the data is written we commit the data to the queue*/\
+      MALC_LOG_ENTRY_COMMIT_FNAME(\
+        (malc_ptr),\
+        &bl_pp_tokconcat (malc_serializer_, __LINE__)\
+        );\
+    } \
+    else { \
+      (err) = bl_mkok(); \
+      bl_pp_if (bl_pp_has_vargs (bl_pp_vargs_ignore_first (__VA_ARGS__)))(\
+        /* enable in-place deallocation of dynamic variables after */\
+        /* filtering out an entry*/ \
+        bl_pp_tokconcat(malc_do_deallocate_, __LINE__) = 1; \
+      ) /*end if*/\
+    } \
+  } \
+  while (0); \
+  bl_pp_if (bl_pp_has_vargs (bl_pp_vargs_ignore_first (__VA_ARGS__)))( \
+    /* Dynamic entry deallocation code. Only generated when there are */ \
+    /* arguments other than the format literal*/\
+    \
+    /* Notice that the conditional below will (hopefully) get optimized */ \
+    /* away when "MALC_GET_REF_COUNT" is == 0, as it is a compile time */ \
+    /* constant*/ \
+    if (bl_pp_tokconcat(malc_do_deallocate_, __LINE__) == 1 && \
+      (MALC_GET_REF_COUNT (bl_pp_vargs_ignore_first (__VA_ARGS__))) > 0 \
+      ) { \
+      /* We create an array with reoom for all the dynamic entries and a */ \
+      /* counter*/ \
+      malc_ref bl_pp_tokconcat(malc_deallocrefs_, __LINE__)[ \
+        MALC_GET_REF_COUNT (bl_pp_vargs_ignore_first (__VA_ARGS__)) \
+        ]; \
+      bl_uword bl_pp_tokconcat(malc_deallocrefs_idx, __LINE__) = 0; \
+      /* We populate the array */ \
+      MALC_LOG_FILL_REF_ARRAY (bl_pp_vargs_ignore_first (__VA_ARGS__)) \
+      /* run the destructor */ \
+      MALC_LOG_REF_ARRAY_DEALLOC (bl_pp_vargs_ignore_first (__VA_ARGS__)) \
+    } \
+  ) /*end if*/\
+  err; })
+
+/*----------------------------------------------------------------------------*/
+#define MALC_LOG_PRIVATE(malc_ptr, sev, ...) \
+  MALC_LOG_IF_PRIVATE (1, (malc_ptr), (sev), __VA_ARGS__)
 /*----------------------------------------------------------------------------*/
 
 #endif /* __MALC_MACRO_IMPL_H__ */

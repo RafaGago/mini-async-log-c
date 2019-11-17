@@ -136,7 +136,7 @@ static void all_allocation_sizes_up_to_slot_size_impl(
     send_data[i] = '0' + (char)(i % 10);
     bl_uword datasz = i + 1;
 
-    log_warning (err, "{}", logstrcpy (send_data, (bl_u16) datasz));
+    err = log_warning ("{}", logstrcpy (send_data, (bl_u16) datasz));
     assert_int_equal (err.bl, bl_ok);
 
     err = malc_run_consume_task (c->l, 10000);
@@ -185,7 +185,7 @@ static void tls_allocation (void **state)
   err = malc_init (c->l, &cfg);
   assert_int_equal (err.bl, bl_ok);
 
-  log_warning (err, "msg1: {}", 1);
+  err = log_warning ("msg1: {}", 1);
   assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
@@ -194,7 +194,7 @@ static void tls_allocation (void **state)
   assert_int_equal (malc_array_dst_size (c->dst), 1);
   assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
 
-  log_warning (err, "msg2: {}", logmemcpy ((void*) &err, tls_size * 8));
+  err = log_warning ("msg2: {}", logmemcpy ((void*) &err, tls_size * 8));
   assert_int_equal (err.bl, bl_alloc);
 
   termination_check (c);
@@ -218,7 +218,7 @@ static void bounded_allocation (void **state)
   err = malc_init (c->l, &cfg);
   assert_int_equal (err.bl, bl_ok);
 
-  log_warning (err, "msg1: {}", 1);
+  err = log_warning ("msg1: {}", 1);
   assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
@@ -227,7 +227,7 @@ static void bounded_allocation (void **state)
   assert_int_equal (malc_array_dst_size (c->dst), 1);
   assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
 
-  log_warning (err, "msg2: {}", logmemcpy ((void*) &err, bounded_size * 8));
+  err = log_warning ("msg2: {}", logmemcpy ((void*) &err, bounded_size * 8));
   assert_int_equal (err.bl, bl_alloc);
 
   termination_check (c);
@@ -247,7 +247,7 @@ static void dynamic_allocation (void **state)
   err = malc_init (c->l, &cfg);
   assert_int_equal (err.bl, bl_ok);
 
-  log_warning (err, "msg1: {}", 1);
+  err = log_warning ("msg1: {}", 1);
   assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
@@ -273,7 +273,7 @@ static void own_thread_and_flush (void **state)
   err = malc_init (c->l, &cfg);
   assert_int_equal (err.bl, bl_ok);
 
-  log_warning (err, "msg1: {}", 1);
+  err = log_warning ("msg1: {}", 1);
   assert_int_equal (err.bl, bl_ok);
 
   /* flush, so the entry is processed by the consumer thread */
@@ -312,7 +312,7 @@ static void severity_change (void **state)
   err = malc_init (c->l, &cfg);
   assert_int_equal (err.bl, bl_ok);
 
-  log_debug (err, "unfiltered");
+  err = log_debug ("unfiltered");
   assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
@@ -325,7 +325,7 @@ static void severity_change (void **state)
   err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
   assert_int_equal (err.bl, bl_ok);
 
-  log_debug (err, "filtered");
+  err = log_debug ("filtered");
   assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
@@ -380,7 +380,7 @@ static void severity_two_destinations (void **state)
   err = malc_init (c->l, &cfg);
   assert_int_equal (err.bl, bl_ok);
 
-  log_debug (err, "filtered");
+  err = log_debug ("filtered");
   assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
@@ -391,7 +391,7 @@ static void severity_two_destinations (void **state)
 
   assert_int_equal (malc_array_dst_size (dst2), 0);
 
-  log_error (err, "unfiltered");
+  err = log_error ("unfiltered");
   assert_int_equal (err.bl, bl_ok);
 
   err = malc_run_consume_task (c->l, 10000);
@@ -418,8 +418,7 @@ static void integer_formats (void **state)
   err = malc_init (c->l, &cfg);
   assert_int_equal (err.bl, bl_ok);
 
-  log_warning(
-    err,
+  err = log_warning(
     "{} {} {} {} {} {} {} {}",
     (bl_u8) 1,
     (bl_i8) -1,
@@ -440,8 +439,7 @@ static void integer_formats (void **state)
     malc_array_dst_get_entry (c->dst, 0), "1 -1 1 -1 1 -1 1 -1"
     );
 
-  log_warning(
-    err,
+  err = log_warning(
     "{0Nx} {0Nx} {0Nx} {0Nx}",
     (bl_u8) 0x0e,
     (bl_u16) 0x0ffe,
@@ -497,8 +495,7 @@ static void dynargs_are_deallocated (void **state)
   memcpy(v1, stringv, sizeof stringv);
   memcpy(v2, stringv, sizeof stringv);
 
-  log_warning(
-    err,
+  err = log_warning(
     "streams from malloc: {} {}",
     logstrref ((const char*) v1, sizeof stringv - 1),
     logmemref (v2, sizeof stringv),
@@ -550,8 +547,7 @@ static void dynargs_are_deallocated_for_filtered_out_severities (void **state)
   memcpy(v1, stringv, sizeof stringv);
   memcpy(v2, stringv, sizeof stringv);
 
-  log_warning(
-    err,
+  err = log_warning(
     "streams from malloc: {} {}",
     logstrref ((const char*) v1, sizeof stringv - 1),
     logmemref (v2, sizeof stringv),

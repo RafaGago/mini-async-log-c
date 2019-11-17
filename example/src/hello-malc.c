@@ -16,8 +16,7 @@ static inline malc* get_malc_logger_instance()
 /*----------------------------------------------------------------------------*/
 int log_thread (void* ctx)
 {
-  bl_err err;
-  log_error (err, "Hello malc, testing {}, {}, {.1}", 1, 2, 3.f);
+  bl_err err = log_error ("Hello malc, testing {}, {}, {.1}", 1, 2, 3.f);
   (void) malc_terminate (ilog, false); /* terminating the logger. Will force the
                                           event loop on main's thread to exit */
   return 0;

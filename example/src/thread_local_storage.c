@@ -20,9 +20,9 @@ int log_thread (void* ctx)
   bl_atomic_uword* alive = (bl_atomic_uword*) ctx;
   bl_err err = malc_producer_thread_local_init (ilog, 128 * 1024);
   if (err.bl) {
-    log_error (err, "Error when starting thread local storage: {}", err.bl);
+    err = log_error ("Error when starting thread local storage: {}", err.bl);
   }
-  log_error (err, "Hello from log thread");
+  err = log_error ("Hello from log thread");
   bl_uword alive_prev = bl_atomic_uword_fetch_sub_rlx (alive, 1);
   if (alive_prev == 1) {
     /* the last thread alive can invoke malc-terminate, malc_terminate could

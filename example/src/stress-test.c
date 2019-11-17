@@ -145,7 +145,7 @@ static int througput_thread (void* ctx)
     bl_processor_pause();
   }
   for (bl_uword i = 0; i < c->msgs; ++i) {
-    log_error (err, "Hello malc, testing {}, {}, {.1}", i, 2, 3.f);
+    err = log_error ("Hello malc, testing {}, {}, {.1}", i, 2, 3.f);
     c->faults += err.bl != bl_ok;
   }
   bl_atomic_uword_store (&c->ready, 3, bl_mo_release);
