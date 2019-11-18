@@ -551,7 +551,7 @@ filtering out, so they can be considered an alternative for when the
 deallocation behavior described above is a problem.
 ------------------------------------------------------------------------------*/
 static inline detail::malc_refdtor refdtor(
-  detail::malc_refdtor_fn func, void* context
+  malc_refdtor_fn func, void* context
   )
 {
   detail::malc_refdtor r = { func, context };

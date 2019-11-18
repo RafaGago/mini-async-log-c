@@ -17,28 +17,156 @@
 
 namespace malcpp { namespace detail {
 //------------------------------------------------------------------------------
+template <int...>
+struct intlist {};
+//------------------------------------------------------------------------------
+template <class... types>
+struct intlist_sizeof {};
+
+template <int... values>
+struct intlist_sizeof<intlist<values...> >
+{
+  static constexpr unsigned value = sizeof...(values);
+};
+//------------------------------------------------------------------------------
 template <class...>
 struct typelist {};
 //------------------------------------------------------------------------------
 template <class... types>
-typelist<types...> make_typelist (types... args)
+constexpr typelist<types...> make_typelist (types... args)
 {
   return typelist<types...>();
-}
+};
 //------------------------------------------------------------------------------
-template <class... >
-struct typelist_next;
+#if 0
+template <class... types>
+struct typelist_sizeof : public typelist_sizeof<typelist<types...> > {};
+
+template <class... types>
+struct typelist_sizeof<typelist<types...> >
+{
+  static constexpr unsigned value = sizeof...(types);
+};
+#endif
+//------------------------------------------------------------------------------
+struct typelist_has_args {};
+struct typelist_no_more_args {};
+struct typelist_null {};
+//------------------------------------------------------------------------------
+template <class... types>
+struct typelist_fwit;
 
 template <>
-struct typelist_next<typelist<> > {
-  using first     = typelist<>;
-  using remainder = typelist<>;
+struct typelist_fwit<typelist<> > {
+  using head               = typelist_no_more_args;
+  using tail               = typelist<>;
+  using has_more_args_type = typelist_no_more_args;
 };
 
 template <class T, class... types>
-struct typelist_next <typelist<T, types...> > {
-  using first     = T;
-  using remainder = typelist<types...>;
+struct typelist_fwit <typelist<T, types...> > {
+  using head               = T;
+  using tail               = typelist<types...>;
+  using has_more_args_type = typelist_has_args;
+};
+//------------------------------------------------------------------------------
+#if 0
+template <int N, int I, class... types>
+struct typelist_split_impl;
+
+template <int N, int I, class T, class... fwd, class... bckwd>
+struct typelist_split_impl<N, I, typelist<T, fwd...>, typelist<bckwd...> > :
+  public typelist_split_impl<
+    N, I + 1, typelist<fwd...>, typelist<bckwd..., T>
+    >
+{};
+
+template <int N, class T, class... fwd, class... bckwd>
+struct typelist_split_impl<N, N, typelist<T, fwd...>, typelist<bckwd...> > {
+  using type      = T;
+  using backwards = typelist<bckwd...>;
+  using forward   = typelist<fwd...>;
+};
+
+template <int N, int I, class... bckwd>
+struct typelist_split_impl<N, I, typelist<>, typelist<bckwd...> > {
+  using type      = typelist_no_more_args;
+  using backwards = typelist<bckwd...>;
+  using forward   = typelist<>;
+};
+
+template <int N, class... types>
+struct typelist_split : public typelist_split<N, typelist<types...> > {};
+
+template <int N, class... types>
+struct typelist_split<N, typelist<types...> > :
+  public typelist_split_impl<N, 0, typelist<types...>, typelist<> >
+{};
+//------------------------------------------------------------------------------
+template <int N, template <class> class filter, class... types>
+struct typelist_filter_impl;
+
+template <
+  int                    N,
+  template <class> class filter,
+  class                  T,
+  class...               types,
+  class...               filtered,
+  int...                 filteredidxs
+  >
+struct typelist_filter_impl<
+  N,
+  filter,
+  typelist<T, types...>,
+  typelist<filtered...>,
+  intlist <filteredidxs...>
+  > :
+    public typelist_filter_impl<
+      N + 1,
+      filter,
+      typelist<types...>,
+      typename std::conditional<
+        filter<T>::value, typelist<filtered..., T>, typelist<filtered...>
+        >::type,
+      typename std::conditional<
+        filter<T>::value,
+        intlist<filteredidxs..., N>,
+        intlist<filteredidxs..., N>
+        >::type
+      >
+{};
+
+template<
+  int N, template <class> class filter, class... filtered, int... filteredidxs
+  >
+struct typelist_filter_impl<
+  N, filter, typelist<>, typelist<filtered...>, intlist <filteredidxs...>
+  >
+{
+  using list    = typelist<filtered...>;
+  using indexes = intlist <filteredidxs...>;
+};
+
+template <template <class> class filter, class... types>
+struct typelist_filter : public typelist_filter<filter, typelist<types...> > {};
+
+template <template <class> class filter, class... types>
+struct typelist_filter<filter, typelist<types...> > :
+  public typelist_filter_impl<
+    0, filter, typelist<types...>, typelist<>, intlist<>
+    >
+{};
+#endif
+/*----------------------------------------------------------------------------*/
+template<class T>
+using remove_cvref_t =
+  typename std::remove_cv<typename std::remove_reference<T>::type>::type;
+//------------------------------------------------------------------------------
+template <class T>
+struct is_malc_refvalue {
+  static constexpr bool value =
+    std::is_same<remove_cvref_t<T>, malc_memref>::value |
+    std::is_same<remove_cvref_t<T>, malc_strref>::value;
 };
 //------------------------------------------------------------------------------
 namespace fmt { // string format validation
@@ -89,26 +217,30 @@ enum fmterr : int {
   fmterr_excess_placeholders = -3,
   fmterr_excess_arguments    = -4,
   fmterr_unclosed_lbracket   = -5,
+  fmterr_missing_refdtor     = -6,
+  fmterr_misplaced_refdtor   = -7,
+  fmterr_repeated_refdtor    = -8,
+  fmterr_excess_refdtor      = -9,
 };
 //------------------------------------------------------------------------------
 struct fmtret {
-  static const unsigned argbits = 16;
-  //------------------------------------------------------------------------------
+  static constexpr unsigned argbits = 16;
+  //----------------------------------------------------------------------------
   static constexpr unsigned make (int code, unsigned arg)
   {
     return arg | (((unsigned) (code * -1)) << argbits);
   }
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static constexpr int get_code (unsigned fmtretval)
   {
     return ((int)(fmtretval >> argbits)) * -1;
   }
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static constexpr unsigned get_arg (unsigned fmtretval)
   {
     return fmtretval & ((1 << argbits) - 1);
   }
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
 };
 //------------------------------------------------------------------------------
 struct remainder_type_tag {};
@@ -341,56 +473,116 @@ private:
   //----------------------------------------------------------------------------
 };
 //------------------------------------------------------------------------------
-struct normal_iteration_tag {};
-struct check_remainder_tag {};
+/* the validation for the reference values is done separately to avoid
+   complicating things by adding too many parameters and hard to follow ternary
+   operators on the main validation class.
+
+   This is done at the expense of iterating the parameter list twice. If
+   compile-time performance is a problem this can be optimized to  be done in a
+   single pass.*/
 //------------------------------------------------------------------------------
-template <class T>
-struct keep_iterating_args {
-  using type = normal_iteration_tag;
-};
-template <>
-struct keep_iterating_args<typelist<> > {
-  using type = check_remainder_tag;
+class refvalues {
+public:
+  //----------------------------------------------------------------------------
+  /* returns the amount of elements to remove from the typelist for the
+  validation phase or an error */
+  template <class tlist>
+  static constexpr int validate()
+  {
+    using next = typelist_fwit<tlist>;
+    return do_validate<next> (typename next::has_more_args_type());
+  }
+private:
+  //----------------------------------------------------------------------------
+  template <class listfwit>
+  static constexpr int do_validate(
+    typelist_has_args,
+    int reftypes  = 0,
+    int dtors     = 0,
+    bool dtorlast = false
+    )
+  {
+    using head = typename listfwit::head;
+    using tail = typename listfwit::tail;
+    using T =    remove_cvref_t<head>;
+    using next = typelist_fwit<tail>;
+    return do_validate<next>(
+      typename next::has_more_args_type(),
+      reftypes + (int) is_malc_refvalue<T>::value,
+      dtors + (int) std::is_same<T, malc_refdtor>::value,
+      std::is_same<T, malc_refdtor>::value
+      );
+  }
+  //----------------------------------------------------------------------------
+  template <class listfwit>
+  static constexpr int do_validate(
+    typelist_no_more_args,
+    int reftypes  = 0,
+    int dtors     = 0,
+    bool dtorlast = false
+    )
+  {
+    return
+      (dtors > 0)
+        ? (reftypes == 0)
+          ? fmterr_excess_refdtor
+          : (dtors == 1) // dtors > 0 && reftypes > 0
+            ? (dtorlast)
+              ? 1
+              : fmterr_misplaced_refdtor
+            : fmterr_repeated_refdtor
+        : (reftypes == 0) // dtors == 0
+          ? 0
+          : fmterr_missing_refdtor;
+  }
+  //----------------------------------------------------------------------------
 };
 //------------------------------------------------------------------------------
 class format_string {
 public:
   //----------------------------------------------------------------------------
   template <class tlist>
-  static constexpr int validate (literal l)
+  static constexpr unsigned validate (literal l)
   {
-    return iterate<1, tlist> (l, 0);
+    return process_ref_args<tlist, refvalues::validate<tlist>()> (l);
   }
 private:
+  //----------------------------------------------------------------------------
+  template <class tlist, int valresult>
+  static constexpr unsigned process_ref_args (literal l)
+  {
+    return (valresult >= 0) ?
+      iterate<1, tlist> (l, 0) :
+      fmtret::make (valresult, 1);
+  }
   //----------------------------------------------------------------------------
   template <int N, class tlist>
   static constexpr unsigned iterate (const literal& l, int litpos)
   {
-    using iter_tag = typename keep_iterating_args<tlist>::type;
-    using next     = typelist_next<tlist>;
-    return consume<N, next> (l ,litpos, iter_tag());
-  }
-  //----------------------------------------------------------------------------
-  template <int N, class tlistnext>
-  static constexpr unsigned consume(
-    const literal& l, int litpos, normal_iteration_tag
-    )
-  {
-    using first     = typename tlistnext::first;
-    using remainder = typename tlistnext::remainder;
-    using T = typename std::remove_reference<
-      typename std::remove_cv<first>::type
-      >::type;
-    /* function chaining because variables can't be created inside constexpr,
-    so to declare variables on has to call functions with extra args. The
-    variables are created to avoid doing the same compile time calculations
-    many times*/
-    return verify_next<N, tlistnext, first, remainder>(
-      l, placeholder::validate_next<T> (l, litpos)
+    using next = typelist_fwit<tlist>;
+    return consume<N, next>(
+      l ,litpos, typename next::has_more_args_type()
       );
   }
   //----------------------------------------------------------------------------
-  template <int N, class tlistnext, class T, class remainder>
+  template <int N, class listfwit>
+  static constexpr unsigned consume(
+    const literal& l, int litpos, typelist_has_args
+    )
+  {
+    using head = typename listfwit::head;
+    using tail = typename listfwit::tail;
+    using T    = remove_cvref_t<head>;
+    /* function chaining because variables can't be created inside constexpr,
+    so to declare variables on has to call functions with extra args. The
+    variables are created to avoid doing the same compile time calculations
+    many times.. */
+    return std::is_same<T, malc_refdtor>::value == false
+      ? verify_next<N, tail> (l, placeholder::validate_next<T> (l, litpos))
+      : iterate<N + 1, tail> (l , litpos); //malc_refdtor: next.
+  }
+  //----------------------------------------------------------------------------
+  template <int N, class tail>
   static constexpr unsigned verify_next(
     const literal& l, int validate_result
     )
@@ -400,12 +592,12 @@ private:
       ? fmtret::make (fmterr_excess_arguments, N)
       : (validate_result < fmterr_success)
         ? fmtret::make (validate_result, N)
-        : iterate<N + 1, remainder> (l , validate_result);
+        : iterate<N + 1, tail> (l , validate_result);
   }
   //----------------------------------------------------------------------------
-  template <int N, class tlistnext>
+  template <int N, class listfwit>
   static constexpr unsigned consume(
-    const literal& l, int litpos, check_remainder_tag
+    const literal& l, int litpos, typelist_no_more_args
     )
   {
     /* no remaining function arguments, check if the format is correct on the
@@ -458,11 +650,43 @@ struct generate_compile_errors {
   {
     return (res != fmterr_invalid_modifiers) || arg < 50;
   }
+  static constexpr bool missrefdt()
+  {
+    return (res != fmterr_missing_refdtor);
+  }
+  static constexpr bool misprefdt()
+  {
+    return (res != fmterr_misplaced_refdtor);
+  }
+  static constexpr bool reprefdt()
+  {
+    return (res != fmterr_repeated_refdtor);
+  }
+  static constexpr bool xsrefdt()
+  {
+    return (res != fmterr_excess_refdtor);
+  }
   static_assert(
     excessargs(), "malc: too little placeholders in format string"
     );
   static_assert (excesspchs(), "malc: too many placeholders in format string.");
   static_assert (unclosedb(), "malc: unclosed left bracket in format string.");
+  static_assert(
+    missrefdt(),
+    "malc: the last parameter of a call when using \"memref/strref\" must be a \"refdtor\". Got nothing."
+    );
+  static_assert(
+    misprefdt(),
+    "malc: the \"redtor\" must be the last parameter of the log call."
+    );
+  static_assert(
+    reprefdt(),
+    "malc: the \"redtor\" must be the last parameter of the log call. Got more than one."
+    );
+  static_assert(
+    xsrefdt(),
+    "malc: got a \"redtor\" without any \"memref/strref\" type on the call parameters."
+    );
   static_assert (invmodif (1), MALCPP_INVARG_LIT "1st" MALCPP_INVARG_LIT_SFX);
   static_assert (invmodif (2), MALCPP_INVARG_LIT "2nd" MALCPP_INVARG_LIT_SFX);
   static_assert (invmodif (3), MALCPP_INVARG_LIT "3rd" MALCPP_INVARG_LIT_SFX);
@@ -812,10 +1036,6 @@ struct type<malc_compressed_refdtor> {
 /*----------------------------------------------------------------------------*/
 } // namespace serialization {
 /*----------------------------------------------------------------------------*/
-template<class T>
-using remove_cvref =
-  typename std::remove_cv<typename std::remove_reference<T>::type>::type;
-/*----------------------------------------------------------------------------*/
 template <int sev, class T>
 struct info {};
 
@@ -826,7 +1046,7 @@ struct info<sev, T<Args...> >
   {
     static const char info[] = {
       (char) sev,
-      (::malcpp::detail::serialization::type<remove_cvref<Args> >::id) ...,
+      (::malcpp::detail::serialization::type<remove_cvref_t<Args> >::id) ...,
       0
     };
     return info;
@@ -834,54 +1054,124 @@ struct info<sev, T<Args...> >
 };
 /*----------------------------------------------------------------------------*/
 template <int END, int N = 0>
-struct args_it {
+class arg_ops {
+public:
+  //----------------------------------------------------------------------------
   template <class T>
   static inline bl_uword get_payload_size (const T& tup)
   {
     bl_uword v = serialization::type<
-      remove_cvref<decltype (std::get<N>(tup))>
+      remove_cvref_t<decltype (std::get<N>(tup))>
         >::size (std::get<N>(tup));
-    return v + args_it<END, N + 1>::get_payload_size (tup);
+    return v + arg_ops<END, N + 1>::get_payload_size (tup);
   }
-
+  //----------------------------------------------------------------------------
   template <class T>
   static inline void serialize (malc_serializer& ser, const T& tup)
   {
     malc_serialize (&ser, std::get<N>(tup));
-    args_it<END, N + 1>::serialize (ser, tup);
+    arg_ops<END, N + 1>::serialize (ser, tup);
   }
+  //----------------------------------------------------------------------------
+  template <class T, int... refs>
+  static inline void try_deallocate_refvalues(
+    const T& tup, malc_refdtor* dtor, intlist<refs...>
+    )
+  {
+    arg_ops<END, N + 1>::try_deallocate_refvalues(
+      tup,
+      arg_ops<END, N>::get_refdtor_pointer (std::get<N> (tup)),
+      typename std::conditional<
+        is_malc_refvalue<decltype (std::get<N> (tup))>::value,
+        intlist<refs..., N>,
+        intlist<refs...>
+        >::type()
+      );
+  }
+  //----------------------------------------------------------------------------
+private:
+  //----------------------------------------------------------------------------
+  template <class T>
+  static inline malc_refdtor* get_refdtor_pointer (T)
+  {
+    return nullptr;
+  }
+  //----------------------------------------------------------------------------
+  static inline malc_refdtor* get_refdtor_pointer (malc_refdtor& rd)
+  {
+    return &rd;
+  }
+  //----------------------------------------------------------------------------
 };
 
 template <int END>
-struct args_it<END, END> {
+class arg_ops<END, END> {
+public:
+  //----------------------------------------------------------------------------
   template <class T>
   static inline bl_uword get_payload_size (const T& tup)
   {
     return 0;
   }
-
+  //----------------------------------------------------------------------------
   template <class T>
   static inline void serialize (malc_serializer& ser, const T& tup)
   {}
+  //----------------------------------------------------------------------------
+  template <class T, int... refs>
+  static inline void try_deallocate_refvalues(
+    const T& tup, malc_refdtor* dtor, intlist<refs...>
+    )
+  {
+    static const int refscount = intlist_sizeof<intlist<refs...> >::value;
+    if (refscount > 0 && dtor && dtor->func) {
+      malc_ref r[] = { to_malc_ref (std::get<refs> (tup))... };
+      dtor->func (dtor->context, r, refscount);
+    }
+  }
+  //----------------------------------------------------------------------------
+private:
+  //----------------------------------------------------------------------------
+  static inline malc_ref to_malc_ref (const malc_memref& v)
+  {
+    malc_ref r = { v.mem, v.size };
+    return r;
+  }
+  //----------------------------------------------------------------------------
+  static inline malc_ref to_malc_ref (const malc_strref& v)
+  {
+    malc_ref r = { v.str, v.len };
+    return r;
+  }
+  //----------------------------------------------------------------------------
 };
 /*----------------------------------------------------------------------------*/
-template <class T, class... types>
+template <class malctype, class... types>
 static bl_err log(
-  malc_const_entry const& en, T& malc, const char*, types... args
+  malc_const_entry const& en, malctype& malc, const char*, types... args
   )
 {
-  using argit = args_it<sizeof...(types)>;
+  using argops = arg_ops<sizeof...(types)>;
   auto values = std::make_tuple(
     serialization::type<types>::transform (args)...
     );
   malc_serializer s;
   bl_err err = malc_log_entry_prepare(
-    malc.handle(), &s, &en, argit::get_payload_size (values)
+    malc.handle(), &s, &en, argops::get_payload_size (values)
     );
   if (err.own) {
+#if MALC_PTR_COMPRESSION == 0
+      auto& values_untransformed = values;
+#else
+      auto values_untransformed = std::make_tuple (args...);
+#endif
+      argops::try_deallocate_refvalues(
+        values_untransformed, nullptr, intlist<>()
+        );
+    //}
     return err;
   }
-  argit::serialize (s, values);
+  argops::serialize (s, values);
   malc_log_entry_commit (malc.handle(), &s);
   return err;
 }
@@ -901,7 +1191,7 @@ static bl_err log(
         decltype (malcpp::detail::make_typelist( \
           bl_pp_vargs_ignore_first (__VA_ARGS__) \
           )) \
-        > (bl_pp_vargs_first (__VA_ARGS__) "") /* concat with "" to error on non-literal format strings*/ \
+        > (bl_pp_vargs_first (__VA_ARGS__) "") \
       >(); \
     if ((cond) && (sev) >= malc_get_min_severity (malcref.handle())) { \
       /* Save known data at compile time, so we don't pass it to the logger */ \
@@ -922,8 +1212,8 @@ static bl_err log(
     } \
     return err; \
   }()
-
+/*----------------------------------------------------------------------------*/
 #define MALC_LOG_PRIVATE(malcref, sev, ...) \
     MALC_LOG_IF_PRIVATE (1, (malcref), (sev), __VA_ARGS__)
-
+/*----------------------------------------------------------------------------*/
 #endif /* __MALC_CPP11__ */

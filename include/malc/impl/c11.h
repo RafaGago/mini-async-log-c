@@ -697,5 +697,4 @@ inline void malc_do_run_refdtor_cpp(
 #define MALC_LOG_PRIVATE(malc_ptr, sev, ...) \
   MALC_LOG_IF_PRIVATE (1, (malc_ptr), (sev), __VA_ARGS__)
 /*----------------------------------------------------------------------------*/
-
 #endif /* __MALC_MACRO_IMPL_H__ */

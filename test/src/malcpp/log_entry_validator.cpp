@@ -1,7 +1,6 @@
 #include <bl/cmocka_pre.h>
 
-#define MALC_COMMON_NAMESPACED
-#include <malc/impl/c++11.hpp>
+#include <malc/malc.hpp>
 
 using namespace malcpp::detail::fmt;
 /*----------------------------------------------------------------------------*/
@@ -11,6 +10,12 @@ int fmt (const char(&arr)[N], types... args)
   return fmtret::get_code(
     format_string::validate<::malcpp::detail::typelist<types...> > (arr)
     );
+}
+/*----------------------------------------------------------------------------*/
+template <class... types>
+int refs (types... args)
+{
+  return refvalues::validate<::malcpp::detail::typelist<types...> >();
 }
 /*----------------------------------------------------------------------------*/
 static void matching_placeholders (void **state)
@@ -275,6 +280,38 @@ static void float_modifiers_multiple_values (void **state)
   assert_int_equal (exp, fmt ("{0g}{a} paco {+f}", 1., 2., 3.));
 }
 /*----------------------------------------------------------------------------*/
+static void strref_pass (void **state)
+{
+  using namespace malcpp;
+  auto ref  = strref ("", 0);
+  auto dtor = refdtor ([] (void*, malc_ref const*, bl_uword){}, nullptr);
+  assert_int_equal (refs (ref, dtor), 1);
+  assert_int_equal (fmterr_success, fmt ("{}", ref, dtor));
+}
+/*----------------------------------------------------------------------------*/
+static void memref_pass (void **state)
+{
+  using namespace malcpp;
+  auto ref  = memref (nullptr, 0);
+  auto dtor = refdtor ([] (void*, malc_ref const*, bl_uword){}, nullptr);
+  assert_int_equal (refs (ref, dtor), 1);
+  assert_int_equal (fmterr_success, fmt ("{}", ref, dtor));
+}
+/*----------------------------------------------------------------------------*/
+static void reference_type_errors (void **state)
+{
+  using namespace malcpp;
+  auto ref  = memref (nullptr, 0);
+  auto dtor = refdtor ([] (void*, malc_ref const*, bl_uword){}, nullptr);
+
+  assert_int_equal (fmterr_missing_refdtor, fmt ("{}", ref));
+  assert_int_equal (fmterr_excess_refdtor, fmt ("", dtor));
+  assert_int_equal (fmterr_misplaced_refdtor, fmt ("{} {}", ref, dtor, ref));
+  assert_int_equal (fmterr_repeated_refdtor, fmt ("{}", ref, dtor, dtor));
+  assert_int_equal (fmterr_repeated_refdtor, fmt ("{}", dtor, ref, dtor));
+  assert_int_equal (fmterr_repeated_refdtor, fmt ("{}", dtor, dtor, ref));
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test (matching_placeholders),
   cmocka_unit_test (excess_arguments),
@@ -301,6 +338,9 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test (float_modifiers_stages_combined),
   cmocka_unit_test (float_modifiers_bad_stage_orderings),
   cmocka_unit_test (float_modifiers_multiple_values),
+  cmocka_unit_test (strref_pass),
+  cmocka_unit_test (memref_pass),
+  cmocka_unit_test (reference_type_errors),
 };
 /*----------------------------------------------------------------------------*/
 int log_entry_validator_tests (void)

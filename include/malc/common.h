@@ -349,6 +349,22 @@ typedef struct malc_file_cfg {
   bl_uword    max_log_files;
 }
 malc_file_cfg;
+/*------------------------------------------------------------------------------
+type returned on "malc_refdtor_fn" when using reference types on the logger. It
+is just a passed pointer of the memory address with the size that was passed.
+------------------------------------------------------------------------------*/
+typedef struct malc_ref {
+  void const* ref;
+  bl_u16      size;
+}
+malc_ref;
+/*------------------------------------------------------------------------------
+type returned on "malc_refdtor_fn" when using reference types on the logger. It
+is just a passed pointer of the memory address with the size that was passed.
+------------------------------------------------------------------------------*/
+typedef void (*malc_refdtor_fn)(
+  void* context, malc_ref const* refs, bl_uword refs_count
+  );
 /*----------------------------------------------------------------------------*/
 
 #ifdef MALC_COMMON_NAMESPACED

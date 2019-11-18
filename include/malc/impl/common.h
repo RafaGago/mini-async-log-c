@@ -84,16 +84,6 @@ typedef struct malc_strref {
 }
 malc_strref;
 /*----------------------------------------------------------------------------*/
-typedef struct malc_ref {
-  void const* ref;
-  bl_u16      size;
-}
-malc_ref;
-/*----------------------------------------------------------------------------*/
-typedef void (*malc_refdtor_fn)(
-  void* context, malc_ref const* refs, bl_uword refs_count
-  );
-/*----------------------------------------------------------------------------*/
 typedef struct malc_refdtor {
   malc_refdtor_fn func;
   void*           context;
