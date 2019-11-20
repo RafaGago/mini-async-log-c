@@ -354,15 +354,15 @@ public:
   }
 };
 /*----------------------------------------------------------------------------*/
-template <class impl, bool autodestruct>
-class destruct_enable {};
+template <class impl, bool autodestroy>
+class destroy_enable {};
 /*----------------------------------------------------------------------------*/
 template <class impl>
-class destruct_enable<impl, false> {
+class destroy_enable<impl, false> {
 public:
-  void destruct() noexcept
+  void destroy() noexcept
   {
-    return static_cast<impl*> (this)->destruct_impl();
+    return static_cast<impl*> (this)->destroy_impl();
   }
 };
 
@@ -375,15 +375,15 @@ public:
   can't return error codes.
 ------------------------------------------------------------------------------*/
 template<
-  bool use_except = true, bool autoconstruct = true, bool autodestruct = true
+  bool use_except = true, bool autoconstruct = true, bool autodestroy = true
   >
 class MALC_EXPORT malcpp :
   public detail::wrapper_selector<use_except>::type,
   public detail::construct_enable<
-    malcpp<use_except, autoconstruct, autodestruct>, use_except, autoconstruct
+    malcpp<use_except, autoconstruct, autodestroy>, use_except, autoconstruct
     >,
-  public detail::destruct_enable<
-    malcpp<use_except, autoconstruct, autodestruct>, autodestruct
+  public detail::destroy_enable<
+    malcpp<use_except, autoconstruct, autodestroy>, autodestroy
     >
   {
 private:
@@ -405,8 +405,8 @@ public:
   /*--------------------------------------------------------------------------*/
   ~malcpp() noexcept
   {
-    if (autodestruct) {
-      destruct_impl();
+    if (autodestroy) {
+      destroy_impl();
     }
   }
   /*--------------------------------------------------------------------------*/
@@ -428,9 +428,9 @@ public:
   /*--------------------------------------------------------------------------*/
 protected:
   template <class, bool, bool> friend class detail::construct_enable;
-  template <class, bool, bool> friend class detail::destruct_enable;
+  template <class, bool, bool> friend class detail::destroy_enable;
   /*--------------------------------------------------------------------------*/
-  void destruct_impl() noexcept;
+  void destroy_impl() noexcept;
   /*--------------------------------------------------------------------------*/
   bl_err construct_impl (bl_alloc_tbl alloc) noexcept;
   /*--------------------------------------------------------------------------*/

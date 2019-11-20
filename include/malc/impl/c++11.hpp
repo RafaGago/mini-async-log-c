@@ -2,13 +2,14 @@
 #define __MALC_CPP11__
 
 #ifndef MALC_COMMON_NAMESPACED
-  #error "Don't try to include this file directly"
+  #error "Don't include this file directly"
 #endif
 
 #include <type_traits>
 #include <tuple>
 
 #include <bl/base/preprocessor_basic.h>
+#include <bl/base/integer.h>
 
 #include <malc/common.h>
 #include <malc/impl/common.h>
@@ -211,6 +212,7 @@ private:
 };
 //------------------------------------------------------------------------------
 enum fmterr : int {
+  fmterr_success_with_refs   = 1,
   fmterr_success             = 0,
   fmterr_notfound            = -1,
   fmterr_invalid_modifiers   = -2,
@@ -224,21 +226,26 @@ enum fmterr : int {
 };
 //------------------------------------------------------------------------------
 struct fmtret {
-  static constexpr unsigned argbits = 16;
   //----------------------------------------------------------------------------
-  static constexpr unsigned make (int code, unsigned arg)
+  static constexpr unsigned valbytes = 2;
+  static constexpr unsigned valbits  = 8 * valbytes;
+  static constexpr unsigned valmask  = ((1u << valbits) - 1);
+  //----------------------------------------------------------------------------
+  static_assert (sizeof (unsigned) >= valbytes * 2, "");
+  //----------------------------------------------------------------------------
+  static constexpr unsigned make (bl_i16 code, unsigned arg)
   {
-    return arg | (((unsigned) (code * -1)) << argbits);
+    return arg | (((unsigned) code) << valbits);
   }
   //----------------------------------------------------------------------------
-  static constexpr int get_code (unsigned fmtretval)
+  static constexpr bl_i16 get_code (unsigned fmtretval)
   {
-    return ((int)(fmtretval >> argbits)) * -1;
+    return (bl_i16)(fmtretval >> valbits);
   }
   //----------------------------------------------------------------------------
   static constexpr unsigned get_arg (unsigned fmtretval)
   {
-    return fmtretval & ((1 << argbits) - 1);
+    return fmtretval & valmask;
   }
   //----------------------------------------------------------------------------
 };
@@ -473,88 +480,15 @@ private:
   //----------------------------------------------------------------------------
 };
 //------------------------------------------------------------------------------
-/* the validation for the reference values is done separately to avoid
-   complicating things by adding too many parameters and hard to follow ternary
-   operators on the main validation class.
-
-   This is done at the expense of iterating the parameter list twice. If
-   compile-time performance is a problem this can be optimized to  be done in a
-   single pass.*/
-//------------------------------------------------------------------------------
-class refvalues {
-public:
-  //----------------------------------------------------------------------------
-  /* returns the amount of elements to remove from the typelist for the
-  validation phase or an error */
-  template <class tlist>
-  static constexpr int validate()
-  {
-    using next = typelist_fwit<tlist>;
-    return do_validate<next> (typename next::has_more_args_type());
-  }
-private:
-  //----------------------------------------------------------------------------
-  template <class listfwit>
-  static constexpr int do_validate(
-    typelist_has_args,
-    int reftypes  = 0,
-    int dtors     = 0,
-    bool dtorlast = false
-    )
-  {
-    using head = typename listfwit::head;
-    using tail = typename listfwit::tail;
-    using T =    remove_cvref_t<head>;
-    using next = typelist_fwit<tail>;
-    return do_validate<next>(
-      typename next::has_more_args_type(),
-      reftypes + (int) is_malc_refvalue<T>::value,
-      dtors + (int) std::is_same<T, malc_refdtor>::value,
-      std::is_same<T, malc_refdtor>::value
-      );
-  }
-  //----------------------------------------------------------------------------
-  template <class listfwit>
-  static constexpr int do_validate(
-    typelist_no_more_args,
-    int reftypes  = 0,
-    int dtors     = 0,
-    bool dtorlast = false
-    )
-  {
-    return
-      (dtors > 0)
-        ? (reftypes == 0)
-          ? fmterr_excess_refdtor
-          : (dtors == 1) // dtors > 0 && reftypes > 0
-            ? (dtorlast)
-              ? 1
-              : fmterr_misplaced_refdtor
-            : fmterr_repeated_refdtor
-        : (reftypes == 0) // dtors == 0
-          ? 0
-          : fmterr_missing_refdtor;
-  }
-  //----------------------------------------------------------------------------
-};
-//------------------------------------------------------------------------------
 class format_string {
 public:
   //----------------------------------------------------------------------------
   template <class tlist>
   static constexpr unsigned validate (literal l)
   {
-    return process_ref_args<tlist, refvalues::validate<tlist>()> (l);
+    return iterate<1, tlist> (l, 0);
   }
 private:
-  //----------------------------------------------------------------------------
-  template <class tlist, int valresult>
-  static constexpr unsigned process_ref_args (literal l)
-  {
-    return (valresult >= 0) ?
-      iterate<1, tlist> (l, 0) :
-      fmtret::make (valresult, 1);
-  }
   //----------------------------------------------------------------------------
   template <int N, class tlist>
   static constexpr unsigned iterate (const literal& l, int litpos)
@@ -579,7 +513,7 @@ private:
     many times.. */
     return std::is_same<T, malc_refdtor>::value == false
       ? verify_next<N, tail> (l, placeholder::validate_next<T> (l, litpos))
-      : iterate<N + 1, tail> (l , litpos); //malc_refdtor: next.
+      : iterate<N + 1, tail> (l , litpos); //malc_refdtor: skipping.
   }
   //----------------------------------------------------------------------------
   template <int N, class tail>
@@ -623,13 +557,80 @@ private:
         : fmtret::make (fmterr_excess_placeholders, N);
   }
 };
+//------------------------------------------------------------------------------
+/* the validation for the reference values is done separately to avoid
+   complicating things by adding too many parameters and hard to follow ternary
+   operators on the main validation class.
+
+   This is done at the expense of iterating the parameter list twice. If
+   compile-time performance is a problem this can be optimized to  be done in a
+   single pass.*/
+//------------------------------------------------------------------------------
+class refvalues {
+public:
+  //----------------------------------------------------------------------------
+  /* returns the amount of elements to remove from the typelist for the
+  validation phase or an error */
+  template <class tlist>
+  static constexpr unsigned validate()
+  {
+    using next = typelist_fwit<tlist>;
+    return do_validate<next> (typename next::has_more_args_type());
+  }
+private:
+  //----------------------------------------------------------------------------
+  template <class listfwit>
+  static constexpr unsigned do_validate(
+    typelist_has_args,
+    int reftypes  = 0,
+    int dtors     = 0,
+    bool dtorlast = false
+    )
+  {
+    using head = typename listfwit::head;
+    using tail = typename listfwit::tail;
+    using T =    remove_cvref_t<head>;
+    using next = typelist_fwit<tail>;
+    return do_validate<next>(
+      typename next::has_more_args_type(),
+      reftypes + (int) is_malc_refvalue<T>::value,
+      dtors + (int) std::is_same<T, malc_refdtor>::value,
+      std::is_same<T, malc_refdtor>::value
+      );
+  }
+  //----------------------------------------------------------------------------
+  template <class listfwit>
+  static constexpr unsigned do_validate(
+    typelist_no_more_args,
+    int reftypes  = 0,
+    int dtors     = 0,
+    bool dtorlast = false
+    )
+  {
+    return
+      (dtors > 0)
+        ? (reftypes == 0)
+          ? fmtret::make (fmterr_excess_refdtor, 0)
+          : (dtors == 1) // dtors > 0 && reftypes > 0
+            ? (dtorlast)
+              ? fmtret::make (fmterr_success_with_refs, 0)
+              : fmtret::make (fmterr_misplaced_refdtor, 0)
+            : fmtret::make (fmterr_repeated_refdtor, 0)
+        : (reftypes == 0) // dtors == 0
+          ? fmtret::make (fmterr_success, 0)
+          : fmtret::make (fmterr_missing_refdtor, 0);
+  }
+  //----------------------------------------------------------------------------
+};
 /*----------------------------------------------------------------------------*/
 #define MALCPP_INVARG_LIT \
-  "malc: invalid printf formating modifiers for the given type on the "
+  "malc: invalid printf formatting modifiers for the given type on the "
 #define MALCPP_INVARG_LIT_SFX " placeholder."
 /*----------------------------------------------------------------------------*/
 template <int res, unsigned arg>
 struct generate_compile_errors {
+  static constexpr int get_result() { return res; };
+
   static constexpr bool excessargs()
   {
     return (res != fmterr_excess_arguments);
@@ -673,7 +674,7 @@ struct generate_compile_errors {
   static_assert (unclosedb(), "malc: unclosed left bracket in format string.");
   static_assert(
     missrefdt(),
-    "malc: the last parameter of a call when using \"memref/strref\" must be a \"refdtor\". Got nothing."
+    "malc: the last parameter of a call using \"memref/strref\" must be a \"refdtor\". Got nothing."
     );
   static_assert(
     misprefdt(),
@@ -681,7 +682,7 @@ struct generate_compile_errors {
     );
   static_assert(
     reprefdt(),
-    "malc: the \"redtor\" must be the last parameter of the log call. Got more than one."
+    "malc: Only one \"redtor\" must be the last parameter of the log call. Got many."
     );
   static_assert(
     xsrefdt(),
@@ -743,14 +744,26 @@ struct generate_compile_errors {
 };
 /*----------------------------------------------------------------------------*/
 template <unsigned arg>
-struct generate_compile_errors<fmterr_success, arg> {};
-/*----------------------------------------------------------------------------*/
-template <unsigned fmtretval>
-static void static_validation()
+struct generate_compile_errors<fmterr_success, arg>
 {
-  generate_compile_errors<
-    fmtret::get_code (fmtretval), fmtret::get_arg (fmtretval)
-    >();
+  static constexpr int get_result() { return fmterr_success; };
+};
+/*----------------------------------------------------------------------------*/
+template <unsigned arg>
+struct generate_compile_errors<fmterr_success_with_refs, arg>
+{
+  static constexpr int get_result() { return fmterr_success_with_refs; };
+};
+/*----------------------------------------------------------------------------*/
+template <unsigned refserr, unsigned fmtstrerr>
+static constexpr int static_arg_validation()
+{
+  return generate_compile_errors<
+    fmtret::get_code (fmtstrerr) < fmterr_success ?
+      fmtret::get_code (fmtstrerr) : fmtret::get_code (refserr),
+    fmtret::get_code (fmtstrerr) < fmterr_success ?
+      fmtret::get_arg (fmtstrerr) : fmtret::get_arg (refserr)
+    >().get_result();
 };
 /*----------------------------------------------------------------------------*/
 } //namespace fmtstr {
@@ -1075,14 +1088,15 @@ public:
   //----------------------------------------------------------------------------
   template <class T, int... refs>
   static inline void try_deallocate_refvalues(
-    const T& tup, malc_refdtor* dtor, intlist<refs...>
+    const T& tup, const malc_refdtor* dtor, intlist<refs...>
     )
   {
+    using type = decltype (std::get<N> (tup));
     arg_ops<END, N + 1>::try_deallocate_refvalues(
       tup,
       arg_ops<END, N>::get_refdtor_pointer (std::get<N> (tup)),
       typename std::conditional<
-        is_malc_refvalue<decltype (std::get<N> (tup))>::value,
+        is_malc_refvalue<type>::value,
         intlist<refs..., N>,
         intlist<refs...>
         >::type()
@@ -1092,12 +1106,12 @@ public:
 private:
   //----------------------------------------------------------------------------
   template <class T>
-  static inline malc_refdtor* get_refdtor_pointer (T)
+  static inline const malc_refdtor* get_refdtor_pointer (T&)
   {
     return nullptr;
   }
   //----------------------------------------------------------------------------
-  static inline malc_refdtor* get_refdtor_pointer (malc_refdtor& rd)
+  static inline const malc_refdtor* get_refdtor_pointer (const malc_refdtor& rd)
   {
     return &rd;
   }
@@ -1120,7 +1134,7 @@ public:
   //----------------------------------------------------------------------------
   template <class T, int... refs>
   static inline void try_deallocate_refvalues(
-    const T& tup, malc_refdtor* dtor, intlist<refs...>
+    const T& tup, const malc_refdtor* dtor, intlist<refs...>
     )
   {
     static const int refscount = intlist_sizeof<intlist<refs...> >::value;
@@ -1146,9 +1160,41 @@ private:
   //----------------------------------------------------------------------------
 };
 /*----------------------------------------------------------------------------*/
-template <class malctype, class... types>
+template <class T>
+static inline void deallocate_refs_tuple (std::true_type has_refs, const T& tup)
+{
+   arg_ops<std::tuple_size<T>::value>::try_deallocate_refvalues(
+     tup, nullptr, intlist<>()
+     );
+}
+/*----------------------------------------------------------------------------*/
+template <class T>
+static inline void deallocate_refs_tuple(
+  std::false_type has_refs, const T& tup
+  )
+{}
+/*----------------------------------------------------------------------------*/
+template <class... types>
+static inline void deallocate_refs(
+  std::true_type has_refs, const char*, types... args
+  )
+{
+  deallocate_refs_tuple (has_refs, std::make_tuple (args...));
+}
+/*----------------------------------------------------------------------------*/
+template <class... types>
+static void deallocate_refs (std::false_type, types...)
+{
+  // just to avoid unneeded compiler iterations.
+}
+/*----------------------------------------------------------------------------*/
+template <class has_refs, class malctype, class... types>
 static bl_err log(
-  malc_const_entry const& en, malctype& malc, const char*, types... args
+  has_refs,
+  malc_const_entry const& en,
+  malctype&               malc,
+  const char*,
+  types...                args
   )
 {
   using argops = arg_ops<sizeof...(types)>;
@@ -1161,14 +1207,11 @@ static bl_err log(
     );
   if (err.own) {
 #if MALC_PTR_COMPRESSION == 0
-      auto& values_untransformed = values;
+    deallocate_refs_tuple (has_refs(), values);
 #else
-      auto values_untransformed = std::make_tuple (args...);
+    deallocate_refs(
+      has_refs(), (const char*) nullptr, std::forward (args)...);
 #endif
-      argops::try_deallocate_refvalues(
-        values_untransformed, nullptr, intlist<>()
-        );
-    //}
     return err;
   }
   argops::serialize (s, values);
@@ -1180,38 +1223,46 @@ static bl_err log(
 /*----------------------------------------------------------------------------*/
 /* Implementation of  MALC_LOG_IF_PRIVATE/MALC_LOG_PRIVATE */
 /*----------------------------------------------------------------------------*/
+/* Reminder: This can't be done without macros because:
+
+-The arguments must be only evaluated (lazily) when logging, not when the entry
+ is filtered out.
+-On C++11 the literal can't be passed on template parameters. It decays early.
+ */
 #define MALC_LOG_IF_PRIVATE(cond, malcref, sev, ...) \
-/* Reminder: This can't be done without macros because the arguments must  */ \
-/* be only evaluated (lazily) when logging */ \
-  [&]() { \
-    bl_err err = bl_mkok(); \
-    /* Trigger string literal validation */ \
-    ::malcpp::detail::fmt::static_validation< \
-      ::malcpp::detail::fmt::format_string::validate< \
-        decltype (malcpp::detail::make_typelist( \
-          bl_pp_vargs_ignore_first (__VA_ARGS__) \
-          )) \
-        > (bl_pp_vargs_first (__VA_ARGS__) "") \
-      >(); \
-    if ((cond) && (sev) >= malc_get_min_severity (malcref.handle())) { \
-      /* Save known data at compile time, so we don't pass it to the logger */ \
-      static const malc_const_entry bl_pp_tokconcat (malcppent, __LINE__) =  {\
-        bl_pp_vargs_first (__VA_ARGS__), \
-        ::malcpp::detail::info< \
-          sev, \
-          decltype (malcpp::detail::make_typelist( \
-            bl_pp_vargs_ignore_first (__VA_ARGS__) \
-          ))>::generate(), \
-        0 \
-      }; \
-      /* Make the log call, the malc ptr will always be the first ARG, */ \
-      /* otherwise the __VA_ARGS__ expansion should be more complicated. */ \
-      err = ::malcpp::detail::log( \
-        bl_pp_tokconcat (malcppent, __LINE__), malcref, __VA_ARGS__ \
-        ); \
-    } \
-    return err; \
-  }()
+[&]() { \
+  bl_err err = bl_mkok(); \
+  using argtypelist = decltype (malcpp::detail::make_typelist( \
+        bl_pp_vargs_ignore_first (__VA_ARGS__) /*1st arg = format str*/ \
+        )); \
+  /* Trigger reference values and string literal validation */ \
+  static constexpr bool has_references = \
+    ::malcpp::detail::fmt::static_arg_validation< \
+      ::malcpp::detail::fmt::refvalues::validate<argtypelist>(), \
+      ::malcpp::detail::fmt::format_string::validate<argtypelist>( \
+          bl_pp_vargs_first (__VA_ARGS__) /*1st arg = format str*/\
+          ) \
+    >() == ::malcpp::detail::fmt::fmterr_success_with_refs; \
+  if ((cond) && (sev) >= malc_get_min_severity (malcref.handle())) { \
+    static const malc_const_entry msgdata =  {\
+      bl_pp_vargs_first (__VA_ARGS__), /*1st arg = format str*/\
+      ::malcpp::detail::info<sev, argtypelist>::generate(), \
+      0 \
+    }; \
+    err = ::malcpp::detail::log( \
+      std::integral_constant<bool, has_references>(), \
+      msgdata, \
+      malcref, \
+      __VA_ARGS__ \
+      ); \
+  } \
+  else if (has_references) { \
+    ::malcpp::detail::deallocate_refs( \
+      std::integral_constant<bool, has_references>(), __VA_ARGS__ \
+      ); \
+  } \
+  return err; \
+}()
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_PRIVATE(malcref, sev, ...) \
     MALC_LOG_IF_PRIVATE (1, (malcref), (sev), __VA_ARGS__)

@@ -16,7 +16,7 @@ this solution keeps the castings localized and under control.
 namespace malcpp {
 
 template <bool e, bool c, bool d>
-void malcpp<e,c,d>::destruct_impl() noexcept
+void malcpp<e,c,d>::destroy_impl() noexcept
 {
   if (!this->handle()) {
     return;

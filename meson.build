@@ -150,6 +150,9 @@ malc_test_cpp_srcs = [
 malc_smoke_test_srcs = [
     'smoke_test/src/malc/smoke.c',
 ]
+malcpp_smoke_test_srcs = [
+    'smoke_test/src/malcpp/smoke.cpp',
+]
 malc_lib = build_target(
     'malc',
     malc_srcs,
@@ -216,6 +219,17 @@ if not get_option ('bare')
             link_with           : malc_lib,
             link_args           : test_link_args,
             c_args              : cflags + test_cflags,
+            dependencies        : threads
+        ))
+    test(
+        'malcpp-smoke',
+        executable(
+            'malcpp-smoke',
+            malcpp_smoke_test_srcs,
+            include_directories : smoke_test_include_dirs,
+            link_with           : [ malc_lib, malcpp_lib ],
+            link_args           : test_link_args,
+            cpp_args            : cflags + test_cflags,
             dependencies        : threads
         ))
 
@@ -297,6 +311,7 @@ if not get_option ('bare')
         'cpp-fmtstr-same-argcount': 'pass_same_argcount.cpp',
         'cpp-fmtstr-bad-int-modifiers': 'fail_bad_int_modifiers.cpp',
         'cpp-fmtstr-bad-float-modifiers': 'fail_bad_float_modifiers.cpp',
+        'cpp-fmtstr-missing-refdtor': 'fail_missing_refdtor.cpp',
         }
     foreach name, filename : validation_tests
         executable(

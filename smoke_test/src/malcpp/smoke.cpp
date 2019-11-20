@@ -3,98 +3,81 @@
 #include <bl/base/utility.h>
 #include <bl/base/thread.h>
 
-#include <malc/malc.h>
-#include <malc/destinations/array.h>
+#include <malc/malc.hpp>
 
+typedef malcpp::malcpp<false, false, false> malc_nonthrow;
 /*----------------------------------------------------------------------------*/
 typedef struct context {
-  bl_alloc_tbl    alloc;
-  malc*           l;
-  malc_array_dst* dst;
-  bl_u32          dst_id;
-  char            lines[64][1024];
+  malc_nonthrow                         log;
+  malcpp::dst_access<malcpp::array_dst> dst;
+  bl_u32                                dst_id;
+  char                                  lines[64][1024];
 }
 context;
 /*----------------------------------------------------------------------------*/
 static context smoke_context;
 /*----------------------------------------------------------------------------*/
-static inline malc* get_malc_logger_instance()
+static inline malc_nonthrow& get_malc_logger_instance()
 {
-  return smoke_context.l;
+  return smoke_context.log;
 }
 /*----------------------------------------------------------------------------*/
 static int setup (void **state)
 {
-  *state  = (void*) &smoke_context;
+  *state     = (void*) &smoke_context;
   context* c = (context*) &smoke_context;
-  memset (c, 0, sizeof *c);
-  c->alloc = bl_get_default_alloc();
-  c->l     = (malc*) bl_alloc (&c->alloc,  malc_get_size());
-  if (!c->l) {
+  bl_err err = c->log.construct();
+  if (err.own) {
+    return err.own;
+  }
+  c->dst = c->log.add_destination<malcpp::array_dst>();
+  if (!c->dst.is_valid()) {
     return 1;
   }
-  bl_err err = malc_create (c->l, &c->alloc);
-  if (err.own) {
-    return err.own;
-  }
-  err = malc_add_destination (c->l, &c->dst_id, &malc_array_dst_tbl);
-  if (err.own) {
-    return err.own;
-  }
-  err = malc_get_destination_instance (c->l, (void**) &c->dst, c->dst_id);
-  if (err.own) {
-    return err.own;
-  }
-  malc_array_dst_set_array(
-    c->dst, (char*) c->lines, bl_arr_elems (c->lines), bl_arr_elems (c->lines[0])
+  c->dst.try_get()->set_array(
+    (char*) c->lines, bl_arr_elems (c->lines), bl_arr_elems (c->lines[0])
     );
 
-  malc_dst_cfg dcfg;
+  malcpp::dst_cfg dcfg;
   dcfg.log_rate_filter_time_ns = 0;
   dcfg.show_timestamp     = false;
   dcfg.show_severity      = false;
-  dcfg.severity           = malc_sev_debug;
+  dcfg.severity           = malcpp::sev_debug;
   dcfg.severity_file_path = nullptr;
 
-  err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  err = c->dst.set_cfg (dcfg);
   return err.own;
 }
 /*----------------------------------------------------------------------------*/
 static void termination_check (context* c)
 {
-  bl_err err = malc_run_consume_task (c->l, 10000);
+  bl_err err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_nothing_to_do); /* test left work to do...*/
-  err = malc_terminate (c->l, true);
+  err = c->log.terminate (true);
   assert_int_equal (err.own, bl_ok);
-  err = malc_run_consume_task (c->l, 10000);
+  err = c->log.run_consume_task (10000);
   assert_true (err.own == bl_ok || err.own == bl_nothing_to_do);
-  err = malc_run_consume_task (c->l, 10000);
+  err = c->log.run_consume_task (10000);
   assert_true (err.own == bl_preconditions);
 }
 /*----------------------------------------------------------------------------*/
 static int teardown (void **state)
 {
   context* c = (context*) *state;
-  bl_err err = malc_destroy (c->l);
-  if (err.own == bl_preconditions) {
-    (void) malc_terminate (c->l, true);
-    (void) malc_run_consume_task (c->l, 10000);
-    (void) malc_destroy (c->l);
-  }
-  bl_dealloc (&c->alloc, c->l);
+  c->log.destroy();
   return 0;
 }
 /*----------------------------------------------------------------------------*/
 static void init_terminate (void **state)
 {
   context* c = (context*) *state;
-  malc_cfg cfg;
-  bl_err err = malc_get_cfg (c->l, &cfg);
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
   assert_int_equal (err.own, bl_ok);
 
   cfg.consumer.start_own_thread  = false;
 
-  err = malc_init (c->l, &cfg);
+  err = c->log.init (cfg);
   assert_int_equal (err.own, bl_ok);
 
   termination_check (c);
@@ -111,47 +94,45 @@ static void all_allocation_sizes_up_to_slot_size_impl(
 
   /* making the entries on the array match the exact passed data by turning-off
   the timestamp and severity printouts */
-  malc_dst_cfg dcfg;
+  malcpp::dst_cfg dcfg;
   dcfg.log_rate_filter_time_ns = 0;
   dcfg.show_timestamp     = false;
   dcfg.show_severity      = false;
-  dcfg.severity           = malc_sev_debug;
+  dcfg.severity           = malcpp::sev_debug;
   dcfg.severity_file_path = nullptr;
 
-  bl_err err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  bl_err err = c->dst.set_cfg (dcfg);
   assert_int_equal (err.own, bl_ok);
 
-  malc_cfg cfg;
-  err = malc_get_cfg (c->l, &cfg);
+  malcpp::cfg cfg;
+  err = c->log.get_cfg (cfg);
   assert_int_equal (err.own, bl_ok);
 
   assert_true (cfg.alloc.slot_size < sizeof send_data);
   cfg.producer.timestamp = producer_timestamp;
   cfg.consumer.start_own_thread = false;
 
-  err = malc_init (c->l, &cfg);
+  err = c->log.init (cfg);
   assert_int_equal (err.own, bl_ok);
 
   for (bl_uword i = 0; i < cfg.alloc.slot_size; ++i) {
     send_data[i] = '0' + (char)(i % 10);
     bl_uword datasz = i + 1;
 
-    err = log_warning ("{}", logstrcpy (send_data, (bl_u16) datasz));
+    err = log_warning ("{}", malcpp::strcp (send_data, (bl_u16) datasz));
     assert_int_equal (err.own, bl_ok);
 
-    err = malc_run_consume_task (c->l, 10000);
+    err = c->log.run_consume_task (10000);
     assert_int_equal (err.own, bl_ok);
 
-    bl_uword arrsz = malc_array_dst_size (c->dst);
+    bl_uword arrsz = c->dst.try_get()->size();
     if (datasz > arrsz) {
-      assert_int_equal (arrsz, malc_array_dst_capacity (c->dst));
+      assert_int_equal (arrsz, c->dst.try_get()->capacity());
     }
     else {
       assert_int_equal (arrsz, datasz);
     }
-    assert_memory_equal(
-      malc_array_dst_get_entry (c->dst, arrsz -1), send_data, datasz
-      );
+    assert_memory_equal ((*c->dst.try_get())[arrsz -1], send_data, datasz);
   }
   termination_check (c);
 }
@@ -171,30 +152,30 @@ static void tls_allocation (void **state)
   static const bl_uword tls_size = 32;
 
   context* c = (context*) *state;
-  malc_cfg cfg;
-  bl_err err = malc_get_cfg (c->l, &cfg);
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_producer_thread_local_init (c->l, tls_size);
+  err = c->log.producer_thread_local_init (tls_size);
   assert_int_equal (err.own, bl_ok);
 
   cfg.consumer.start_own_thread   = false;
   cfg.alloc.fixed_allocator_bytes = 0; /* No bounded queue */
   cfg.alloc.msg_allocator = nullptr; /* No dynamic allocation */
 
-  err = malc_init (c->l, &cfg);
+  err = c->log.init (cfg);
   assert_int_equal (err.own, bl_ok);
 
   err = log_warning ("msg1: {}", 1);
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_run_consume_task (c->l, 10000);
+  err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
 
-  assert_int_equal (malc_array_dst_size (c->dst), 1);
-  assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "msg1: 1");
 
-  err = log_warning ("msg2: {}", logmemcpy ((void*) &err, tls_size * 8));
+  err = log_warning ("msg2: {}", malcpp::memcp ((void*) &err, tls_size * 8));
   assert_int_equal (err.own, bl_alloc);
 
   termination_check (c);
@@ -205,8 +186,8 @@ static void bounded_allocation (void **state)
   static const bl_uword bounded_size = 128;
 
   context* c = (context*) *state;
-  malc_cfg cfg;
-  bl_err err = malc_get_cfg (c->l, &cfg);
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
   assert_int_equal (err.own, bl_ok);
 
   cfg.consumer.start_own_thread = false;
@@ -215,19 +196,21 @@ static void bounded_allocation (void **state)
   cfg.alloc.fixed_allocator_per_cpu = true;
   cfg.alloc.msg_allocator = nullptr; /* No dynamic allocation */
 
-  err = malc_init (c->l, &cfg);
+  err = c->log.init (cfg);
   assert_int_equal (err.own, bl_ok);
 
   err = log_warning ("msg1: {}", 1);
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_run_consume_task (c->l, 10000);
+  err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
 
-  assert_int_equal (malc_array_dst_size (c->dst), 1);
-  assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "msg1: 1");
 
-  err = log_warning ("msg2: {}", logmemcpy ((void*) &err, bounded_size * 8));
+  err = log_warning(
+    "msg2: {}", malcpp::memcp ((void*) &err, bounded_size * 8)
+    );
   assert_int_equal (err.own, bl_alloc);
 
   termination_check (c);
@@ -236,25 +219,25 @@ static void bounded_allocation (void **state)
 static void dynamic_allocation (void **state)
 {
   context* c = (context*) *state;
-  malc_cfg cfg;
-  bl_err err = malc_get_cfg (c->l, &cfg);
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
   assert_int_equal (err.own, bl_ok);
 
   cfg.consumer.start_own_thread   = false;
   cfg.alloc.fixed_allocator_bytes = 0; /* No TLS, No bounded queue */
   assert_non_null (cfg.alloc.msg_allocator);
 
-  err = malc_init (c->l, &cfg);
+  err = c->log.init (cfg);
   assert_int_equal (err.own, bl_ok);
 
   err = log_warning ("msg1: {}", 1);
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_run_consume_task (c->l, 10000);
+  err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
 
-  assert_int_equal (malc_array_dst_size (c->dst), 1);
-  assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "msg1: 1");
 
   termination_check (c);
 }
@@ -262,76 +245,76 @@ static void dynamic_allocation (void **state)
 static void own_thread_and_flush (void **state)
 {
   context* c = (context*) *state;
-  malc_cfg cfg;
-  bl_err err = malc_get_cfg (c->l, &cfg);
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
   assert_int_equal (err.own, bl_ok);
 
   cfg.consumer.start_own_thread   = true;
   cfg.alloc.fixed_allocator_bytes = 0; /* No TLS, No bounded queue */
   assert_non_null (cfg.alloc.msg_allocator);
 
-  err = malc_init (c->l, &cfg);
+  err = c->log.init (cfg);
   assert_int_equal (err.own, bl_ok);
 
   err = log_warning ("msg1: {}", 1);
   assert_int_equal (err.own, bl_ok);
 
   /* flush, so the entry is processed by the consumer thread */
-  err = malc_flush (c->l);
+  err = c->log.flush();
   assert_int_equal (err.own, bl_ok);
 
   /* this isn't actually thread-safe, it's just the yield that makes it
   succeed */
   bl_thread_yield();
-  assert_int_equal (malc_array_dst_size (c->dst), 1);
-  assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "msg1: 1");
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "msg1: 1");
 
-  err = malc_terminate (c->l, false);
+  err = c->log.terminate (false);
   assert_int_equal (err.own, bl_ok);
 }
 /*----------------------------------------------------------------------------*/
 static void severity_change (void **state)
 {
   context* c = (context*) *state;
-  malc_cfg cfg;
-  bl_err err = malc_get_cfg (c->l, &cfg);
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
   assert_int_equal (err.own, bl_ok);
 
   cfg.consumer.start_own_thread = false;
 
-  malc_dst_cfg dcfg;
+  malcpp::dst_cfg dcfg;
   dcfg.log_rate_filter_time_ns = 0;
   dcfg.show_timestamp     = false;
   dcfg.show_severity      = false;
-  dcfg.severity           = malc_sev_debug;
+  dcfg.severity           = malcpp::sev_debug;
   dcfg.severity_file_path = nullptr;
 
-  err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  err = c->dst.set_cfg (dcfg);
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_init (c->l, &cfg);
+  err = c->log.init (cfg);
   assert_int_equal (err.own, bl_ok);
 
   err = log_debug ("unfiltered");
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_run_consume_task (c->l, 10000);
+  err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
 
-  assert_int_equal (malc_array_dst_size (c->dst), 1);
-  assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "unfiltered");
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "unfiltered");
 
-  dcfg.severity = malc_sev_warning;
-  err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  dcfg.severity = malcpp::sev_warning;
+  err = c->dst.set_cfg (dcfg);
   assert_int_equal (err.own, bl_ok);
 
   err = log_debug ("filtered");
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_run_consume_task (c->l, 10000);
+  err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_nothing_to_do); /*filtered out at the call site*/
 
-  assert_int_equal (malc_array_dst_size (c->dst), 1);
+  assert_int_equal (c->dst.try_get()->size(), 1);
 
   termination_check (c);
 }
@@ -339,69 +322,61 @@ static void severity_change (void **state)
 static void severity_two_destinations (void **state)
 {
   char lines[64][80];
-  bl_u32             dst_id2;
-  malc_array_dst* dst2;
-
   context* c = (context*) *state;
+  decltype (c->dst) dst2;
 
-  bl_err err = malc_add_destination (c->l, &dst_id2, &malc_array_dst_tbl);
-  assert_int_equal (err.own, bl_ok);
-  /* the instance pointers can only be retrieved after addind the last one,
-   otherwise they may be relocated. */
-  err = malc_get_destination_instance (c->l, (void**) &c->dst, c->dst_id);
-  assert_int_equal (err.own, bl_ok);
+  dst2 = c->log.add_destination<malcpp::array_dst>();
+  assert_true (dst2.is_valid());
 
-  err = malc_get_destination_instance (c->l, (void**) &dst2, dst_id2);
-  assert_int_equal (err.own, bl_ok);
-  malc_array_dst_set_array(
-    dst2, (char*) lines, bl_arr_elems (lines), bl_arr_elems (lines[0])
+  dst2.try_get()->set_array(
+    (char*) lines, bl_arr_elems (lines), bl_arr_elems (lines[0])
     );
 
-  malc_dst_cfg dcfg;
+  malcpp::dst_cfg dcfg;
   dcfg.log_rate_filter_time_ns = 0;
   dcfg.show_timestamp     = false;
   dcfg.show_severity      = false;
-  dcfg.severity           = malc_sev_debug;
+  dcfg.severity           = malcpp::sev_debug;
   dcfg.severity_file_path = nullptr;
 
-  err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  bl_err err = c->dst.set_cfg (dcfg);
   assert_int_equal (err.own, bl_ok);
 
-  dcfg.severity = malc_sev_error;
-  err = malc_set_destination_cfg (c->l, &dcfg, dst_id2);
+  dcfg.severity = malcpp::sev_error;
+  err = dst2.set_cfg (dcfg);
   assert_int_equal (err.own, bl_ok);
 
-  malc_cfg cfg;
-  err = malc_get_cfg (c->l, &cfg);
+  malcpp::cfg cfg;
+  err = c->log.get_cfg (cfg);
   assert_int_equal (err.own, bl_ok);
 
   cfg.consumer.start_own_thread = false;
 
-  err = malc_init (c->l, &cfg);
+  err = c->log.init (cfg);
   assert_int_equal (err.own, bl_ok);
 
   err = log_debug ("filtered");
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_run_consume_task (c->l, 10000);
+  err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
 
-  assert_int_equal (malc_array_dst_size (c->dst), 1);
-  assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "filtered");
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "filtered");
 
-  assert_int_equal (malc_array_dst_size (dst2), 0);
+  assert_int_equal (dst2.try_get()->size(), 0);
 
   err = log_error ("unfiltered");
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_run_consume_task (c->l, 10000);
+  err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
 
-  assert_int_equal (malc_array_dst_size (c->dst), 2);
-  assert_string_equal (malc_array_dst_get_entry (c->dst, 1), "unfiltered");
+  assert_int_equal (c->dst.try_get()->size(), 2);
+  assert_string_equal ((*c->dst.try_get())[1], "unfiltered");
 
-  assert_int_equal (malc_array_dst_size (dst2), 1);
-  assert_string_equal (malc_array_dst_get_entry (dst2, 0), "unfiltered");
+  assert_int_equal (dst2.try_get()->size(), 1);
+  assert_string_equal ((*dst2.try_get())[0], "unfiltered");
 
   termination_check (c);
 }
@@ -409,15 +384,14 @@ static void severity_two_destinations (void **state)
 static void integer_formats (void **state)
 {
   context* c = (context*) *state;
-  malc_cfg cfg;
-  bl_err err = malc_get_cfg (c->l, &cfg);
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
   assert_int_equal (err.own, bl_ok);
 
   cfg.consumer.start_own_thread = false;
 
-  err = malc_init (c->l, &cfg);
+  err = c->log.init (cfg);
   assert_int_equal (err.own, bl_ok);
-
   err = log_warning(
     "{} {} {} {} {} {} {} {}",
     (bl_u8) 1,
@@ -431,13 +405,11 @@ static void integer_formats (void **state)
     );
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_run_consume_task (c->l, 10000);
+  err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
 
-  assert_int_equal (malc_array_dst_size (c->dst), 1);
-  assert_string_equal(
-    malc_array_dst_get_entry (c->dst, 0), "1 -1 1 -1 1 -1 1 -1"
-    );
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "1 -1 1 -1 1 -1 1 -1");
 
   err = log_warning(
     "{0Nx} {0Nx} {0Nx} {0Nx}",
@@ -448,14 +420,13 @@ static void integer_formats (void **state)
     );
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_run_consume_task (c->l, 10000);
+  err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
 
-  assert_int_equal (malc_array_dst_size (c->dst), 2);
+  assert_int_equal (c->dst.try_get()->size(), 2);
   assert_string_equal(
-    malc_array_dst_get_entry (c->dst, 1), "0e 0ffe 0ffffffe 0ffffffffffffffe"
+     (*c->dst.try_get())[1], "0e 0ffe 0ffffffe 0ffffffffffffffe"
     );
-
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
@@ -465,7 +436,9 @@ typedef struct smoke_refdtor_ctx {
 }
 smoke_refdtor_ctx;
 /*----------------------------------------------------------------------------*/
-static void smoke_refdtor(void* context, malc_ref const* refs, bl_uword refs_count)
+static void smoke_refdtor(
+  void* context, malcpp::malc_ref const* refs, bl_uword refs_count
+  )
 {
   smoke_refdtor_ctx* c = (smoke_refdtor_ctx*) context;
   for (bl_uword i = 0; i < refs_count; ++i) {
@@ -478,13 +451,13 @@ static void smoke_refdtor(void* context, malc_ref const* refs, bl_uword refs_cou
 static void dynargs_are_deallocated (void **state)
 {
   context* c = (context*) *state;
-  malc_cfg cfg;
-  bl_err err = malc_get_cfg (c->l, &cfg);
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
   assert_int_equal (err.own, bl_ok);
 
   cfg.consumer.start_own_thread = false;
 
-  err = malc_init (c->l, &cfg);
+  err = c->log.init (cfg);
   assert_int_equal (err.own, bl_ok);
 
   smoke_refdtor_ctx dealloc;
@@ -492,22 +465,22 @@ static void dynargs_are_deallocated (void **state)
   char stringv[] = "paco";
   bl_u8* v1 = (bl_u8*) malloc (sizeof stringv);
   bl_u8* v2 = (bl_u8*) malloc (sizeof stringv);
-  memcpy(v1, stringv, sizeof stringv);
-  memcpy(v2, stringv, sizeof stringv);
+  memcpy (v1, stringv, sizeof stringv);
+  memcpy (v2, stringv, sizeof stringv);
 
   err = log_warning(
     "streams from malloc: {} {}",
-    logstrref ((const char*) v1, sizeof stringv - 1),
-    logmemref (v2, sizeof stringv),
-    logrefdtor (smoke_refdtor, &dealloc)
+    malcpp::strref ((const char*) v1, sizeof stringv - 1),
+    malcpp::memref (v2, sizeof stringv),
+    malcpp::refdtor (smoke_refdtor, &dealloc)
     );
 
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_run_consume_task (c->l, 10000);
+  err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
 
-  assert_int_equal (malc_array_dst_size (c->dst), 1);
+  assert_int_equal (c->dst.try_get()->size(), 1);
   assert_int_equal (dealloc.ptrs_count, 2);
   assert_ptr_equal (dealloc.ptrs[0], v1);
   assert_ptr_equal (dealloc.ptrs[1], v2);
@@ -520,23 +493,23 @@ static void dynargs_are_deallocated_for_filtered_out_severities (void **state)
   /*Testing that the deallocation happens on the caller thread.*/
   context* c = (context*) *state;
 
-  malc_dst_cfg dcfg;
+  malcpp::dst_cfg dcfg;
   dcfg.log_rate_filter_time_ns = 0;
   dcfg.show_timestamp     = false;
   dcfg.show_severity      = false;
-  dcfg.severity           = malc_sev_error;
+  dcfg.severity           = malcpp::sev_error;
   dcfg.severity_file_path = nullptr;
 
-  bl_err err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  bl_err err = c->dst.set_cfg (dcfg);
   assert_int_equal (err.own, bl_ok);
 
-  malc_cfg cfg;
-  err = malc_get_cfg (c->l, &cfg);
+  malcpp::cfg cfg;
+  err = c->log.get_cfg (cfg);
   assert_int_equal (err.own, bl_ok);
 
   cfg.consumer.start_own_thread = false;
 
-  err = malc_init (c->l, &cfg);
+  err = c->log.init (cfg);
   assert_int_equal (err.own, bl_ok);
 
   smoke_refdtor_ctx dealloc;
@@ -544,14 +517,14 @@ static void dynargs_are_deallocated_for_filtered_out_severities (void **state)
   char stringv[] = "paco";
   bl_u8* v1 = (bl_u8*) malloc (sizeof stringv);
   bl_u8* v2 = (bl_u8*) malloc (sizeof stringv);
-  memcpy(v1, stringv, sizeof stringv);
-  memcpy(v2, stringv, sizeof stringv);
+  memcpy (v1, stringv, sizeof stringv);
+  memcpy (v2, stringv, sizeof stringv);
 
   err = log_warning(
     "streams from malloc: {} {}",
-    logstrref ((const char*) v1, sizeof stringv - 1),
-    logmemref (v2, sizeof stringv),
-    logrefdtor (smoke_refdtor, &dealloc)
+    malcpp::strref ((const char*) v1, sizeof stringv - 1),
+    malcpp::memref (v2, sizeof stringv),
+    malcpp::refdtor (smoke_refdtor, &dealloc)
     );
 
   assert_int_equal (err.own, bl_ok);

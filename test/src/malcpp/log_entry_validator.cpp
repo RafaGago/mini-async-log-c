@@ -15,7 +15,9 @@ int fmt (const char(&arr)[N], types... args)
 template <class... types>
 int refs (types... args)
 {
-  return refvalues::validate<::malcpp::detail::typelist<types...> >();
+  return fmtret::get_code(
+    refvalues::validate<::malcpp::detail::typelist<types...> >()
+    );
 }
 /*----------------------------------------------------------------------------*/
 static void matching_placeholders (void **state)
@@ -304,12 +306,12 @@ static void reference_type_errors (void **state)
   auto ref  = memref (nullptr, 0);
   auto dtor = refdtor ([] (void*, malc_ref const*, bl_uword){}, nullptr);
 
-  assert_int_equal (fmterr_missing_refdtor, fmt ("{}", ref));
-  assert_int_equal (fmterr_excess_refdtor, fmt ("", dtor));
-  assert_int_equal (fmterr_misplaced_refdtor, fmt ("{} {}", ref, dtor, ref));
-  assert_int_equal (fmterr_repeated_refdtor, fmt ("{}", ref, dtor, dtor));
-  assert_int_equal (fmterr_repeated_refdtor, fmt ("{}", dtor, ref, dtor));
-  assert_int_equal (fmterr_repeated_refdtor, fmt ("{}", dtor, dtor, ref));
+  assert_int_equal (fmterr_missing_refdtor, refs (ref));
+  assert_int_equal (fmterr_excess_refdtor, refs (dtor));
+  assert_int_equal (fmterr_misplaced_refdtor, refs (ref, dtor, ref));
+  assert_int_equal (fmterr_repeated_refdtor, refs (ref, dtor, dtor));
+  assert_int_equal (fmterr_repeated_refdtor, refs (dtor, ref, dtor));
+  assert_int_equal (fmterr_repeated_refdtor, refs (dtor, dtor, ref));
 }
 /*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {

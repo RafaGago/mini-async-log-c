@@ -2,5 +2,5 @@
 
 void tests()
 {
-  fmttest ("", 1);
+  fmttest ("{}", malcpp::strref ("paco", 5));
 }

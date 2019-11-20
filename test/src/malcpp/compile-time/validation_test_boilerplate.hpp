@@ -1,23 +1,21 @@
 #include <bl/base/error.h>
-#include <malc/impl/cpp11/cpp11.hpp>
+#include <malc/malc.hpp>
 
 template <int v>
 class trigger_compile_errors {};
 
-
-//TODO: microsoft preprocessor will be special...<
-#define malc_pp_vargs_first(a, ...) a
-
-#define malc_pp_vargs_ignore_first(a, ...) __VA_ARGS__
-
-#define valtest(...) \
-  malcpp::detail::fmt::static_validation< \
-    malcpp::detail::fmt::format_string::validate< \
-      decltype (malcpp::detail::make_typelist( \
-        malc_pp_vargs_ignore_first (__VA_ARGS__) \
-        )) \
-      > (malc_pp_vargs_first (__VA_ARGS__)) \
-    >()
+#define fmttest(...) \
+[]() { \
+  using argtypelist = decltype (malcpp::detail::make_typelist( \
+        bl_pp_vargs_ignore_first (__VA_ARGS__) /*1st arg = format str*/ \
+        )); \
+  ::malcpp::detail::fmt::static_arg_validation< \
+    ::malcpp::detail::fmt::refvalues::validate<argtypelist>(), \
+    ::malcpp::detail::fmt::format_string::validate<argtypelist>( \
+        bl_pp_vargs_first (__VA_ARGS__) /*1st arg = format str*/\
+        ) \
+    >(); \
+}()
 
 void tests();
 

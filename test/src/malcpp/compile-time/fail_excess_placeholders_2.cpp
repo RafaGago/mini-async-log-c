@@ -2,5 +2,5 @@
 
 void tests()
 {
-  valtest ("{}  {}       ", 1);
+  fmttest ("{}  {}       ", 1);
 }

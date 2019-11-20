@@ -2,8 +2,8 @@
 
 void tests()
 {
-  valtest ("");
-  valtest ("{}", 1);
-  valtest ("{{}       {{{}", 1);
-  valtest ("{}       {}  ", 2, 3);
+  fmttest ("");
+  fmttest ("{}", 1);
+  fmttest ("{{}       {{{}", 1);
+  fmttest ("{}       {}  ", 2, 3);
 }
