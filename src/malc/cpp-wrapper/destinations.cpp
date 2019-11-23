@@ -1,5 +1,6 @@
 #ifdef __cplusplus
 
+#include <cstring>
 #include <malc/libexport.h>
 #include <malc/malc.h>
 #include <malc/destinations/array.h>
@@ -33,7 +34,15 @@ bl_err file_dst::get_cfg (file_dst_cfg& cfg) const noexcept
 /*----------------------------------------------------------------------------*/
 malc_dst file_dst::get_dst_tbl()
 {
-  return *((::malcpp::malc_dst*) &malc_file_dst_tbl);
+  // these types are actually the same and come from the same header file
+  // included twice, one of the inclusion is made inside the "malcpp" namespace.
+  // This is done to C++ify the C library as much as possible, hence all the
+  // non-conventional things are doing here under the hood.
+  // memcpy is used to avoid type punning warnings.
+  ::malcpp::malc_dst dst;
+  static_assert (sizeof malc_file_dst_tbl == sizeof dst, "");
+  memcpy (&dst, &malc_file_dst_tbl, sizeof dst);
+  return dst;
 }
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -63,9 +72,16 @@ char const* array_dst::get_entry (bl_uword idx) const noexcept
 /*----------------------------------------------------------------------------*/
 malc_dst array_dst::get_dst_tbl()
 {
-  return *((::malcpp::malc_dst*) &malc_array_dst_tbl);
+  // these types are actually the same and come from the same header file
+  // included twice, one of the inclusion is made inside the "malcpp" namespace.
+  // This is done to C++ify the C library as much as possible, hence all the
+  // non-conventional things are doing here under the hood.
+  // memcpy is used to avoid type punning warnings.
+  ::malcpp::malc_dst dst;
+  static_assert (sizeof malc_array_dst_tbl == sizeof dst, "");
+  memcpy (&dst, &malc_array_dst_tbl, sizeof dst);
+  return dst;
 }
-/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 bl_err stdouterr_dst::set_stderr_severity (bl_uword sev) noexcept
 {
@@ -74,7 +90,15 @@ bl_err stdouterr_dst::set_stderr_severity (bl_uword sev) noexcept
 /*----------------------------------------------------------------------------*/
 malc_dst stdouterr_dst::get_dst_tbl()
 {
-  return *((::malcpp::malc_dst*) &malc_stdouterr_dst_tbl);
+    // these types are actually the same and come from the same header file
+  // included twice, one of the inclusion is made inside the "malcpp" namespace.
+  // This is done to C++ify the C library as much as possible, hence all the
+  // non-conventional things are doing here under the hood.
+  // memcpy is used to avoid type punning warnings.
+  ::malcpp::malc_dst dst;
+  static_assert (sizeof malc_stdouterr_dst_tbl == sizeof dst, "");
+  memcpy (&dst, &malc_stdouterr_dst_tbl, sizeof dst);
+  return dst;
 }
 /*----------------------------------------------------------------------------*/
 /* definitions on malc.hpp */
