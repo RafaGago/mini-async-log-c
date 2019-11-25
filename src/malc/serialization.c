@@ -518,7 +518,7 @@ bl_err deserializer_execute(
       err = decode (ds->ch, &mem, mem_end, &larg.vstrref);
       if (bl_likely (!err.own)) {
         malc_ref r;
-        r.ref  = larg.vstrref.str;
+        r.ref  = (void*) larg.vstrref.str;
         r.size = larg.vstrref.len;
         err = log_refs_insert_tail (&ds->refs, &r, alloc);
       }

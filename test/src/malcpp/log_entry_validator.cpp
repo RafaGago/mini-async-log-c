@@ -285,7 +285,7 @@ static void float_modifiers_multiple_values (void **state)
 static void strref_pass (void **state)
 {
   using namespace malcpp;
-  auto ref  = strref ("", 0);
+  auto ref  = strref (nullptr, 0);
   auto dtor = refdtor ([] (void*, malc_ref const*, bl_uword){}, nullptr);
   assert_int_equal (refs (ref, dtor), 1);
   assert_int_equal (fmterr_success, fmt ("{}", ref, dtor));

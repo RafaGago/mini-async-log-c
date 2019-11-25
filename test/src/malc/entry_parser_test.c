@@ -508,7 +508,7 @@ static void entry_parser_test_memref (void **state)
 {
   char cmp[512];
   log_argument args;
-  bl_u8 const mem[] = { 0x00, 0x01, 0x03, 0x0a, 0xde };
+  bl_u8 mem[] = { 0x00, 0x01, 0x03, 0x0a, 0xde };
   char expected[(sizeof mem * 2) + 1];
 
   eparser_context* c = (eparser_context*) *state;

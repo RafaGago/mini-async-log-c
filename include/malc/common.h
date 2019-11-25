@@ -354,8 +354,8 @@ type returned on "malc_refdtor_fn" when using reference types on the logger. It
 is just a passed pointer of the memory address with the size that was passed.
 ------------------------------------------------------------------------------*/
 typedef struct malc_ref {
-  void const* ref;
-  bl_u16      size;
+  void*  ref;
+  bl_u16 size; /* !!! for string this is equal to "strlen", not "strlen + 1" */
 }
 malc_ref;
 /*------------------------------------------------------------------------------

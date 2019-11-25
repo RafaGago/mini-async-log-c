@@ -470,7 +470,7 @@ static void dynargs_are_deallocated (void **state)
 
   err = log_warning(
     "streams from malloc: {} {}",
-    malcpp::strref ((const char*) v1, sizeof stringv - 1),
+    malcpp::strref ((char*) v1, sizeof stringv - 1),
     malcpp::memref (v2, sizeof stringv),
     malcpp::refdtor (smoke_refdtor, &dealloc)
     );
@@ -522,7 +522,7 @@ static void dynargs_are_deallocated_for_filtered_out_severities (void **state)
 
   err = log_warning(
     "streams from malloc: {} {}",
-    malcpp::strref ((const char*) v1, sizeof stringv - 1),
+    malcpp::strref ((char*) v1, sizeof stringv - 1),
     malcpp::memref (v2, sizeof stringv),
     malcpp::refdtor (smoke_refdtor, &dealloc)
     );

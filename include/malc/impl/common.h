@@ -67,8 +67,8 @@ typedef struct malc_memcp {
 malc_memcp;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_memref {
-  bl_u8 const* mem;
-  bl_u16       size;
+  bl_u8* mem;
+  bl_u16 size;
 }
 malc_memref;
 /*----------------------------------------------------------------------------*/
@@ -79,8 +79,8 @@ typedef struct malc_strcp {
 malc_strcp;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_strref {
-  char const* str;
-  bl_u16      len;
+  char*  str;
+  bl_u16 len;
 }
 malc_strref;
 /*----------------------------------------------------------------------------*/

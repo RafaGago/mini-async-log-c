@@ -1055,7 +1055,7 @@ struct info {};
 template <int sev, template <class...> class T, class... Args>
 struct info<sev, T<Args...> >
 {
-  static const char* generate()
+  static inline const char* generate()
   {
     static const char info[] = {
       (char) sev,
@@ -1183,13 +1183,13 @@ static inline void deallocate_refs(
 }
 /*----------------------------------------------------------------------------*/
 template <class... types>
-static void deallocate_refs (std::false_type, types...)
+static inline void deallocate_refs (std::false_type, types...)
 {
   // just to avoid unneeded compiler iterations.
 }
 /*----------------------------------------------------------------------------*/
 template <class has_refs, class malctype, class... types>
-static bl_err log(
+static inline bl_err log(
   has_refs,
   malc_const_entry const& en,
   malctype&               malc,

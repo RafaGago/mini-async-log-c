@@ -335,7 +335,7 @@ static void serialization_test_strcp (void **state)
 static void serialization_test_strref (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
-  malc_strref v  = { (char const*) 0x123456, 12345 };
+  malc_strref v  = { (char*) 0x123456, 12345 };
   malc_refdtor d = { (malc_refdtor_fn) 0x145645, (void*) 0x3434 };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v, d);
@@ -386,7 +386,7 @@ static void serialization_test_memcp (void **state)
 static void serialization_test_memref (void **state)
 {
   ser_deser_context* c = (ser_deser_context*) *state;
-  malc_memref v  = { (bl_u8 const*) 0x123456, 12345 };
+  malc_memref v  = { (bl_u8*) 0x123456, 12345 };
   malc_refdtor d = { (malc_refdtor_fn) 0x145645, (void*) 0x3434 };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v, d);
@@ -433,7 +433,7 @@ static void serialization_test_all (void **state)
   all.vmemcp.size  = sizeof "mem";
   all.vstrref.str  = "strref";
   all.vstrref.len  = sizeof "strref";
-  all.vmemref.mem  = (bl_u8 const*) "memref";
+  all.vmemref.mem  = (bl_u8*) "memref";
   all.vmemref.size = sizeof "memref";
   malc_refdtor d = { (malc_refdtor_fn) 0x145645, (void*) 0x3434 };
 

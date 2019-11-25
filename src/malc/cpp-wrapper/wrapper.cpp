@@ -94,11 +94,6 @@ bl_err wrapper::set_destination_cfg (dst_cfg const& c, bl_u32 dest_id) noexcept
   return malc_set_destination_cfg (handle(), (::malc_dst_cfg*) &c, dest_id);
 }
 /*----------------------------------------------------------------------------*/
-malc* wrapper::handle() const noexcept
-{
-  return m_ptr;
-}
-/*----------------------------------------------------------------------------*/
 void wrapper::set_handle (malc* h)
 {
   m_ptr = h;

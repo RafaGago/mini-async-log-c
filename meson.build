@@ -184,7 +184,7 @@ pkg_mod.generate(
     version     : '0.0.1',
     name        : 'libmalcpp',
     filebase    : 'malcpp',
-    description : 'mini-async-log-c cpp wrapper'
+    description : 'mini-async-log-c c++ wrapper'
     )
 
 if not get_option ('bare')
@@ -200,9 +200,9 @@ if not get_option ('bare')
             dependencies        : threads
         ))
     test(
-        'malc-test-cpp',
+        'malcpp-test',
         executable(
-            'malc-test-cpp',
+            'malcpp-test',
             malc_test_cpp_srcs,
             include_directories : test_include_dirs,
             link_with           : [ malc_lib, malcpp_lib ],
@@ -274,17 +274,15 @@ if not get_option ('bare')
     test ('malc-stress-test-queue', st, args : [ 'queue', '30', '1' ])
     test ('malc-stress-test-queue-cpu', st, args : [ 'queue-cpu', '30', '1' ])
 
-    test(
-        'malc-cpp-wrapper',
-        executable(
-            'malcpp-example-wrapper',
-            [ 'example/src/c++11/wrapper.cpp' ],
-            include_directories : smoke_test_include_dirs,
-            link_with           : [ malcpp_lib, base_lib ],
-            link_args           : test_link_args,
-            cpp_args            : cflags,
-            dependencies        : threads
-        ))
+    executable(
+        'malcpp-example-overview',
+        [ 'example/src/c++11/overview.cpp' ],
+        include_directories : smoke_test_include_dirs,
+        link_with           : [ malcpp_lib, base_lib ],
+        link_args           : test_link_args,
+        cpp_args            : cflags,
+        dependencies        : threads
+        )
     executable(
         'malcpp-example-custom-destination',
         [ 'example/src/c++11/custom-destination.cpp' ],
@@ -294,7 +292,31 @@ if not get_option ('bare')
         cpp_args            : cflags,
         dependencies        : threads
         )
+    executable(
+        'malcpp-example-hello-malcpp',
+        [ 'example/src/c++11/hello-malcpp.cpp' ],
+        include_directories : smoke_test_include_dirs,
+        link_with           : malcpp_lib,
+        link_args           : test_link_args,
+        cpp_args            : cflags,
+        dependencies        : threads
+        )
 
+    stcpp = executable(
+            'malcpp-example-stress-test',
+            [ 'example/src/c++11/stress-test.cpp' ],
+            include_directories : smoke_test_include_dirs,
+            link_with           : malcpp_lib,
+            link_args           : test_link_args,
+            cpp_args            : cflags,
+            dependencies        : threads
+        )
+    test ('malcpp-stress-test-tls', stcpp, args : [ 'tls', '30', '1' ])
+    test ('malcpp-stress-test-heap', stcpp, args : [ 'heap', '30', '1' ])
+    test ('malcpp-stress-test-queue', stcpp, args : [ 'queue', '30', '1' ])
+    test(
+        'malcpp-stress-test-queue-cpu', stcpp, args : [ 'queue-cpu', '30', '1' ]
+        )
     # C++ specific compilation failure/pass test targets. these targets won't
     # build by default and are to be launched by a script invoking ninja, on
     # Linux this is done on "scripts/malcpp11-fmtstr-test.sh".

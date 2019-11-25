@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <type_traits>
 #include <cassert>
+#include <utility>
 
 /* including the common structs in malcpp's namespace */
 #include <bl/base/default_allocator.h>
@@ -218,7 +219,10 @@ public:
     return ret;
   }
   /*--------------------------------------------------------------------------*/
-  malc* handle() const noexcept;
+  inline malc* handle() const noexcept
+  {
+    return m_ptr;
+  }
   /*--------------------------------------------------------------------------*/
 protected:
   void set_handle (malc* h);
@@ -360,10 +364,62 @@ class destroy_enable {};
 template <class impl>
 class destroy_enable<impl, false> {
 public:
+  //----------------------------------------------------------------------------
+  // destroy malc's instance
+  //
+  // This function is NOT thread safe but is protected from multiple calls on
+  // the same thread.
+  //----------------------------------------------------------------------------
   void destroy() noexcept
   {
     return static_cast<impl*> (this)->destroy_impl();
   }
+  //----------------------------------------------------------------------------
+  class scoped_destructor {
+  public:
+    //--------------------------------------------------------------------------
+    ~scoped_destructor()
+    {
+      if (m_instance) {
+        m_instance->destroy();
+        m_instance = nullptr;
+      }
+    }
+    //--------------------------------------------------------------------------
+    scoped_destructor (scoped_destructor&& rv) noexcept
+    {
+      *this = std::move (rv);
+    }
+    //--------------------------------------------------------------------------
+    scoped_destructor& operator= (scoped_destructor&& rv) noexcept
+    {
+      auto inst     = rv.m_instance;
+      rv.m_instance = nullptr;
+      m_instance    = inst;
+      return *this;
+    }
+    //--------------------------------------------------------------------------
+  private:
+    friend class destroy_enable<impl, false>;
+    //--------------------------------------------------------------------------
+    scoped_destructor (destroy_enable<impl, false>& i) noexcept
+    {
+      m_instance = &i;
+    }
+    //--------------------------------------------------------------------------
+    destroy_enable<impl, false>* m_instance;
+  };
+  //----------------------------------------------------------------------------
+  // gets an object that uses RAII to destroy malc's instance
+  //
+  // These objects are NOT thread safe and have no multiple-call or dangling
+  // protection. Just use them once from one thread.
+  //----------------------------------------------------------------------------
+  scoped_destructor get_scoped_destructor() noexcept
+  {
+    return scoped_destructor (*this);
+  }
+  //----------------------------------------------------------------------------
 };
 
 } // namespace detail {
@@ -501,14 +557,14 @@ Passes a string by reference to malc. Needs that you provide a destructor for
 this dynamic string as the last parameter on the call (see "logrefdtor"). To be
 used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
-static inline detail::malc_strref strref (char const* str, bl_u16 len)
+static inline detail::malc_strref strref (char* str, bl_u16 len)
 {
   bl_assert ((str && len) || len == 0);
   detail::malc_strref s = { str, len };
   return s;
 }
 /*----------------------------------------------------------------------------*/
-static inline detail::malc_strref strrefl (char const* str)
+static inline detail::malc_strref strrefl (char* str)
 {
   bl_uword len = strlen (str);
   return strref (str, (bl_u16) (len < 65536 ? len : 65535));
@@ -518,10 +574,10 @@ Passes a memory area by reference to malc. Needs that you provide a destructor
 for this memory area as the last parameter on the call (see "logrefdtor"), To be
 used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
-static inline detail::malc_memref memref (void const* mem, bl_u16 size)
+static inline detail::malc_memref memref (void* mem, bl_u16 size)
 {
   bl_assert ((mem && size) || size == 0);
-  detail::malc_memref b = { (bl_u8 const*) mem, size };
+  detail::malc_memref b = { (bl_u8*) mem, size };
   return b;
 }
 /*------------------------------------------------------------------------------

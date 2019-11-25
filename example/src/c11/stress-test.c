@@ -200,12 +200,12 @@ static int parse_args(pargs* args, int argc, char const* argv[])
   char* end;
   args->msgs = strtol (argv[2], &end, 10);
   if (argv[1] == end) {
-      fprintf (stderr, "non numeric message count: %s\n", argv[1]);
+      fprintf (stderr, "non numeric message count: %s\n", argv[2]);
       return 1;
   }
   args->iterations = strtol (argv[3], &end, 10);
   if (argv[1] == end) {
-      fprintf (stderr, "non numeric iteration count: %s\n", argv[1]);
+      fprintf (stderr, "non numeric iteration count: %s\n", argv[3]);
       return 1;
   }
   return 0;

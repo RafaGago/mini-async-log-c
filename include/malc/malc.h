@@ -215,14 +215,14 @@ Passes a string by reference to malc. Needs that you provide a destructor for
 this dynamic string as the last parameter on the call (see "logrefdtor"). To be
 used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
-static inline malc_strref logstrref (char const* str, bl_u16 len)
+static inline malc_strref logstrref (char* str, bl_u16 len)
 {
   bl_assert ((str && len) || len == 0);
   malc_strref s = { str, len };
   return s;
 }
 /*----------------------------------------------------------------------------*/
-static inline malc_strref logstrrefl (char const* str)
+static inline malc_strref logstrrefl (char* str)
 {
   bl_uword len = strlen (str);
   return logstrref (str, (bl_u16) (len < 65536 ? len : 65535));
@@ -232,10 +232,10 @@ Passes a memory area by reference to malc. Needs that you provide a destructor
 for this memory area as the last parameter on the call (see "logrefdtor"), To be
 used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
-static inline malc_memref logmemref (void const* mem, bl_u16 size)
+static inline malc_memref logmemref (void* mem, bl_u16 size)
 {
   bl_assert ((mem && size) || size == 0);
-  malc_memref b = { (bl_u8 const*) mem, size };
+  malc_memref b = { (bl_u8*) mem, size };
   return b;
 }
 /*------------------------------------------------------------------------------

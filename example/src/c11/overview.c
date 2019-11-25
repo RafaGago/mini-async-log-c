@@ -24,7 +24,7 @@ void dtor_using_free (void* context, malc_ref const* refs, bl_uword refs_count)
 int log_thread (void* ctx)
 {
   bl_err err;
-  /* int */
+  /* integers */
   err = log_error ("10: {}", 10);
   err = log_error ("10 using \"03\" specifier: {03}", 10);
   err = log_error ("10 using \"+03\" specifier: {+03}", 10);
@@ -52,26 +52,32 @@ int log_thread (void* ctx)
   err = log_error ("1. using \"G\" specifier: {G}", 1.);
   err = log_error ("1. using \"A\" specifier: {A}", 1.);
 
-  /* bytes */
-  bl_u8 const mem[] = { 10, 11, 12, 13 };
-  err = log_error ("[10,11,12,13] by value: {}", logmemcpy (mem, sizeof mem));
-
-  bl_u8* dmem = malloc (sizeof mem);
-  assert (dmem);
-  memcpy (dmem, mem, sizeof mem);
-  err = log_error(
-    "[10,11,12,13] by ref: {}",
-    logmemref (dmem, sizeof mem),
-    logrefdtor (dtor_using_free, nullptr)
-    );
 
   /* strings */
   char const str[] = "a demo string";
   err = log_error ("a string by value: {}", logstrcpy (str, sizeof str - 1));
 
+  /* logging a string by reference.
+
+  the logger will call the deallocation function when the reference is no
+  longer needed. Be aware that:
+
+ -If the entry is filtered out because of the severity or if an error happens
+  the destructor might be called in-place from the current thread.
+
+ -If the log call is stripped at compile time the log call dissapears, so there
+  is no memory deallocation, as the ownership would have never been passed to
+  the logger. That's why all this code is wrapped is on the
+  MALC_STRIP_LOG_ERROR, as we are logging with "error" severity. There is a
+  MALC_STRIP_LOG_[SEVERITY] macro defined for each of stripped severities.
+
+  The error code returned on stripped severities will be "bl_nothing_to_do".
+  */
+#ifndef MALC_STRIP_LOG_ERROR
   char* dstr = malloc (sizeof str);
   assert (dstr);
   memcpy (dstr, str, sizeof str);
+#endif
   err = log_error(
     "a string by ref: {}",
     logstrref (dstr, sizeof str - 1),
@@ -80,14 +86,39 @@ int log_thread (void* ctx)
 
   err = log_error ("a literal: {}", loglit (1 ? "literal one" : "literal two"));
 
+  /* bytes */
+  bl_u8 const mem[] = { 10, 11, 12, 13 };
+  err = log_error ("[10,11,12,13] by value: {}", logmemcpy (mem, sizeof mem));
+
+#ifndef MALC_STRIP_LOG_ERROR
+  bl_u8* dmem = malloc (sizeof mem);
+  assert (dmem);
+  memcpy (dmem, mem, sizeof mem);
+#endif
+  err = log_error(
+    "[10,11,12,13] by ref: {}",
+    logmemref (dmem, sizeof mem),
+    logrefdtor (dtor_using_free, nullptr)
+    );
+
   /* severities */
   err = log_debug ("this is not seen on stdout (sev > debug)");
 
-  /* if */
+  /* log entry with a conditional.*/
   err = log_error_if (1, "conditional debug line");
+
+  /* if the conditional is false the parameter list is not evaluated. Beware
+  of parameter lists with side effects*/
+  int side_effect = 0;
+  err = log_error_if (0, "ommited conditional debug line: {}", ++side_effect );
+  assert (side_effect == 0);
 
   /* brace escape */
   err = log_error ("brace escape only requires to skip the open brace: {{}");
+
+/* passing the instance explicitly instead of through
+   "get_malc_log_instance()" */
+  err = log_error_i (ilog, "passing the log instance explicitly.");
 
   (void) malc_terminate (ilog, false); /* terminating the logger. Will force the
                                           event loop to exit */

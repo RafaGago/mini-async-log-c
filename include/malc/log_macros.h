@@ -109,7 +109,10 @@
     #define MALC_STRIP_LOG_CRITICAL
 #endif
 /*----------------------------------------------------------------------------*/
-static inline bl_err malc_warning_silencer() { return bl_mkok(); }
+static inline bl_err malc_stripped_entry()
+{
+  return bl_mkerr (bl_nothing_to_do);
+}
 /*----------------------------------------------------------------------------*/
 #ifndef MALC_STRIP_LOG_DEBUG
 
@@ -136,10 +139,10 @@ static inline bl_err malc_warning_silencer() { return bl_mkok(); }
 
 #else /* MALC_STRIP_LOG_DEBUG */
 
-#define malc_debug(...)      malc_warning_silencer()
-#define malc_debug_if(...)   malc_warning_silencer()
-#define malc_debug_i(...)    malc_warning_silencer()
-#define malc_debug_i_if(...) malc_warning_silencer()
+#define malc_debug(...)      malc_stripped_entry()
+#define malc_debug_if(...)   malc_stripped_entry()
+#define malc_debug_i(...)    malc_stripped_entry()
+#define malc_debug_i_if(...) malc_stripped_entry()
 
 #endif /* MALC_STRIP_LOG_DEBUG */
 
@@ -169,10 +172,10 @@ static inline bl_err malc_warning_silencer() { return bl_mkok(); }
 
 #else /* MALC_STRIP_LOG_TRACE */
 
-#define malc_trace(...)      malc_warning_silencer()
-#define malc_trace_if(...)   malc_warning_silencer()
-#define malc_trace_i(...)    malc_warning_silencer()
-#define malc_trace_i_if(...) malc_warning_silencer()
+#define malc_trace(...)      malc_stripped_entry()
+#define malc_trace_if(...)   malc_stripped_entry()
+#define malc_trace_i(...)    malc_stripped_entry()
+#define malc_trace_i_if(...) malc_stripped_entry()
 
 #endif /* MALC_STRIP_LOG_TRACE */
 
@@ -202,10 +205,10 @@ static inline bl_err malc_warning_silencer() { return bl_mkok(); }
 
 #else /* MALC_STRIP_LOG_NOTICE */
 
-#define malc_notice(...)      malc_warning_silencer()
-#define malc_notice_if(...)   malc_warning_silencer()
-#define malc_notice_i(...)    malc_warning_silencer()
-#define malc_notice_i_if(...) malc_warning_silencer()
+#define malc_notice(...)      malc_stripped_entry()
+#define malc_notice_if(...)   malc_stripped_entry()
+#define malc_notice_i(...)    malc_stripped_entry()
+#define malc_notice_i_if(...) malc_stripped_entry()
 
 #endif /* MALC_STRIP_LOG_NOTICE */
 
@@ -235,10 +238,10 @@ static inline bl_err malc_warning_silencer() { return bl_mkok(); }
 
 #else /* MALC_STRIP_LOG_WARNING */
 
-#define malc_warning(...)      malc_warning_silencer()
-#define malc_warning_if(...)   malc_warning_silencer()
-#define malc_warning_i(...)    malc_warning_silencer()
-#define malc_warning_i_if(...) malc_warning_silencer()
+#define malc_warning(...)      malc_stripped_entry()
+#define malc_warning_if(...)   malc_stripped_entry()
+#define malc_warning_i(...)    malc_stripped_entry()
+#define malc_warning_i_if(...) malc_stripped_entry()
 
 #endif /* MALC_STRIP_LOG_WARNING */
 
@@ -268,10 +271,10 @@ static inline bl_err malc_warning_silencer() { return bl_mkok(); }
 
 #else /* MALC_STRIP_LOG_ERROR */
 
-#define malc_error(...)      malc_warning_silencer()
-#define malc_error_if(...)   malc_warning_silencer()
-#define malc_error_i(...)    malc_warning_silencer()
-#define malc_error_i_if(...) malc_warning_silencer()
+#define malc_error(...)      malc_stripped_entry()
+#define malc_error_if(...)   malc_stripped_entry()
+#define malc_error_i(...)    malc_stripped_entry()
+#define malc_error_i_if(...) malc_stripped_entry()
 
 #endif /* MALC_STRIP_LOG_ERROR */
 
@@ -301,10 +304,10 @@ static inline bl_err malc_warning_silencer() { return bl_mkok(); }
 
 #else /*MALC_STRIP_LOG_CRITICAL*/
 
-#define malc_critical(...)      malc_warning_silencer()
-#define malc_critical_if(...)   malc_warning_silencer()
-#define malc_critical_i(...)    malc_warning_silencer()
-#define malc_critical_i_if(...) malc_warning_silencer()
+#define malc_critical(...)      malc_stripped_entry()
+#define malc_critical_if(...)   malc_stripped_entry()
+#define malc_critical_i(...)    malc_stripped_entry()
+#define malc_critical_i_if(...) malc_stripped_entry()
 
 #endif /*MALC_STRIP_LOG_CRITICAL*/
 
