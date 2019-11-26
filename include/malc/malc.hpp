@@ -522,23 +522,24 @@ used (with caution) for non-literal strings that are known to outlive the data
 logger unmodified. That's why the function is actually allowing the literal to
 decay to char const*.
 ------------------------------------------------------------------------------*/
-static inline detail::malc_lit lit (char const* literal)
+static inline detail::serialization::malc_lit lit (char const* literal)
 {
   bl_assert (literal);
-  detail::malc_lit l = { literal };
+  detail::serialization::malc_lit l = { literal };
   return l;
 }
 /*------------------------------------------------------------------------------
 Passes a string by value (deep copy) to malc.
 ------------------------------------------------------------------------------*/
-static inline detail::malc_strcp strcp (char const* str, bl_u16 len)
+static inline detail::serialization::malc_strcp
+  strcp (char const* str, bl_u16 len)
 {
   bl_assert ((str && len) || len == 0);
-  detail::malc_strcp s = { str, len };
+  detail::serialization::malc_strcp s = { str, len };
   return s;
 }
 /*----------------------------------------------------------------------------*/
-static inline detail::malc_strcp strcpl (char const* str)
+static inline detail::serialization::malc_strcp strcpl (char const* str)
 {
   bl_uword len = strlen (str);
   return strcp (str, (bl_u16) (len < 65536 ? len : 65535));
@@ -546,10 +547,11 @@ static inline detail::malc_strcp strcpl (char const* str)
 /*------------------------------------------------------------------------------
 Passes a memory area by value (deep copy) to malc. It will be printed as hex.
 ------------------------------------------------------------------------------*/
-static inline detail::malc_memcp memcp (void const* mem, bl_u16 size)
+static inline detail::serialization::malc_memcp
+  memcp (void const* mem, bl_u16 size)
 {
   bl_assert ((mem && size) || size == 0);
-  detail::malc_memcp b = { (bl_u8 const*) mem, size };
+  detail::serialization::malc_memcp b = { (bl_u8 const*) mem, size };
   return b;
 }
 /*------------------------------------------------------------------------------
@@ -557,14 +559,15 @@ Passes a string by reference to malc. Needs that you provide a destructor for
 this dynamic string as the last parameter on the call (see "logrefdtor"). To be
 used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
-static inline detail::malc_strref strref (char* str, bl_u16 len)
+static inline detail::serialization::malc_strref
+  strref (char* str, bl_u16 len)
 {
   bl_assert ((str && len) || len == 0);
-  detail::malc_strref s = { str, len };
+  detail::serialization::malc_strref s = { str, len };
   return s;
 }
 /*----------------------------------------------------------------------------*/
-static inline detail::malc_strref strrefl (char* str)
+static inline detail::serialization::malc_strref strrefl (char* str)
 {
   bl_uword len = strlen (str);
   return strref (str, (bl_u16) (len < 65536 ? len : 65535));
@@ -574,10 +577,10 @@ Passes a memory area by reference to malc. Needs that you provide a destructor
 for this memory area as the last parameter on the call (see "logrefdtor"), To be
 used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
-static inline detail::malc_memref memref (void* mem, bl_u16 size)
+static inline detail::serialization::malc_memref memref (void* mem, bl_u16 size)
 {
   bl_assert ((mem && size) || size == 0);
-  detail::malc_memref b = { (bl_u8*) mem, size };
+  detail::serialization::malc_memref b = { (bl_u8*) mem, size };
   return b;
 }
 /*------------------------------------------------------------------------------
@@ -606,11 +609,11 @@ The copy by value functions don't add any extra operations on failure or
 filtering out, so they can be considered an alternative for when the
 deallocation behavior described above is a problem.
 ------------------------------------------------------------------------------*/
-static inline detail::malc_refdtor refdtor(
+static inline detail::serialization::malc_refdtor refdtor(
   malc_refdtor_fn func, void* context
   )
 {
-  detail::malc_refdtor r = { func, context };
+  detail::serialization::malc_refdtor r = { func, context };
   return r;
 }
 /*----------------------------------------------------------------------------*/

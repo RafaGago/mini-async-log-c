@@ -29,7 +29,7 @@
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef MALC_COMMON_NAMESPACED
-namespace malcpp { namespace detail {
+namespace malcpp { namespace detail { namespace serialization {
 #endif
 /*----------------------------------------------------------------------------*/
 typedef enum malc_encodings {
@@ -51,7 +51,9 @@ typedef enum malc_encodings {
   malc_type_strref  = 'o',
   malc_type_memref  = 'p',
   malc_type_refdtor = 'q',
-  malc_type_error   = 'r',
+  malc_type_strobj  = 'r',
+  malc_type_memobj  = 's',
+  malc_type_error   = 't',
 }
 malc_type_ids;
 /*----------------------------------------------------------------------------*/
@@ -91,7 +93,7 @@ typedef struct malc_refdtor {
 malc_refdtor;
 /*----------------------------------------------------------------------------*/
 #ifdef MALC_COMMON_NAMESPACED
-}}  //namespace malcpp { namespace detail {
+}}}  //namespace malcpp { namespace detail { namespace serialization {
 #endif
 
 #endif  /* #ifndef __MALC_IMPL_COMMON_H__ */

@@ -25,7 +25,7 @@ typedef struct malc_serializer {
 malc_serializer;
 /*----------------------------------------------------------------------------*/
 #ifdef MALC_COMMON_NAMESPACED
-namespace malcpp { namespace detail {
+namespace malcpp { namespace detail { namespace serialization {
 #endif
 /*----------------------------------------------------------------------------*/
 typedef struct malc_compressed_32 {
@@ -312,7 +312,7 @@ static inline void MALC_SERIALIZE(_comprefdtor)(
 #endif /* #if MALC_COMPRESSION == 1*/
 /*----------------------------------------------------------------------------*/
 #ifdef MALC_COMMON_NAMESPACED
-}}  //namespace malcpp { namespace detail {
+}}} // namespace malcpp { namespace detail { namespace serialization {
 #endif
 /*----------------------------------------------------------------------------*/
 #ifndef __cplusplus /* C++ uses function overload, not type generic macros */
