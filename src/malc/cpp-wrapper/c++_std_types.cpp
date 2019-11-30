@@ -8,7 +8,9 @@ namespace malcpp {
 
 //------------------------------------------------------------------------------
 template <class T>
-void shared_ptr_vector_fill_data (malc_obj_ref& obj, malc_obj_log_data& out)
+void shared_ptr_vector_fill_data(
+  malc_obj_ref& obj, malc_obj_log_data& out, bl_u8 builtin_type
+  )
 {
   auto p = static_cast<std::shared_ptr<std::vector<T> > *> (obj.obj);
   if (auto vecptr = p->get()) {
@@ -16,17 +18,12 @@ void shared_ptr_vector_fill_data (malc_obj_ref& obj, malc_obj_log_data& out)
     if (size == 0) {
       return;
     }
-    auto bytes = size * sizeof (T);
-    out.data.mem.ptr  = &(*vecptr)[0];
-    out.data.mem.size = bytes;
-
-    static_assert(
-      sizeof (std::size_t) >= sizeof (decltype (out.data.mem.size)), ""
-      );
-
-    if (bytes < size || out.data.mem.size < bytes) {
-      /* overflow: truncating */
-      out.data.str.len = (decltype (out.data.str.len)) -1ull;
+    out.data.builtin.ptr   = &(*vecptr)[0];
+    out.data.builtin.count = size;
+    out.data.builtin.type  = builtin_type;
+    if (out.data.builtin.count < size) {
+      /* overflow: truncating. (Notice that returning more values us p) */
+      out.data.builtin.count = (decltype (out.data.builtin.count)) -1ull;
     }
   }
 }
@@ -52,7 +49,7 @@ MALC_EXPORT void string_shared_ptr_get_data(
   }
 }
 //------------------------------------------------------------------------------
-MALC_EXPORT void integral_vector_shared_ptr_get_data(
+MALC_EXPORT void vector_shared_ptr_get_data(
   malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
   )
 {
@@ -61,12 +58,21 @@ MALC_EXPORT void integral_vector_shared_ptr_get_data(
     return;
   }
   static const char* header[] = {
-    "u08[", "u16[", "u32[", "u64[", "s08[", "s16[", "s32[", "s64["
+    "u08[",
+    "u16[",
+    "u32[",
+    "u64[",
+    "s08[",
+    "s16[",
+    "s32[",
+    "s64[",
+    "flt[",
+    "dbl["
   };
   if (*iter_context == nullptr) {
     /* first call */
-    if (obj->extra.flag > 7) {
-      /* error: invalid integral type */
+    if (obj->extra.flag > malc_obj_double) {
+      /* error: invalid type */
       return;
     }
     out->data.str.ptr = header[obj->extra.flag];
@@ -85,29 +91,35 @@ MALC_EXPORT void integral_vector_shared_ptr_get_data(
   }
   /* logging the vector data */
   switch (obj->extra.flag) {
-  case 0:
-    shared_ptr_vector_fill_data<bl_u8> (*obj, *out);
+  case malc_obj_u8:
+    shared_ptr_vector_fill_data<bl_u8> (*obj, *out, obj->extra.flag);
     break;
-  case 1:
-    shared_ptr_vector_fill_data<bl_u16> (*obj, *out);
+  case malc_obj_u16:
+    shared_ptr_vector_fill_data<bl_u16> (*obj, *out, obj->extra.flag);
     break;
-  case 2:
-    shared_ptr_vector_fill_data<bl_u32> (*obj, *out);
+  case malc_obj_u32:
+    shared_ptr_vector_fill_data<bl_u32> (*obj, *out, obj->extra.flag);
     break;
-  case 3:
-    shared_ptr_vector_fill_data<bl_u64> (*obj, *out);
+  case malc_obj_u64:
+    shared_ptr_vector_fill_data<bl_u64> (*obj, *out, obj->extra.flag);
     break;
-  case 4:
-    shared_ptr_vector_fill_data<bl_i8> (*obj, *out);
+  case malc_obj_i8:
+    shared_ptr_vector_fill_data<bl_i8> (*obj, *out, obj->extra.flag);
     break;
-  case 5:
-    shared_ptr_vector_fill_data<bl_i16> (*obj, *out);
+  case malc_obj_i16:
+    shared_ptr_vector_fill_data<bl_i16> (*obj, *out, obj->extra.flag);
     break;
-  case 6:
-    shared_ptr_vector_fill_data<bl_i32> (*obj, *out);
+  case malc_obj_i32:
+    shared_ptr_vector_fill_data<bl_i32> (*obj, *out, obj->extra.flag);
     break;
-  case 7:
-    shared_ptr_vector_fill_data<bl_i64> (*obj, *out);
+  case malc_obj_i64:
+    shared_ptr_vector_fill_data<bl_i64> (*obj, *out, obj->extra.flag);
+    break;
+  case malc_obj_float:
+    shared_ptr_vector_fill_data<float> (*obj, *out, obj->extra.flag);
+    break;
+  case malc_obj_double:
+    shared_ptr_vector_fill_data<double> (*obj, *out, obj->extra.flag);
     break;
   default:
     break;

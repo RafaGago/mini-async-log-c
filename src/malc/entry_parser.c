@@ -287,13 +287,26 @@ static inline malc_obj_ref get_aligned_obj_ref_ctx(
   return r;
 }
 /*----------------------------------------------------------------------------*/
+static bl_err append_arg(
+  entry_parser*       ep,
+  log_argument const* arg,
+  char                type,
+  char const*         fmt_beg,
+  char const*         fmt_end
+  );
+/*----------------------------------------------------------------------------*/
 static bl_err append_obj(
-  entry_parser* ep, malc_obj const* obj, malc_obj_ref od
+  entry_parser*   ep,
+  char const*     fmt_beg,
+  char const*     fmt_end,
+  malc_obj const* obj,
+  malc_obj_ref    od
   )
 {
   if (bl_unlikely (!obj->getdata)) {
     return bl_mkerr (bl_invalid);
   }
+  log_argument arg;
   void* itercontext = nullptr;
   /* TODO entry char limit? */
   do {
@@ -305,7 +318,66 @@ static bl_err append_obj(
       err = bl_dstr_append_l (&ep->str, ld.data.str.ptr, ld.data.str.len);
     }
     else {
-      err = append_mem (ep, ld.data.mem.ptr, ld.data.mem.size);
+      bl_uword prev_len = bl_dstr_len (&ep->str);
+      for (bl_uword i = 0; i < ld.data.builtin.count; ++i) {
+        bl_uword len = bl_dstr_len (&ep->str);
+        if (prev_len < len) {
+          /* space separation between values */
+          err = bl_dstr_append_lit (&ep->str, " ");
+          if (err.own) {
+            break;
+          }
+          prev_len = len;
+        }
+        switch (ld.data.builtin.type) {
+        case malc_obj_u8:
+          arg.vu8 = ((bl_u8 const*) ld.data.builtin.ptr)[i];
+          err = append_arg (ep, &arg, malc_type_u8, fmt_beg, fmt_end);
+          break;
+        case malc_obj_u16:
+          arg.vu16 = ((bl_u16 const*) ld.data.builtin.ptr)[i];
+          err = append_arg (ep, &arg, malc_type_u16, fmt_beg, fmt_end);
+          break;
+        case malc_obj_u32:
+          arg.vu32 = ((bl_u32 const*) ld.data.builtin.ptr)[i];
+          err = append_arg (ep, &arg, malc_type_u32, fmt_beg, fmt_end);
+          break;
+        case malc_obj_u64:
+          arg.vu64 = ((bl_u64 const*) ld.data.builtin.ptr)[i];
+          err = append_arg (ep, &arg, malc_type_u64, fmt_beg, fmt_end);
+          break;
+        case malc_obj_i8:
+          arg.vu8 = ((bl_i8 const*) ld.data.builtin.ptr)[i];
+          err = append_arg (ep, &arg, malc_type_i8, fmt_beg, fmt_end);
+          break;
+        case malc_obj_i16:
+          arg.vi16 = ((bl_i16 const*) ld.data.builtin.ptr)[i];
+          err = append_arg (ep, &arg, malc_type_i16, fmt_beg, fmt_end);
+          break;
+        case malc_obj_i32:
+          arg.vi32 = ((bl_i32 const*) ld.data.builtin.ptr)[i];
+          err = append_arg (ep, &arg, malc_type_i32, fmt_beg, fmt_end);
+          break;
+        case malc_obj_i64:
+          arg.vi64 = ((bl_i64 const*) ld.data.builtin.ptr)[i];
+          err = append_arg (ep, &arg, malc_type_i64, fmt_beg, fmt_end);
+          break;
+        case malc_obj_float:
+          arg.vfloat = ((float const*) ld.data.builtin.ptr)[i];
+          err = append_arg (ep, &arg, malc_type_float, fmt_beg, fmt_end);
+          break;
+        case malc_obj_double:
+          arg.vdouble = ((double const*) ld.data.builtin.ptr)[i];
+          err = append_arg (ep, &arg, malc_type_double, fmt_beg, fmt_end);
+          break;
+        default:
+          err = bl_mkerr (bl_invalid);
+          break;
+        }
+        if (err.own) {
+          break;
+        }
+      }
     }
     if (err.own) {
       if (itercontext) {
@@ -362,14 +434,24 @@ static bl_err append_arg(
   case malc_type_memref:
     return append_mem (ep, arg->vmemref.mem, arg->vmemref.size);
   case malc_type_obj:
-    return append_obj (ep, &arg->vobj, get_aligned_obj_ref (ep, &arg->vobj));
+    return append_obj(
+      ep, fmt_beg, fmt_end, &arg->vobj, get_aligned_obj_ref (ep, &arg->vobj)
+      );
   case malc_type_obj_ctx:
     return append_obj(
-      ep, &arg->vobjctx.base, get_aligned_obj_ref_ctx (ep, &arg->vobjctx)
+      ep,
+      fmt_beg,
+      fmt_end,
+      &arg->vobjctx.base,
+      get_aligned_obj_ref_ctx (ep, &arg->vobjctx)
       );
   case malc_type_obj_flag:
     return append_obj(
-      ep, &arg->vobjflag.base, get_aligned_obj_ref_flag (ep, &arg->vobjflag)
+      ep,
+      fmt_beg,
+      fmt_end,
+      &arg->vobjflag.base,
+      get_aligned_obj_ref_flag (ep, &arg->vobjflag)
       );
   default:
     return bl_mkok();

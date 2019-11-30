@@ -389,21 +389,38 @@ typedef struct malc_obj_ref {
 }
 malc_obj_ref;
 /*------------------------------------------------------------------------------
+types to return on "malc_obj_log_data.data.builtin.type" below.
+------------------------------------------------------------------------------*/
+typedef enum malc_obj_type_id {
+  malc_obj_u8,
+  malc_obj_u16,
+  malc_obj_u32,
+  malc_obj_u64,
+  malc_obj_i8,
+  malc_obj_i16,
+  malc_obj_i32,
+  malc_obj_i64,
+  malc_obj_float,
+  malc_obj_double,
+}
+malc_obj_type_id;
+/*------------------------------------------------------------------------------
 Returned from "malc_obj_get_data_fn", it returns a contiguous chunk that can
 either be a string or a memory block (to be printed as hex).
 ------------------------------------------------------------------------------*/
 typedef struct malc_obj_log_data {
   union {
     struct {
-      void const* ptr;
-      bl_u16      size;
-    }
-    mem;
-    struct {
       char const* ptr;
       bl_u16      len;
     }
     str;
+    struct {
+      void const* ptr;
+      bl_u8       count;
+      bl_u8       type; /* malc_obj_i8 ... malc_obj_double ( ints + floats) */
+    }
+    builtin;
   }
   data;
   bl_u8 is_str;

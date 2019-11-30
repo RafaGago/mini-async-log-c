@@ -1,5 +1,4 @@
 #include <thread>
-#include <malc/c++_std_types.hpp>
 #include <malc/malc.hpp>
 
 malcpp::malcpp<> log;
@@ -79,7 +78,7 @@ static void malc_compatibility_byte_refence_types()
   #endif
     (void) log_error(
       "[10,11,12,13] by ref: {}",
-       malcpp::memref (dmem, sizeof mem),
+      malcpp::memref (dmem, sizeof mem),
       malcpp::refdtor (destructorfn, context)
       );
 }
@@ -179,16 +178,18 @@ int main (int argc, char const* argv[])
       "[10,11,12,13] by value: {}", malcpp::memcp (mem, sizeof mem)
       );
 
-    /* all vectors of integral types (except bool) can be hex-dumped. Notice
-    that the streamed result is dependant on the machine's endianess.*/
+    /* all vectors of integral types (except bool) can be printed by reference
+    if they are wrapped by a shared ptr. As with the string the vector itself
+    is not thread safe for writes.*/
     err = log_error(
-      "shared_ptr<std::vector<T>>. \"{}\" \"{}\"",
+      "shared_ptr<std::vector<T>>: \"{0Nx}\" \"{g}\" \"{}\"",
       std::make_shared<std::vector<bl_u8> >(
-        std::initializer_list<bl_u8>{ 1, 2, 3, 4, 5, 6, 7}
+        std::initializer_list<bl_u8>{ 1, 2, 9, 10, 11}
         ),
-      std::make_shared<std::vector<bl_u16> >(
-        std::initializer_list<bl_u16>{ 1, 2, 3, 4, 5, 6, 7}
-        )
+      std::make_shared<std::vector<double> >(
+        std::initializer_list<double>{ .1, .2 }
+        ),
+      std::make_shared<std::vector<bl_i32> >()
       );
 
     malc_compatibility_byte_refence_types();

@@ -4,6 +4,11 @@
 #include <malc/impl/metaprogramming_common.hpp>
 #include <malc/impl/serialization.hpp>
 
+#ifdef MALCPP_CPP11_TYPES
+#include <vector>
+#include <memory>
+#endif
+
 //------------------------------------------------------------------------------
 namespace malcpp { namespace detail { namespace fmt { // string format validation
 //------------------------------------------------------------------------------
@@ -108,11 +113,28 @@ public:
     >::type
     validate (const literal& l, int beg, int end, T*)
   {
-    /*TBI*/
     return (beg == end)
       ? fmterr_success
       : validate_float (l, beg, end, literal (" #+-0"), beg);
   }
+  //----------------------------------------------------------------------------
+#ifdef MALCPP_CPP11_TYPES
+  template<class T, class ...types>
+  static constexpr typename std::enable_if<
+      (std::is_integral<T>::value && !std::is_same<T, bool>::value)
+        || std::is_floating_point<T>::value,
+      int
+    >::type
+    validate(
+      const literal& l,
+      int            beg,
+      int            end,
+      std::shared_ptr<std::vector<T, types...> >*
+      )
+  {
+    return validate (l, beg, end, (T*) nullptr);
+  }
+#endif
   //----------------------------------------------------------------------------
   template<class T>
   static constexpr typename std::enable_if<
@@ -131,7 +153,6 @@ public:
     return (beg == end) ?  fmterr_success : fmterr_unclosed_lbracket;
   }
   //----------------------------------------------------------------------------
-  template <class T>
   static constexpr int validate (const literal& l, int beg, int end, ...)
   {
     /* unknown types have no modifiers, type validation happens later.
@@ -302,7 +323,7 @@ private:
     many times*/
     return (end != fmterr_notfound)
       ? validate_next_step3_validation(
-          end, modifiers::validate<T> (l, beg, end, (T*) nullptr)
+          end, modifiers::validate (l, beg, end, (T*) nullptr)
           )
       : fmterr_unclosed_lbracket;
   }

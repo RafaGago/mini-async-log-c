@@ -10,7 +10,8 @@ Features
 ========
 
 - Very high performance. Hard to be faster for a generic library. Beats
-  "mini-async-log" in most configurations.
+  "mini-async-log" in most configurations. It may be used to debug
+  multithreaded code without affecting timings too much.
 
 - Various memory (log entry) sources: Thread Local Storage buffer, common
   bounded buffer (configurable to have one for each CPU) and custom allocators

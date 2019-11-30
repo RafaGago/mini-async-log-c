@@ -1,5 +1,5 @@
 #include <thread>
-#include <malc/malc.hpp>
+#include <malc/malc_lean.hpp>
 
 malcpp::malcpp<> log;
 /*----------------------------------------------------------------------------*/

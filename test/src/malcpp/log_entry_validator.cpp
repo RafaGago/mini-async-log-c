@@ -1,6 +1,6 @@
 #include <bl/cmocka_pre.h>
 
-#include <malc/malc.hpp>
+#include <malc/malc_lean.hpp>
 
 using namespace malcpp::detail::fmt;
 /*----------------------------------------------------------------------------*/

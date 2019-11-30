@@ -3,7 +3,7 @@
 #include <bl/base/utility.h>
 #include <bl/base/thread.h>
 
-#include <malc/malc.hpp>
+#include <malc/malc_lean.hpp>
 
 typedef malcpp::malcpp<false, false, false> malc_nonthrow;
 /*----------------------------------------------------------------------------*/

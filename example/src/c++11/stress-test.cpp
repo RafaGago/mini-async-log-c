@@ -7,7 +7,7 @@
 #include <string.h>
 
 #include <bl/base/processor_pause.h>
-#include <malc/malc.hpp>
+#include <malc/malc_lean.hpp>
 
 /* A program to test malc stability, basically the init/deinit sequence and the
 producer side. Thought out to be running for hours. It adds a destination on RAM

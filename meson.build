@@ -147,6 +147,7 @@ malc_test_srcs = [
 malc_test_cpp_srcs = [
     'test/src/malcpp/tests_main.cpp',
     'test/src/malcpp/log_entry_validator.cpp',
+    'test/src/malcpp/log_entry_validator_c++_types.cpp',
 ]
 malc_smoke_test_srcs = [
     'smoke_test/src/malc/smoke.c',

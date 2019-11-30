@@ -1,5 +1,5 @@
-#ifndef __MALC_CPP_STD_TYPES_HPP__
-#define __MALC_CPP_STD_TYPES_HPP__
+#ifndef __MALC_CPP_HPP__
+#define __MALC_CPP_HPP__
 
 #include <memory>
 #include <cstddef>
@@ -34,15 +34,11 @@ namespace malcpp {
 extern MALC_EXPORT void string_shared_ptr_get_data(
   malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
   );
-extern MALC_EXPORT void integral_vector_shared_ptr_get_data(
+extern MALC_EXPORT void vector_shared_ptr_get_data(
   malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
   );
 
 namespace detail { namespace serialization {
-
-/*----------------------------------------------------------------------------*/
-/* object types (C++ only) */
-/*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
 /* interface types */
@@ -201,7 +197,23 @@ struct type<std::shared_ptr<std::string> > :
   }
 };
 /*----------------------------------------------------------------------------*/
-template <malc_obj_get_data_fn getdata, class colwrapper>
+template <class T>
+static inline constexpr bl_u8 encode_int_type_flag()
+{
+  return (bl_static_log2_ceil_u8 (sizeof (T))) |
+    (std::is_signed<T>::value ? (1 << 2) : 0);
+}
+/*----------------------------------------------------------------------------*/
+static_assert (encode_int_type_flag<bl_u8>()  == malc_obj_u8, "");
+static_assert (encode_int_type_flag<bl_u16>() == malc_obj_u16, "");
+static_assert (encode_int_type_flag<bl_u32>() == malc_obj_u32, "");
+static_assert (encode_int_type_flag<bl_u64>() == malc_obj_u64, "");
+static_assert (encode_int_type_flag<bl_i8>()  == malc_obj_i8, "");
+static_assert (encode_int_type_flag<bl_i16>() == malc_obj_i16, "");
+static_assert (encode_int_type_flag<bl_i32>() == malc_obj_i32, "");
+static_assert (encode_int_type_flag<bl_i64>() == malc_obj_i64, "");
+/*----------------------------------------------------------------------------*/
+template <malc_obj_get_data_fn getdata, class colwrapper, unsigned char flag>
 struct shared_ptr_collection_type :
   private type<malc_obj_shared_ptr_w_flag<typename colwrapper::collection> > {
 
@@ -219,12 +231,6 @@ struct shared_ptr_collection_type :
     static_cast<T*> (obj->obj)->~T();
   }
 
-  static inline constexpr bl_u8 encode_type_flag()
-  {
-    return (bl_static_log2_ceil_u8 (sizeof (coltype))) |
-      (std::is_signed<coltype>::value ? (1 << 2) : 0);
-  }
-
   static inline typename base::transformed transform(
     std::shared_ptr<collection>& v
     )
@@ -233,7 +239,7 @@ struct shared_ptr_collection_type :
     b.ptr     = v;
     b.getdata = getdata;
     b.destroy = &destroy;
-    b.flag    = encode_type_flag();
+    b.flag    = flag;
     return base::transform (b);
   }
 
@@ -245,7 +251,7 @@ struct shared_ptr_collection_type :
     b.ptr     = std::move (v);
     b.getdata = getdata;
     b.destroy = &destroy;
-    b.flag    = encode_type_flag();
+    b.flag    = flag;
     return base::transform (b);
   }
 };
@@ -264,7 +270,23 @@ struct type<
     >::type
   > :
   public shared_ptr_collection_type<
-    integral_vector_shared_ptr_get_data, vector_wrapper<T, Args...>
+    vector_shared_ptr_get_data,
+    vector_wrapper<T, Args...>,
+    encode_int_type_flag<T>()
+    >
+{};
+/*----------------------------------------------------------------------------*/
+template <class T, class... Args>
+struct type<
+  std::shared_ptr<std::vector<T, Args...> > ,
+  typename std::enable_if<
+    std::is_floating_point<T>::value
+    >::type
+  > :
+  public shared_ptr_collection_type<
+    vector_shared_ptr_get_data,
+    vector_wrapper<T, Args...>,
+    std::is_same<T, float>::value ? malc_obj_float : malc_obj_double
     >
 {};
 /*----------------------------------------------------------------------------*/
