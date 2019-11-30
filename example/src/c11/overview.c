@@ -105,12 +105,13 @@ int log_thread (void* ctx)
   err = log_debug ("this is not seen on stdout (sev > debug)");
 
   /* log entry with a conditional.*/
-  err = log_error_if (1, "conditional debug line");
+  err = log_error_if (1, "conditional error line");
 
   /* if the conditional is false the parameter list is not evaluated. Beware
   of parameter lists with side effects*/
   int side_effect = 0;
-  err = log_error_if (0, "ommited conditional debug line: {}", ++side_effect );
+  err = log_debug_if (0, "ommited conditional debug line: {}", ++side_effect );
+  #warning "TODO: fixthis"
   assert (side_effect == 0);
 
   /* brace escape */
@@ -158,7 +159,7 @@ int add_configure_destinations (void)
     fprintf (stderr, "Unable to set generic stdout/stderr destination config\n");
     return err.own;
   }
-  dcfg.severity = malc_sev_debug;
+  dcfg.severity = malc_sev_note;
   err = malc_set_destination_cfg (ilog, &dcfg, file_id);
   if (err.own) {
     fprintf (stderr, "Unable to set generic file destination config\n");

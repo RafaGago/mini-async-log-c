@@ -352,6 +352,8 @@ malc_file_cfg;
 /*------------------------------------------------------------------------------
 type returned on "malc_refdtor_fn" when using reference types on the logger. It
 is just a passed pointer of the memory address with the size that was passed.
+
+"ref" is not const because free migth be called on it.
 ------------------------------------------------------------------------------*/
 typedef struct malc_ref {
   void*  ref;
@@ -365,7 +367,68 @@ is just a passed pointer of the memory address with the size that was passed.
 typedef void (*malc_refdtor_fn)(
   void* context, malc_ref const* refs, bl_uword refs_count
   );
-/*----------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------------
+functions for objects
+
+Malc allows serializations of "objects" up to "MALC_OBJ_MAX_ALIGN" and
+"MALC_OBJ_MAX_SIZE".
+------------------------------------------------------------------------------*/
+#define MALC_OBJ_MAX_ALIGN 256
+#define MALC_OBJ_MAX_SIZE \
+  ((1ull << bl_sizeof_member (malc_obj, obj_sizeof) * 8) - 1)
+/*------------------------------------------------------------------------------
+This is passed by the log functions. On the log function you select a callback
+and if you log with context.
+------------------------------------------------------------------------------*/
+typedef struct malc_obj_ref {
+  void* obj;
+  union {
+    void* context;
+    bl_u8 flag;
+  } extra;
+}
+malc_obj_ref;
+/*------------------------------------------------------------------------------
+Returned from "malc_obj_get_data_fn", it returns a contiguous chunk that can
+either be a string or a memory block (to be printed as hex).
+------------------------------------------------------------------------------*/
+typedef struct malc_obj_log_data {
+  union {
+    struct {
+      void const* ptr;
+      bl_u16      size;
+    }
+    mem;
+    struct {
+      char const* ptr;
+      bl_u16      len;
+    }
+    str;
+  }
+  data;
+  bl_u8 is_str;
+}
+malc_obj_log_data;
+/*------------------------------------------------------------------------------
+The function that returns data to print from the object.
+
+It will be called in a loop for as long as "*iter_context" is not NULL.
+
+The content of "*iter_context" will never modified by malc, so it can be used
+to pass dynamically allocated data that has to be persistent between calls or
+just be set to a non NULL value to signal malc to continue iterating.
+
+If an internal malc error happens and "iter_context" is non-NULL,
+"malc_obj_get_data_fn" will be called with "out" set to NULL to give the
+function an oportunity to deallocate resources on "iter_context".
+------------------------------------------------------------------------------*/
+typedef void (*malc_obj_get_data_fn) (
+  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
+  );
+/*------------------------------------------------------------------------------
+Object destructor
+------------------------------------------------------------------------------*/
+typedef void (*malc_obj_destroy_fn) (malc_obj_ref* obj);
 
 #ifdef MALC_COMMON_NAMESPACED
 } //namespace malcpp {

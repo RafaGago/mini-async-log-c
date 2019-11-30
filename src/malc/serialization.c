@@ -272,23 +272,72 @@ static inline bl_err DECODE_NAME_BUILD(_refdtor)(
   return DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->context);
 }
 /*----------------------------------------------------------------------------*/
+static inline bl_err DECODE_NAME_BUILD(_obj)(
+  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_obj* v
+  )
+{
+  bl_err err = DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->getdata);
+  if (bl_unlikely (err.own)) {
+    return err;
+  }
+  err = DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->destroy);
+  if (bl_unlikely (err.own)) {
+    return err;
+  }
+  err = DECODE_NAME_BUILD(_8) (ch, mem, mem_end, &v->obj_sizeof);
+  if (bl_unlikely (err.own)) {
+    return err;
+  }
+  if (bl_unlikely (*mem + v->obj_sizeof > mem_end)) {
+    return bl_mkerr (bl_invalid);
+  }
+  v->obj = (void*) *mem;
+  *mem += v->obj_sizeof;
+  return bl_mkok();
+}
+/*----------------------------------------------------------------------------*/
+static inline bl_err DECODE_NAME_BUILD(_obj_ctx)(
+  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_obj_ctx* v
+  )
+{
+  bl_err err = DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->context);
+  if (bl_unlikely (err.own)) {
+    return err;
+  }
+  return DECODE_NAME_BUILD(_obj) (ch, mem, mem_end, &v->base);
+}
+/*----------------------------------------------------------------------------*/
+static inline bl_err DECODE_NAME_BUILD(_obj_flag)(
+  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_obj_flag* v
+  )
+{
+  bl_err err = DECODE_NAME_BUILD(_8) (ch, mem, mem_end, &v->flag);
+  if (bl_unlikely (err.own)) {
+    return err;
+  }
+  return DECODE_NAME_BUILD(_obj) (ch, mem, mem_end, &v->base);
+}
+/*----------------------------------------------------------------------------*/
 #ifndef __cplusplus
 #define decode(ch, mem, mem_end, val)\
   _Generic ((val),\
-    bl_u8*:        decode_8,\
-    bl_u16*:       decode_16,\
-    bl_u32*:       decode_32,\
-    bl_u64*:       decode_64,\
-    double*:       decode_double,\
-    float*:        decode_float,\
-    void**:        decode_ptr,\
-    malc_lit*:     decode_lit,\
-    malc_strcp*:   decode_strcp,\
-    malc_strref*:  decode_strref,\
-    malc_memcp*:   decode_memcp,\
-    malc_memref*:  decode_memref,\
-    malc_refdtor*: decode_refdtor,\
-    default:       wrong\
+    bl_u8*:         decode_8,\
+    bl_u16*:        decode_16,\
+    bl_u32*:        decode_32,\
+    bl_u64*:        decode_64,\
+    double*:        decode_double,\
+    float*:         decode_float,\
+    void**:         decode_ptr,\
+    malc_lit*:      decode_lit,\
+    malc_strcp*:    decode_strcp,\
+    malc_strref*:   decode_strref,\
+    malc_memcp*:    decode_memcp,\
+    malc_memref*:   decode_memref,\
+    malc_refdtor*:  decode_refdtor,\
+    malc_obj*:      decode_obj,\
+    malc_obj_ctx*:  decode_obj_ctx,\
+    malc_obj_flag*: decode_obj_flag,\
+    default:        wrong\
     )\
   ((ch), (mem), (mem_end), (val))
 #endif
@@ -526,6 +575,15 @@ bl_err deserializer_execute(
     case malc_type_refdtor:
       err = decode (ds->ch, &mem, mem_end, &ds->refdtor);
       push_this_arg = false;
+      break;
+    case malc_type_obj:
+      err = decode (ds->ch, &mem, mem_end, &larg.vobj);
+      break;
+    case malc_type_obj_ctx:
+      err = decode (ds->ch, &mem, mem_end, &larg.vobjctx);
+      break;
+    case malc_type_obj_flag:
+      err = decode (ds->ch, &mem, mem_end, &larg.vobjflag);
       break;
     default:
       bl_assert (0 && "bug");

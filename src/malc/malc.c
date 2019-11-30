@@ -482,9 +482,6 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
               &strs
               );
           }
-          if (le.refdtor.func) {
-            le.refdtor.func (le.refdtor.context, le.refs, le.refs_count);
-          }
         }
         else {
           assert (false && "bug or something malicious happenning");

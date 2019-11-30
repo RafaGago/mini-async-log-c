@@ -36,11 +36,14 @@
 #define TSTAMP_INTEGER  11
 #define TSTAMP_DECIMAL 9
 /*----------------------------------------------------------------------------*/
+#define MAX_
+/*----------------------------------------------------------------------------*/
 typedef struct entry_parser {
   char    timestamp[TSTAMP_INTEGER + TSTAMP_DECIMAL + 1 + 1]; /* dot + teminating 0 */
   bl_dstr str;
   bl_dstr fmt;
   bool    sanitize_log_entries;
+  _Alignas (MALC_OBJ_MAX_ALIGN) bl_u8 objstorage[MALC_OBJ_MAX_SIZE];
 }
 entry_parser;
 /*----------------------------------------------------------------------------*/

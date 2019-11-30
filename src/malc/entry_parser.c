@@ -236,7 +236,9 @@ static bl_err append_mem (entry_parser* ep, bl_u8 const* mem, bl_uword size)
   bl_uword runs = size / ((sizeof buff - 1) / 2);
   bl_uword last = size % ((sizeof buff - 1) / 2);
 
-  bl_err err = bl_dstr_set_capacity (&ep->str, bl_dstr_len (&ep->str) + (size * 2));
+  bl_err err = bl_dstr_set_capacity(
+    &ep->str, bl_dstr_len (&ep->str) + (size * 2)
+    );
   if (bl_unlikely (err.own)) {
       return err;
   }
@@ -254,6 +256,67 @@ static bl_err append_mem (entry_parser* ep, bl_u8 const* mem, bl_uword size)
     bl_bytes_to_hex_string (buff, sizeof buff, mem, last) >= 0
     );
   return bl_dstr_append_l (&ep->str, buff, last * 2);
+}
+/*----------------------------------------------------------------------------*/
+static inline malc_obj_ref get_aligned_obj_ref(
+  entry_parser* ep, malc_obj const* obj
+  )
+{
+  malc_obj_ref r;
+  memcpy (&ep->objstorage, obj->obj, obj->obj_sizeof);
+  r.obj = (void*) &ep->objstorage;
+  r.extra.context = nullptr;
+  return r;
+}
+/*----------------------------------------------------------------------------*/
+static inline malc_obj_ref get_aligned_obj_ref_flag(
+  entry_parser* ep, malc_obj_flag const* obj
+  )
+{
+  malc_obj_ref r = get_aligned_obj_ref (ep, &obj->base);
+  r.extra.flag = obj->flag;
+  return r;
+}
+/*----------------------------------------------------------------------------*/
+static inline malc_obj_ref get_aligned_obj_ref_ctx(
+  entry_parser* ep, malc_obj_ctx const* obj
+  )
+{
+  malc_obj_ref r = get_aligned_obj_ref (ep, &obj->base);
+  r.extra.context = obj->context;
+  return r;
+}
+/*----------------------------------------------------------------------------*/
+static bl_err append_obj(
+  entry_parser* ep, malc_obj const* obj, malc_obj_ref od
+  )
+{
+  if (bl_unlikely (!obj->getdata)) {
+    return bl_mkerr (bl_invalid);
+  }
+  void* itercontext = nullptr;
+  /* TODO entry char limit? */
+  do {
+    malc_obj_log_data ld;
+    memset (&ld, 0, sizeof ld);
+    obj->getdata (&od, &ld, &itercontext);
+    bl_err err;
+    if (ld.is_str) {
+      err = bl_dstr_append_l (&ep->str, ld.data.str.ptr, ld.data.str.len);
+    }
+    else {
+      err = append_mem (ep, ld.data.mem.ptr, ld.data.mem.size);
+    }
+    if (err.own) {
+      if (itercontext) {
+        /* giving "getdata" an opportunity to deallocate "itercontext" */
+        obj->getdata (&od, nullptr, &itercontext);
+      }
+      return err;
+    }
+  }
+  while (itercontext);
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static bl_err append_arg(
@@ -298,8 +361,19 @@ static bl_err append_arg(
     return bl_dstr_append_l (&ep->str, arg->vstrref.str, arg->vstrref.len);
   case malc_type_memref:
     return append_mem (ep, arg->vmemref.mem, arg->vmemref.size);
+  case malc_type_obj:
+    return append_obj (ep, &arg->vobj, get_aligned_obj_ref (ep, &arg->vobj));
+  case malc_type_obj_ctx:
+    return append_obj(
+      ep, &arg->vobjctx.base, get_aligned_obj_ref_ctx (ep, &arg->vobjctx)
+      );
+  case malc_type_obj_flag:
+    return append_obj(
+      ep, &arg->vobjflag.base, get_aligned_obj_ref_flag (ep, &arg->vobjflag)
+      );
+  default:
+    return bl_mkok();
   }
-  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 /*TODO: cfg: silent sanitize, etc.*/
@@ -397,6 +471,42 @@ static bl_err parse_text(
   return err;
 }
 /*----------------------------------------------------------------------------*/
+static inline void destroy_obj (malc_obj const* obj, malc_obj_ref od)
+{
+  if (obj->destroy) {
+    return obj->destroy (&od);
+  }
+}
+/*----------------------------------------------------------------------------*/
+static inline void destroy_objects(
+  entry_parser*       ep,
+  char const*         types,
+  log_argument const* args,
+  bl_uword            args_count
+  )
+{
+  for (bl_uword i = 0; i < args_count; ++i) {
+    log_argument const* arg = &args[i];
+    switch (types[i]) {
+    case malc_type_obj:
+      destroy_obj (&arg->vobj, get_aligned_obj_ref (ep, &arg->vobj));
+      break;
+    case malc_type_obj_ctx:
+      destroy_obj(
+        &arg->vobjctx.base, get_aligned_obj_ref_ctx (ep, &arg->vobjctx)
+        );
+      break;
+    case malc_type_obj_flag:
+      destroy_obj(
+        &arg->vobjflag.base, get_aligned_obj_ref_flag (ep, &arg->vobjflag)
+        );
+      break;
+    default:
+      break;
+    }
+  }
+}
+/*----------------------------------------------------------------------------*/
 BL_EXPORT bl_err entry_parser_get_log_strings(
   entry_parser* ep, log_entry const* e, malc_log_strings* strs
   )
@@ -408,7 +518,7 @@ BL_EXPORT bl_err entry_parser_get_log_strings(
     e->entry->info[0] < malc_sev_debug ||
     e->entry->info[0] > malc_sev_critical
     )) {
-    bl_assert (false);
+    bl_assert (false && "bug or corruption");
     return bl_mkerr (bl_invalid);
   }
   /* meson old versions ignored base library flags */
@@ -430,7 +540,7 @@ BL_EXPORT bl_err entry_parser_get_log_strings(
   bl_assert (strlen (strs->timestamp) == strs->timestamp_len);
   strs->sev     = sev_strings[e->entry->info[0] - malc_sev_debug];
   strs->sev_len = bl_lit_len (MALC_EP_DEBUG);
-  bl_err err = parse_text(
+  bl_err err    = parse_text(
     ep, e->entry->format, &e->entry->info[1], e->args, e->args_count
     );
   strs->text     = nullptr;
@@ -439,15 +549,20 @@ BL_EXPORT bl_err entry_parser_get_log_strings(
   if (ep->sanitize_log_entries) {
     err = bl_dstr_replace_lit (&ep->str, "\n", "", 0, 0);
     if (bl_unlikely (err.own)) {
-      return err;
+      goto free_entry_resources;
     }
     err = bl_dstr_replace_lit (&ep->str, "\r", "", 0, 0);
     if (bl_unlikely (err.own)) {
-      return err;
+      goto free_entry_resources;
     }
   }
   strs->text     = bl_dstr_get (&ep->str);
   strs->text_len = bl_dstr_len (&ep->str);
+free_entry_resources:
+  destroy_objects (ep, &e->entry->info[1], e->args, e->args_count);
+  if (e->refdtor.func) {
+    e->refdtor.func (e->refdtor.context, e->refs, e->refs_count);
+  }
   return err;
 }
 /*----------------------------------------------------------------------------*/

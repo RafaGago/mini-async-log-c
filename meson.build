@@ -126,6 +126,7 @@ malc_srcs = [
 malcpp_srcs = [
     'src/malc/cpp-wrapper/destinations.cpp',
     'src/malc/cpp-wrapper/wrapper.cpp',
+    'src/malc/cpp-wrapper/c++_std_types.cpp',
     'src/malc/cpp-wrapper/malcpp-e-c-nd.cpp',
     'src/malc/cpp-wrapper/malcpp-ne-nc-nd.cpp',
     'src/malc/cpp-wrapper/malcpp-ne-nc-d.cpp',

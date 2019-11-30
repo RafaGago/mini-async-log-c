@@ -10,7 +10,9 @@
 /* including the common structs in malcpp's namespace */
 #include <bl/base/default_allocator.h>
 
+#ifndef MALC_COMMON_NAMESPACED
 #define MALC_COMMON_NAMESPACED 1
+#endif
 
 #ifndef MALC_LIBRARY_COMPILATION
   #include <malc/config.h>

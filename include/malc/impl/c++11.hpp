@@ -6,6 +6,7 @@
 #endif
 
 #include <tuple>
+#include <utility>
 
 #include <bl/base/preprocessor_basic.h>
 // #include <bl/base/integer.h>
@@ -15,6 +16,8 @@
 #include <malc/impl/compile_time_validation.hpp>
 
 #include <malc/impl/logging.h>
+
+#warning "TODO: type validation with clear messages"
 
 namespace malcpp { namespace detail {
 
@@ -172,7 +175,7 @@ static inline bl_err log(
 {
   using argops = arg_ops<sizeof...(types)>;
   auto values = std::make_tuple(
-    serialization::type<types>::transform (args)...
+    serialization::type<types>::transform (std::forward<types> (args))...
     );
   malc_serializer s;
   bl_err err = malc_log_entry_prepare(

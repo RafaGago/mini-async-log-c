@@ -16,7 +16,7 @@ struct type_base {
   static inline T        transform (T v) { return v; }
 };
 
-template<typename T>
+template<typename T, typename enable = void>
 struct type {};
 
 template<>
@@ -286,6 +286,7 @@ struct type<malc_compressed_refdtor> {
 };
 /*----------------------------------------------------------------------------*/
 #endif /* #if MALC_COMPRESSION == 1 */
+
 //------------------------------------------------------------------------------
 template <class T>
 struct is_malc_refvalue {
@@ -293,7 +294,6 @@ struct is_malc_refvalue {
     std::is_same<remove_cvref_t<T>, serialization::malc_memref>::value |
     std::is_same<remove_cvref_t<T>, serialization::malc_strref>::value;
 };
-
 
 }}} // namespace malcpp { namespace detail { namespace serialization {
 
