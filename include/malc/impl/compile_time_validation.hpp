@@ -58,6 +58,7 @@ enum fmterr : int {
   fmterr_misplaced_refdtor   = -7,
   fmterr_repeated_refdtor    = -8,
   fmterr_excess_refdtor      = -9,
+  fmterr_invalid_type        = -10,
 };
 //------------------------------------------------------------------------------
 struct fmtret {
@@ -346,8 +347,11 @@ private:
     so to declare variables on has to call functions with extra args. The
     variables are created to avoid doing the same compile time calculations
     many times.. */
-    return std::is_same<T, serialization::malc_refdtor>::value == false
-      ? verify_next<N, tail> (l, placeholder::validate_next<T> (l, litpos))
+    return
+      (std::is_same<T, serialization::malc_refdtor>::value == false)
+      ? (serialization::type<T>::id != serialization::malc_type_error)
+        ? verify_next<N, tail> (l, placeholder::validate_next<T> (l, litpos))
+        : fmtret::make (fmterr_invalid_type, N)
       : iterate<N + 1, tail> (l , litpos); //malc_refdtor: skipping.
   }
   //----------------------------------------------------------------------------
@@ -461,6 +465,8 @@ private:
 #define MALCPP_INVARG_LIT \
   "malc: invalid printf formatting modifiers for the given type on the "
 #define MALCPP_INVARG_LIT_SFX " placeholder."
+#define MALCPP_INVTYP_LIT "malc: invalid type on the "
+#define MALCPP_INVTYP_LIT_SFX " argument."
 /*----------------------------------------------------------------------------*/
 template <int res, unsigned arg>
 struct generate_compile_errors {
@@ -485,6 +491,14 @@ struct generate_compile_errors {
   static constexpr bool invmodif()
   {
     return (res != fmterr_invalid_modifiers) || arg < 50;
+  }
+  static constexpr bool invtype (unsigned num)
+  {
+    return (res != fmterr_invalid_type) || arg != num;
+  }
+  static constexpr bool invtype()
+  {
+    return (res != fmterr_invalid_type) || arg < 50;
   }
   static constexpr bool missrefdt()
   {
@@ -575,6 +589,58 @@ struct generate_compile_errors {
   static_assert(
     invmodif(),
     "malc: invalid printf formating modifiers for the given type on a placeholder over the 49th"
+    );
+  static_assert (invtype (1),  MALCPP_INVTYP_LIT "1st"  MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (2),  MALCPP_INVTYP_LIT "2nd"  MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (3),  MALCPP_INVTYP_LIT "3rd"  MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (4),  MALCPP_INVTYP_LIT "4th"  MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (5),  MALCPP_INVTYP_LIT "5th"  MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (6),  MALCPP_INVTYP_LIT "6th"  MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (7),  MALCPP_INVTYP_LIT "7th"  MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (8),  MALCPP_INVTYP_LIT "8th"  MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (9),  MALCPP_INVTYP_LIT "9th"  MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (10), MALCPP_INVTYP_LIT "10th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (11), MALCPP_INVTYP_LIT "11th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (12), MALCPP_INVTYP_LIT "12th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (13), MALCPP_INVTYP_LIT "13th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (14), MALCPP_INVTYP_LIT "14th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (15), MALCPP_INVTYP_LIT "15th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (16), MALCPP_INVTYP_LIT "16th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (17), MALCPP_INVTYP_LIT "17th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (18), MALCPP_INVTYP_LIT "18th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (19), MALCPP_INVTYP_LIT "19th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (20), MALCPP_INVTYP_LIT "20th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (21), MALCPP_INVTYP_LIT "21th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (22), MALCPP_INVTYP_LIT "22th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (23), MALCPP_INVTYP_LIT "23th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (24), MALCPP_INVTYP_LIT "24th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (25), MALCPP_INVTYP_LIT "25th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (26), MALCPP_INVTYP_LIT "26th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (27), MALCPP_INVTYP_LIT "27th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (28), MALCPP_INVTYP_LIT "28th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (29), MALCPP_INVTYP_LIT "29th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (30), MALCPP_INVTYP_LIT "30th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (31), MALCPP_INVTYP_LIT "31th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (32), MALCPP_INVTYP_LIT "32th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (33), MALCPP_INVTYP_LIT "33th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (34), MALCPP_INVTYP_LIT "34th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (35), MALCPP_INVTYP_LIT "35th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (36), MALCPP_INVTYP_LIT "36th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (37), MALCPP_INVTYP_LIT "37th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (38), MALCPP_INVTYP_LIT "38th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (39), MALCPP_INVTYP_LIT "39th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (40), MALCPP_INVTYP_LIT "40th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (41), MALCPP_INVTYP_LIT "41th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (42), MALCPP_INVTYP_LIT "42th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (43), MALCPP_INVTYP_LIT "43th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (44), MALCPP_INVTYP_LIT "44th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (45), MALCPP_INVTYP_LIT "45th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (46), MALCPP_INVTYP_LIT "46th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (47), MALCPP_INVTYP_LIT "47th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (48), MALCPP_INVTYP_LIT "48th" MALCPP_INVTYP_LIT_SFX);
+  static_assert (invtype (49), MALCPP_INVTYP_LIT "49th" MALCPP_INVTYP_LIT_SFX);
+  static_assert(
+    invtype(),"malc: invalid argument type over the 49th argument"
     );
 };
 /*----------------------------------------------------------------------------*/

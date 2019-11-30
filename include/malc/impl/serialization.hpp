@@ -17,7 +17,12 @@ struct type_base {
 };
 
 template<typename T, typename enable = void>
-struct type {};
+struct type;
+
+template<typename T, typename enable>
+struct type {
+  static const char id = malc_type_error;
+};
 
 template<>
 struct type<float> : public type_base<float> {

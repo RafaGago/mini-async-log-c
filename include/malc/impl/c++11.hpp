@@ -17,8 +17,6 @@
 
 #include <malc/impl/logging.h>
 
-#warning "TODO: type validation with clear messages"
-
 namespace malcpp { namespace detail {
 
 /*----------------------------------------------------------------------------*/
