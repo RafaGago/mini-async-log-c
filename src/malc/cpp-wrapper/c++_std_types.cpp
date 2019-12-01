@@ -1,32 +1,12 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <limits>
 
 #include <malc/malc.hpp>
 
 namespace malcpp {
 
-//------------------------------------------------------------------------------
-template <class T>
-void shared_ptr_vector_fill_data(
-  malc_obj_ref& obj, malc_obj_log_data& out, bl_u8 builtin_type
-  )
-{
-  auto p = static_cast<std::shared_ptr<std::vector<T> > *> (obj.obj);
-  if (auto vecptr = p->get()) {
-    std::size_t size = vecptr->size();
-    if (size == 0) {
-      return;
-    }
-    out.data.builtin.ptr   = &(*vecptr)[0];
-    out.data.builtin.count = size;
-    out.data.builtin.type  = builtin_type;
-    if (out.data.builtin.count < size) {
-      /* overflow: truncating. (Notice that returning more values us p) */
-      out.data.builtin.count = (decltype (out.data.builtin.count)) -1ull;
-    }
-  }
-}
 //------------------------------------------------------------------------------
 MALC_EXPORT void string_shared_ptr_get_data(
   malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
@@ -44,12 +24,66 @@ MALC_EXPORT void string_shared_ptr_get_data(
     out->data.str.len = s->size();
     if (out->data.str.len < s->size()) {
       /* overflow: truncating */
-      out->data.str.len = (decltype (out->data.str.len)) -1ull;
+      out->data.str.len =
+        std::numeric_limits<decltype (out->data.str.len)>::max();
     }
   }
 }
 //------------------------------------------------------------------------------
-MALC_EXPORT void vector_shared_ptr_get_data(
+template <class T>
+static void vector_filler(
+  std::vector<T>& v, malc_obj_log_data& out, bl_u8 builtin_type
+  )
+{
+  std::size_t size = v.size();
+  if (size == 0) {
+    return;
+  }
+  out.data.builtin.ptr   = &v[0];
+  out.data.builtin.count = size;
+  out.data.builtin.type  = builtin_type;
+  if (out.data.builtin.count < size) {
+    /* overflow: truncating. (Notice that returning more values us p) */
+    out.data.builtin.count =
+      std::numeric_limits<decltype (out.data.builtin.count)>::max();
+  }
+}
+//------------------------------------------------------------------------------
+template <class T>
+struct shared_ptr_vector_filler {
+  static void run(
+    malc_obj_ref& obj, malc_obj_log_data& out, bl_u8 builtin_type
+    )
+  {
+    auto p = static_cast<std::shared_ptr<std::vector<T> > *> (obj.obj);
+    if (auto vecptr = p->get()) {
+      vector_filler (*vecptr, out, builtin_type);
+    }
+  }
+};
+//------------------------------------------------------------------------------
+template <class T>
+struct weak_ptr_vector_filler {
+  static void run(
+    malc_obj_ref& obj, malc_obj_log_data& out, bl_u8 builtin_type
+    )
+  {
+    auto w = static_cast<std::weak_ptr<std::vector<T> > *> (obj.obj);
+    if (auto p = w.lock()) {
+      if (auto vecptr = p->get()) {
+        vector_filler (*vecptr, out, builtin_type);
+      }
+    }
+    else {
+      out.is_str = 1;
+      out.data.str.ptr = "noref";
+      out.data.str.len = sizeof "noref" - 1;
+    }
+  }
+};
+//------------------------------------------------------------------------------
+template <template <class> class filler >
+static inline void vector_smartptr_get_data(
   malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
   )
 {
@@ -92,39 +126,46 @@ MALC_EXPORT void vector_shared_ptr_get_data(
   /* logging the vector data */
   switch (obj->extra.flag) {
   case malc_obj_u8:
-    shared_ptr_vector_fill_data<bl_u8> (*obj, *out, obj->extra.flag);
+    filler<bl_u8>::run (*obj, *out, obj->extra.flag);
     break;
   case malc_obj_u16:
-    shared_ptr_vector_fill_data<bl_u16> (*obj, *out, obj->extra.flag);
+    filler<bl_u16>::run (*obj, *out, obj->extra.flag);
     break;
   case malc_obj_u32:
-    shared_ptr_vector_fill_data<bl_u32> (*obj, *out, obj->extra.flag);
+    filler<bl_u32>::run (*obj, *out, obj->extra.flag);
     break;
   case malc_obj_u64:
-    shared_ptr_vector_fill_data<bl_u64> (*obj, *out, obj->extra.flag);
+    filler<bl_u64>::run (*obj, *out, obj->extra.flag);
     break;
   case malc_obj_i8:
-    shared_ptr_vector_fill_data<bl_i8> (*obj, *out, obj->extra.flag);
+    filler<bl_i8>::run (*obj, *out, obj->extra.flag);
     break;
   case malc_obj_i16:
-    shared_ptr_vector_fill_data<bl_i16> (*obj, *out, obj->extra.flag);
+    filler<bl_i16>::run (*obj, *out, obj->extra.flag);
     break;
   case malc_obj_i32:
-    shared_ptr_vector_fill_data<bl_i32> (*obj, *out, obj->extra.flag);
+    filler<bl_i32>::run (*obj, *out, obj->extra.flag);
     break;
   case malc_obj_i64:
-    shared_ptr_vector_fill_data<bl_i64> (*obj, *out, obj->extra.flag);
+    filler<bl_i64>::run (*obj, *out, obj->extra.flag);
     break;
   case malc_obj_float:
-    shared_ptr_vector_fill_data<float> (*obj, *out, obj->extra.flag);
+    filler<float>::run (*obj, *out, obj->extra.flag);
     break;
   case malc_obj_double:
-    shared_ptr_vector_fill_data<double> (*obj, *out, obj->extra.flag);
+    filler<double>::run (*obj, *out, obj->extra.flag);
     break;
   default:
     break;
   }
   *iter_context = (void*) 2;
+}
+//------------------------------------------------------------------------------
+MALC_EXPORT void vector_shared_ptr_get_data(
+  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
+  )
+{
+  vector_smartptr_get_data<shared_ptr_vector_filler> (obj, out, iter_context);
 }
 //------------------------------------------------------------------------------
 } // namespace malcpp

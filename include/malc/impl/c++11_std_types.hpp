@@ -43,20 +43,20 @@ namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/
 /* interface types */
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct malc_obj_shared_ptr {
+template <class T, template <class> class smartptr>
+struct malc_obj_smartptr {
   malc_obj_get_data_fn getdata;
   malc_obj_destroy_fn  destroy;
-  std::shared_ptr<T>   ptr;
+  smartptr<T>          ptr;
 };
 
-template <class T>
-struct malc_obj_shared_ptr_w_context : public malc_obj_shared_ptr<T> {
+template <class T, template <class> class smartptr>
+struct malc_obj_smartptr_w_context : public malc_obj_smartptr<T, smartptr> {
   void* context;
 };
 
-template <class T>
-struct malc_obj_shared_ptr_w_flag : public malc_obj_shared_ptr<T> {
+template <class T, template <class> class smartptr>
+struct malc_obj_smartptr_w_flag : public malc_obj_smartptr<T, smartptr> {
   bl_u8 flag;
 };
 /*----------------------------------------------------------------------------*/
@@ -65,11 +65,11 @@ struct malc_obj_shared_ptr_w_flag : public malc_obj_shared_ptr<T> {
 template <class T>
 struct malc_transformed_obj {
 #if MALC_PTR_COMPRESSION == 0
-  malc_obj_get_data_fn   getdata;
-  malc_obj_destroy_fn    destroy;
+  malc_obj_get_data_fn getdata;
+  malc_obj_destroy_fn  destroy;
 #else
-  malc_compressed_ptr    getdata;
-  malc_compressed_ptr    destroy;
+  malc_compressed_ptr  getdata;
+  malc_compressed_ptr  destroy;
 #endif
   typename std::aligned_storage<sizeof (T), alignof (T)>::type storage;
 };
@@ -90,28 +90,30 @@ struct malc_transformed_obj_w_flag {
   bl_u8                   flag;
 };
 /*----------------------------------------------------------------------------*/
-/* type transformations (base)*/
+/* type transformations. Classes of smart pointers to RAW
+malc_transformed_obj_*
+*/
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct type<malc_obj_shared_ptr<T> > {
+template <class T, template <class> class smartptr>
+struct type<malc_obj_smartptr<T, smartptr> > {
 
   static_assert(
-    sizeof (std::shared_ptr<T>) <= 255,
+    sizeof (smartptr<T>) <= 255,
     "malc can only serialize small objects from 0 to 255 bytes."
     );
   static_assert(
-    alignof (std::shared_ptr<T>) <= MALC_OBJ_MAX_ALIGN,
+    alignof (smartptr<T>) <= MALC_OBJ_MAX_ALIGN,
     "malc can only serialize objects aligned up to \"std::max_align_t\"."
     );
 
-  using transformed = malc_transformed_obj<std::shared_ptr<T> >;
+  using transformed = malc_transformed_obj<smartptr<T> >;
 
   static constexpr char id = malc_type_obj;
 
-  static inline transformed transform (malc_obj_shared_ptr<T>& v)
+  static inline transformed transform (malc_obj_smartptr<T, smartptr>& v)
   {
     transformed r;
-    new (&r.storage) std::shared_ptr<T> (std::move (v.ptr));
+    new (&r.storage) smartptr<T> (std::move (v.ptr));
 #if MALC_PTR_COMPRESSION == 0
     r.getdata = v.getdata;
     r.destroy = v.destroy;
@@ -123,18 +125,20 @@ struct type<malc_obj_shared_ptr<T> > {
   }
 };
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct type<malc_obj_shared_ptr_w_context<T> > {
+template <class T, template <class> class smartptr>
+struct type<malc_obj_smartptr_w_context<T, smartptr> > {
 
-  using base = type<malc_obj_shared_ptr<T> >;
-  using transformed = malc_transformed_obj_w_context<std::shared_ptr<T> >;
+  using base = type<malc_obj_smartptr<T, smartptr> >;
+  using transformed = malc_transformed_obj_w_context<smartptr<T> >;
 
   static constexpr char id = malc_type_obj_ctx;
 
-  static inline transformed transform (malc_obj_shared_ptr_w_context<T>& v)
+  static inline transformed transform(
+    malc_obj_smartptr_w_context<T, smartptr>& v
+    )
   {
     transformed r;
-    r.base = base::transform (static_cast<malc_obj_shared_ptr<T>&> (v));
+    r.base = base::transform (static_cast<malc_obj_smartptr<T, smartptr>&> (v));
 #if MALC_PTR_COMPRESSION == 0
     r.context = v.context;
 #else
@@ -144,58 +148,107 @@ struct type<malc_obj_shared_ptr_w_context<T> > {
   }
 };
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct type<malc_obj_shared_ptr_w_flag<T> > :
-  private type<malc_obj_shared_ptr<T> > {
+template <class T, template <class> class smartptr>
+struct type<malc_obj_smartptr_w_flag<T, smartptr> > {
 
-  using base = type<malc_obj_shared_ptr<T> >;
-  using transformed = malc_transformed_obj_w_flag<std::shared_ptr<T> >;
+  using base = type<malc_obj_smartptr<T, smartptr> >;
+  using transformed = malc_transformed_obj_w_flag<smartptr<T> >;
 
   static constexpr char id = malc_type_obj_flag;
 
-  static inline transformed transform (malc_obj_shared_ptr_w_flag<T>& v)
+  static inline transformed transform (malc_obj_smartptr_w_flag<T, smartptr>& v)
   {
     transformed r;
-    r.base = base::transform (static_cast<malc_obj_shared_ptr<T>&> (v));
+    r.base = base::transform (static_cast<malc_obj_smartptr<T, smartptr>&> (v));
     r.flag = v.flag;
     return r;
   }
 };
 /*----------------------------------------------------------------------------*/
-/* type transformations (real types)*/
+/* Transformations for smart pointers, base classes. They take a smart pointer
+and return malc_obj_smartptr_*
+*/
 /*----------------------------------------------------------------------------*/
-template<>
-struct type<std::shared_ptr<std::string> > :
-  private type<malc_obj_shared_ptr<std::string> > {
+template<malc_obj_get_data_fn getdata, class T, template <class> class smartptr>
+struct smartptr_type  {
 
-  using base = type<malc_obj_shared_ptr<std::string> >;
-
-  using base::id;
+  using base = type<malc_obj_smartptr<T, smartptr> >;
+  static constexpr char id = base::id;
 
   static void destroy (malc_obj_ref* obj)
   {
-    using T = std::shared_ptr<std::string>;
-    static_cast<T*> (obj->obj)->~T();
+    using smartptrtype = smartptr<T>;
+    static_cast<smartptrtype*> (obj->obj)->~smartptrtype();
   }
 
-  static inline base::transformed transform (std::shared_ptr<std::string>& v)
+  static inline typename base::transformed transform (smartptr<T>& v)
   {
-    malc_obj_shared_ptr<std::string> b;
+    malc_obj_smartptr<T, smartptr> b;
     b.ptr = v;
-    b.getdata = &string_shared_ptr_get_data;
+    b.getdata = getdata;
     b.destroy = destroy;
     return base::transform (b);
   }
 
-  static inline base::transformed transform (std::shared_ptr<std::string>&& v)
+  static inline typename base::transformed transform (smartptr<T>&& v)
   {
-    malc_obj_shared_ptr<std::string> b;
+    malc_obj_smartptr<T, smartptr> b;
     b.ptr = std::move (v);
-    b.getdata = &string_shared_ptr_get_data;
+    b.getdata = getdata;
     b.destroy = destroy;
     return base::transform (b);
   }
 };
+/*----------------------------------------------------------------------------*/
+template<
+  malc_obj_get_data_fn   getdata,
+  unsigned char          flag_default,
+  class                  T,
+  template <class> class smartptr
+  >
+struct smartptr_type_w_flag {
+  using base = type<malc_obj_smartptr_w_flag<T, smartptr> >;
+  static constexpr char id = base::id;
+
+  static void destroy (malc_obj_ref* obj)
+  {
+    using smartptrtype = smartptr<T>;
+    static_cast<smartptrtype*> (obj->obj)->~smartptrtype();
+  }
+
+  static inline typename base::transformed transform(
+    smartptr<T>& v, unsigned char flag = flag_default
+    )
+  {
+    malc_obj_smartptr_w_flag<T, smartptr> b;
+    b.ptr = v;
+    b.getdata = getdata;
+    b.destroy = destroy;
+    b.flag    = flag;
+    return base::transform (b);
+  }
+
+  static inline typename base::transformed transform(
+    smartptr<T>&& v, unsigned char flag = flag_default
+    )
+  {
+    malc_obj_smartptr_w_flag<T, smartptr> b;
+    b.ptr = std::move (v);
+    b.getdata = getdata;
+    b.destroy = destroy;
+    b.flag    = flag;
+    return base::transform (b);
+  }
+};
+/*----------------------------------------------------------------------------*/
+/* type instantiations of smart pointer types*/
+/*----------------------------------------------------------------------------*/
+template<>
+struct type<std::shared_ptr<std::string>> :
+  public smartptr_type<
+    string_shared_ptr_get_data, std::string, std::shared_ptr
+    >
+{};
 /*----------------------------------------------------------------------------*/
 template <class T>
 static inline constexpr bl_u8 encode_int_type_flag()
@@ -213,55 +266,6 @@ static_assert (encode_int_type_flag<bl_i16>() == malc_obj_i16, "");
 static_assert (encode_int_type_flag<bl_i32>() == malc_obj_i32, "");
 static_assert (encode_int_type_flag<bl_i64>() == malc_obj_i64, "");
 /*----------------------------------------------------------------------------*/
-template <malc_obj_get_data_fn getdata, class colwrapper, unsigned char flag>
-struct shared_ptr_collection_type :
-  private type<malc_obj_shared_ptr_w_flag<typename colwrapper::collection> > {
-
-  using coltype    = typename colwrapper::type;
-  using collection = typename colwrapper::collection;
-
-  using base = type<malc_obj_shared_ptr_w_flag<collection> >;
-  using base::id;
-
-  static void destroy (malc_obj_ref* obj)
-  {
-    /* unfortunately it can't be moved to the .cpp, as the collections have other
-    template parameters than the data-type (e.g. allocators).*/
-    using T = std::shared_ptr<collection>;
-    static_cast<T*> (obj->obj)->~T();
-  }
-
-  static inline typename base::transformed transform(
-    std::shared_ptr<collection>& v
-    )
-  {
-    malc_obj_shared_ptr_w_flag<collection> b;
-    b.ptr     = v;
-    b.getdata = getdata;
-    b.destroy = &destroy;
-    b.flag    = flag;
-    return base::transform (b);
-  }
-
-  static inline typename base::transformed transform(
-    std::shared_ptr<collection>&& v
-    )
-  {
-    malc_obj_shared_ptr_w_flag<collection> b;
-    b.ptr     = std::move (v);
-    b.getdata = getdata;
-    b.destroy = &destroy;
-    b.flag    = flag;
-    return base::transform (b);
-  }
-};
-/*----------------------------------------------------------------------------*/
-template <class T, class... Args>
-struct vector_wrapper {
-  using collection = std::vector<T, Args...>;
-  using type       = T;
-};
-/*----------------------------------------------------------------------------*/
 template <class T, class... Args>
 struct type<
   std::shared_ptr<std::vector<T, Args...> > ,
@@ -269,10 +273,11 @@ struct type<
     std::is_integral<T>::value && !std::is_same<T, bool>::value
     >::type
   > :
-  public shared_ptr_collection_type<
+  public smartptr_type_w_flag<
     vector_shared_ptr_get_data,
-    vector_wrapper<T, Args...>,
-    encode_int_type_flag<T>()
+    encode_int_type_flag<T>(),
+    std::vector<T, Args...>,
+    std::shared_ptr
     >
 {};
 /*----------------------------------------------------------------------------*/
@@ -283,18 +288,22 @@ struct type<
     std::is_floating_point<T>::value
     >::type
   > :
-  public shared_ptr_collection_type<
+  public smartptr_type_w_flag<
     vector_shared_ptr_get_data,
-    vector_wrapper<T, Args...>,
-    std::is_same<T, float>::value ? malc_obj_float : malc_obj_double
+    std::is_same<T, float>::value ? malc_obj_float : malc_obj_double,
+    std::vector<T, Args...>,
+    std::shared_ptr
     >
 {};
 /*----------------------------------------------------------------------------*/
-/* transformed type sizes */
+/* type size bases. After calling transform there always be
+malc_transformed_obj* types. We have to provide its sizes. These are base clases
+to inherit by fully typed transformations.
+*/
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct type<malc_transformed_obj<std::shared_ptr<T> > > {
-  using transformed = malc_transformed_obj<std::shared_ptr<T> >;
+template <class T, template <class> class smartptr>
+struct size_type_base {
+  using transformed = malc_transformed_obj<smartptr<T> >;
 
   static inline bl_uword size (const transformed& v)
   {
@@ -307,39 +316,54 @@ struct type<malc_transformed_obj<std::shared_ptr<T> > > {
       + malc_compressed_get_size (v.destroy.format_nibble)
 #endif
       + sizeof (bl_u8) // object size field
-      + sizeof (std::shared_ptr<T>);
+      + sizeof (smartptr<T>);
   }
 };
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct type<malc_transformed_obj_w_context<std::shared_ptr<T> > > {
-
-  using base = type<malc_transformed_obj<std::shared_ptr<T> > >;
-  using transformed = malc_transformed_obj_w_context<std::shared_ptr<T> >;
+template <class T, template <class> class smartptr>
+struct size_type_w_context_base {
+  using base = type<malc_transformed_obj<smartptr<T> > >;
+  using transformed = malc_transformed_obj_w_context<smartptr<T> >;
 
   static inline bl_uword size (const transformed& v)
   {
     return base::size (v.base)
 #if MALC_PTR_COMPRESSION == 0
-      + bl_sizeof_member (malc_obj_shared_ptr_w_context<T>, context);
+      + bl_sizeof_member (transformed, context);
 #else
       + malc_compressed_get_size (v.context.format_nibble);
 #endif
   }
 };
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct type<malc_transformed_obj_w_flag<std::shared_ptr<T> > > {
-
-  using base = type<malc_transformed_obj<std::shared_ptr<T> > >;
-  using transformed = malc_transformed_obj_w_flag<std::shared_ptr<T> >;
+template <class T, template <class> class smartptr>
+struct size_type_w_flag_base {
+  using base = type<malc_transformed_obj<smartptr<T> > >;
+  using transformed = malc_transformed_obj_w_flag<smartptr<T> >;
 
   static inline bl_uword size (const transformed& v)
   {
     return base::size (v.base)
-      + bl_sizeof_member (malc_obj_shared_ptr_w_flag<T>, flag);
+      + bl_sizeof_member (transformed, flag);
   }
 };
+/*----------------------------------------------------------------------------*/
+/* Providing real instantiations for size calculations */
+/*----------------------------------------------------------------------------*/
+template <class T>
+struct type<malc_transformed_obj<std::shared_ptr<T> > > :
+  public size_type_base<T, std::shared_ptr>
+{};
+/*----------------------------------------------------------------------------*/
+template <class T>
+struct type<malc_transformed_obj_w_context<std::shared_ptr<T> > > :
+  public size_type_w_context_base<T, std::shared_ptr>
+{};
+/*----------------------------------------------------------------------------*/
+template <class T>
+struct type<malc_transformed_obj_w_flag<std::shared_ptr<T> > > :
+  public size_type_w_flag_base<T, std::shared_ptr>
+{};
 /*----------------------------------------------------------------------------*/
 /* serializations */
 /*----------------------------------------------------------------------------*/
