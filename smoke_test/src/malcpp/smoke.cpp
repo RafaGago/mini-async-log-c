@@ -1,9 +1,16 @@
+#include <algorithm>
+#include <numeric>
+#include <limits>
+#include <string>
+#include <memory>
+#include <vector>
+
 #include <bl/cmocka_pre.h>
 #include <bl/base/default_allocator.h>
 #include <bl/base/utility.h>
 #include <bl/base/thread.h>
 
-#include <malc/malc_lean.hpp>
+#include <malc/malc.hpp>
 
 typedef malcpp::malcpp<false, false, false> malc_nonthrow;
 /*----------------------------------------------------------------------------*/
@@ -535,6 +542,99 @@ static void dynargs_are_deallocated_for_filtered_out_severities (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void string_shared_ptr (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  auto ptr = std::make_shared<std::string> ("paco");
+  assert_int_equal (ptr.use_count(), 1);
+
+  err = log_warning("{}", ptr);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (ptr.use_count(), 2);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (ptr.use_count(), 1);
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "paco");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
+static void vector_shared_ptr (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  auto ptr = std::make_shared<std::vector<bl_u8> >(
+    std::initializer_list<bl_u8>{ 1, 2, 3 }
+    );
+  assert_int_equal (ptr.use_count(), 1);
+
+  err = log_warning("{}", ptr);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (ptr.use_count(), 2);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (ptr.use_count(), 1);
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "u08[1 2 3]");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
+static void vector_shared_ptr_truncation (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  using counttype =
+    decltype (((malcpp::malc_obj_log_data*) nullptr)->data.builtin.count);
+  const auto maxcount = std::numeric_limits<counttype>::max();
+
+  auto ptr = std::make_shared<std::vector<bl_u8> >(maxcount + 8);
+  std::iota (ptr->begin(), ptr->end(), 0);
+
+  assert_int_equal (ptr.use_count(), 1);
+
+  err = log_warning("{}", ptr);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (ptr.use_count(), 2);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (ptr.use_count(), 1);
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  std::string str {(*c->dst.try_get())[0]};
+  // just counting spaces, as it will log [1 2 3 4...]
+  assert_int_equal (std::count (str.begin(), str.end(), ' '), maxcount - 1);
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -553,6 +653,11 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (dynargs_are_deallocated, setup, teardown),
   cmocka_unit_test_setup_teardown(
     dynargs_are_deallocated_for_filtered_out_severities, setup, teardown
+    ),
+  cmocka_unit_test_setup_teardown (string_shared_ptr, setup, teardown),
+  cmocka_unit_test_setup_teardown (vector_shared_ptr, setup, teardown),
+  cmocka_unit_test_setup_teardown(
+    vector_shared_ptr_truncation, setup, teardown
     ),
 };
 /*----------------------------------------------------------------------------*/
