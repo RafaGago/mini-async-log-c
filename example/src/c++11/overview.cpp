@@ -164,11 +164,16 @@ int main (int argc, char const* argv[])
       "shared_ptr<std::string>: \"{}\"",
       std::make_shared<std::string> ("hello from a reference counted string")
       );
-
     err = log_error(
       "weak_ptr<std::string> with no reference: \"{}\"",
       std::weak_ptr<std::string>(
         std::make_shared<std::string> ("hello from a reference counted string")
+        )
+      );
+    err = log_error(
+      "unique_ptr<std::string>: \"{}\"",
+      std::unique_ptr<std::string>( //reminder: c++11, no "make_unique" avail.
+        new std::string ("hello from a unique string")
         )
       );
 
@@ -200,7 +205,13 @@ int main (int argc, char const* argv[])
       );
 
     err = log_error(
-      "weak_ptr<std::vector<T>> without reference: \"{}\"",
+      "unique_ptr<std::vector<T>>: \"{0Nx}\"",
+      std::unique_ptr<std::vector<bl_u8> >(
+        new std::vector<bl_u8>{ 5, 4, 3, 2, 1}
+        )
+      );
+    err = log_error(
+      "weak_ptr<std::vector<T>> without reference: \"{0Nx}\"",
       std::weak_ptr<std::vector<bl_u8>>(
         std::make_shared<std::vector<bl_u8> >(
           std::initializer_list<bl_u8>{ 1, 2, 9, 10, 11}

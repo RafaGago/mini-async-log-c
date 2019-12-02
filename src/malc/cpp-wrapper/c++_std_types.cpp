@@ -43,6 +43,13 @@ static T* weak_ptr_try_get (malc_obj_ref& obj, malc_obj_log_data& out)
   }
 }
 //------------------------------------------------------------------------------
+template <class T>
+static T* unique_ptr_try_get (malc_obj_ref& obj)
+{
+  auto p = static_cast<std::unique_ptr<T>*> (obj.obj);
+  return p->get();
+}
+//------------------------------------------------------------------------------
 MALC_EXPORT void string_shared_ptr_get_data(
   malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
   )
@@ -67,6 +74,20 @@ MALC_EXPORT void string_weak_ptr_get_data(
   }
   assert (obj);
   if (auto s = weak_ptr_try_get<std::string> (*obj, *out)) {
+    string_filler (*s, *out);
+  }
+}
+//------------------------------------------------------------------------------
+MALC_EXPORT void string_unique_ptr_get_data(
+  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
+  )
+{
+  if (!out) {
+    /* no deallocations to be made */
+    return;
+  }
+  assert (obj);
+  if (auto s = unique_ptr_try_get<std::string> (*obj)) {
     string_filler (*s, *out);
   }
 }
@@ -109,6 +130,18 @@ struct weak_ptr_vector_filler {
     )
   {
     if (auto vecptr = weak_ptr_try_get<std::vector<T> > (obj, out)) {
+      vector_filler (*vecptr, out, builtin_type);
+    }
+  }
+};
+//------------------------------------------------------------------------------
+template <class T>
+struct unique_ptr_vector_filler {
+  static void run(
+    malc_obj_ref& obj, malc_obj_log_data& out, bl_u8 builtin_type
+    )
+  {
+    if (auto vecptr = unique_ptr_try_get<std::vector<T> > (obj)) {
       vector_filler (*vecptr, out, builtin_type);
     }
   }
@@ -205,6 +238,13 @@ MALC_EXPORT void vector_weak_ptr_get_data(
   )
 {
   vector_smartptr_get_data<weak_ptr_vector_filler> (obj, out, iter_context);
+}
+//------------------------------------------------------------------------------
+MALC_EXPORT void vector_unique_ptr_get_data(
+  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
+  )
+{
+  vector_smartptr_get_data<unique_ptr_vector_filler> (obj, out, iter_context);
 }
 //------------------------------------------------------------------------------
 } // namespace malcpp

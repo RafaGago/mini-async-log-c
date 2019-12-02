@@ -701,6 +701,56 @@ static void vector_weak_ptr (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void string_unique_ptr (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  auto ptr = std::unique_ptr<std::string> (new std::string ("paco"));
+  err = log_warning ("{}", std::move (ptr));
+  assert_int_equal (err.own, bl_ok);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "paco");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
+static void vector_unique_ptr (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  auto ptr = std::unique_ptr<std::vector<bl_u8> >(
+    new std::vector<bl_u8>{ 1, 2, 3 }
+    );
+  err = log_warning("{}", std::move (ptr));
+  assert_int_equal (err.own, bl_ok);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "u08[1 2 3]");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -727,6 +777,8 @@ static const struct CMUnitTest tests[] = {
     ),
   cmocka_unit_test_setup_teardown (string_weak_ptr, setup, teardown),
   cmocka_unit_test_setup_teardown (vector_weak_ptr, setup, teardown),
+  cmocka_unit_test_setup_teardown (string_unique_ptr, setup, teardown),
+  cmocka_unit_test_setup_teardown (vector_unique_ptr, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)

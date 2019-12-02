@@ -93,25 +93,6 @@ struct fmtret {
 //------------------------------------------------------------------------------
 struct remainder_type_tag {};
 //------------------------------------------------------------------------------
-#ifdef MALCPP_CPP11_TYPES
-
-template <template <class> class smartptr>
-struct is_valid_smartptr : public std::conditional<
-    std::is_same<smartptr<char>, std::shared_ptr<char> >::value ||
-    std::is_same<smartptr<char>, std::weak_ptr<char> >::value,
-    std::true_type,
-    std::false_type
-  >::type {};
-
-template <template <class, class...> class container>
-struct is_valid_smarptr_container : public std::conditional<
-    std::is_same<container<char>, std::vector<char> >::value,
-    std::true_type,
-    std::false_type
-  >::type {};
-
-#endif /* MALCPP_CPP11_TYPES */
-//------------------------------------------------------------------------------
 class modifiers {
 public:
   //----------------------------------------------------------------------------
@@ -140,9 +121,10 @@ public:
 #ifdef MALCPP_CPP11_TYPES
   template<
     class T,
-    template <class> class smartptr,
+    template <class, class...> class smartptr,
     template <class, class...> class container,
-    class ...types>
+    class ...containertypes,
+    class ...ptrtypes>
   static constexpr typename std::enable_if<
       serialization::is_valid_builtin<T>::value &&
       serialization::is_valid_smartptr<smartptr>::value &&
@@ -153,7 +135,7 @@ public:
       const literal& l,
       int            beg,
       int            end,
-      smartptr<container<T, types...> >*
+      smartptr<container<T, containertypes...>, ptrtypes...>*
       )
   {
     return validate (l, beg, end, (T*) nullptr);

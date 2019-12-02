@@ -168,14 +168,16 @@ static inline bl_err log(
   malc_const_entry const& en,
   malctype&               malc,
   const char*,
-  types...                args
+  types&&...              args
   )
 {
   using argops = arg_ops<sizeof...(types)>;
   auto values = std::make_tuple(
-    serialization::sertype<types>::to_serialization_type(
-      std::forward<types> (args)
-      )...
+    serialization::sertype<
+      typename std::remove_reference<types>::type
+        >::to_serialization_type(
+          std::forward<types> (args)
+        )...
     );
   malc_serializer s;
   bl_err err = malc_log_entry_prepare(
