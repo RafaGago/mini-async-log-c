@@ -9,7 +9,7 @@ namespace malcpp {
 
 //------------------------------------------------------------------------------
 MALC_EXPORT void string_shared_ptr_get_data(
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
+  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
   )
 {
   if (!out) {
@@ -162,10 +162,19 @@ static inline void vector_smartptr_get_data(
 }
 //------------------------------------------------------------------------------
 MALC_EXPORT void vector_shared_ptr_get_data(
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
+  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
   )
 {
   vector_smartptr_get_data<shared_ptr_vector_filler> (obj, out, iter_context);
 }
+#if 0
 //------------------------------------------------------------------------------
+MALC_EXPORT void vector_weak_ptr_get_data(
+  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
+  )
+{
+  vector_smartptr_get_data<weak_ptr_vector_filler> (obj, out, iter_context);
+}
+//------------------------------------------------------------------------------
+#endif
 } // namespace malcpp

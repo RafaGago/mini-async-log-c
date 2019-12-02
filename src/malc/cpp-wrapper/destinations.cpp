@@ -45,7 +45,6 @@ malc_dst file_dst::get_dst_tbl()
   return dst;
 }
 /*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 void array_dst::set_array(
   char* mem, bl_uword mem_entries, bl_uword entry_chars
   ) noexcept

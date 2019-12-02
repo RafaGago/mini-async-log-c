@@ -50,6 +50,7 @@ BL_EXPORT bl_err entry_parser_init(
   entry_parser* ep, bl_alloc_tbl const* alloc
   )
 {
+  ep->alloc = alloc;
   bl_dstr_init (&ep->str, alloc);
   bl_err err = bl_dstr_set_capacity (&ep->str, 1024);
   if (err.own) {
@@ -308,18 +309,25 @@ static bl_err append_obj(
   }
   log_argument arg;
   void* itercontext = nullptr;
+  bl_dstr modif;
+
+  bl_dstr_init (&modif, ep->alloc);
+  bl_err err = bl_dstr_set_l (&modif, fmt_beg, fmt_end - fmt_beg);
+  if (err.own) {
+    return err;
+  }
+
   /* TODO entry char limit? */
   do {
     malc_obj_log_data ld;
     memset (&ld, 0, sizeof ld);
-    obj->getdata (&od, &ld, &itercontext);
-    bl_err err;
+    obj->getdata (&od, &ld, &itercontext, bl_dstr_get (&modif));
     if (ld.is_str) {
       err = bl_dstr_append_l (&ep->str, ld.data.str.ptr, ld.data.str.len);
     }
     else {
       bl_uword prev_len = bl_dstr_len (&ep->str);
-      for (bl_uword i = 0; i < ld.data.builtin.count; ++i) {
+      for (bl_uword i = 0; i < ld.data.builtin.count && !err.own; ++i) {
         bl_uword len = bl_dstr_len (&ep->str);
         if (prev_len < len) {
           /* space separation between values */
@@ -374,21 +382,16 @@ static bl_err append_obj(
           err = bl_mkerr (bl_invalid);
           break;
         }
-        if (err.own) {
-          break;
-        }
       }
     }
-    if (err.own) {
-      if (itercontext) {
-        /* giving "getdata" an opportunity to deallocate "itercontext" */
-        obj->getdata (&od, nullptr, &itercontext);
-      }
-      return err;
+    if (err.own && itercontext) {
+      /* giving "getdata" an opportunity to deallocate "itercontext" */
+      obj->getdata (&od, nullptr, &itercontext, bl_dstr_get (&modif));
     }
   }
-  while (itercontext);
-  return bl_mkok();
+  while (itercontext && !err.own);
+  bl_dstr_destroy (&modif);
+  return err;
 }
 /*----------------------------------------------------------------------------*/
 static bl_err append_arg(

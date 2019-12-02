@@ -32,10 +32,10 @@
 namespace malcpp {
 
 extern MALC_EXPORT void string_shared_ptr_get_data(
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
+  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const* f
   );
 extern MALC_EXPORT void vector_shared_ptr_get_data(
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
+  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
   );
 
 namespace detail { namespace serialization {

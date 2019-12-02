@@ -438,9 +438,14 @@ just be set to a non NULL value to signal malc to continue iterating.
 If an internal malc error happens and "iter_context" is non-NULL,
 "malc_obj_get_data_fn" will be called with "out" set to NULL to give the
 function an oportunity to deallocate resources on "iter_context".
+
+The "fmt" string contains the passed printf modifiers.
 ------------------------------------------------------------------------------*/
 typedef void (*malc_obj_get_data_fn) (
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
+  malc_obj_ref*      obj,
+  malc_obj_log_data* out,
+  void**             iter_context,
+  char const*        fmt
   );
 /*------------------------------------------------------------------------------
 Object destructor
