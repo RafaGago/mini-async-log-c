@@ -635,6 +635,72 @@ static void vector_shared_ptr_truncation (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void string_weak_ptr (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  auto ptr = std::make_shared<std::string> ("paco");
+  assert_int_equal (ptr.use_count(), 1);
+
+  err = log_warning("{}", std::weak_ptr<std::string> (ptr));
+  assert_int_equal (err.own, bl_ok);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (ptr.use_count(), 1);
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "paco");
+
+  err = log_warning(
+    "{}", std::weak_ptr<std::string> (std::make_shared<std::string> ("paco"))
+    );
+  assert_int_equal (err.own, bl_ok);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (c->dst.try_get()->size(), 2);
+  assert_string_equal ((*c->dst.try_get())[1], MALC_CPP_NULL_WEAK_PTR_STR);
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
+static void vector_weak_ptr (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  auto ptr = std::make_shared<std::vector<bl_u8> >(
+    std::initializer_list<bl_u8>{ 1, 2, 3 }
+    );
+  assert_int_equal (ptr.use_count(), 1);
+
+  err = log_warning("{}", std::weak_ptr<std::vector<bl_u8> > (ptr));
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (ptr.use_count(), 1);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (ptr.use_count(), 1);
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "u08[1 2 3]");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -659,6 +725,8 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown(
     vector_shared_ptr_truncation, setup, teardown
     ),
+  cmocka_unit_test_setup_teardown (string_weak_ptr, setup, teardown),
+  cmocka_unit_test_setup_teardown (vector_weak_ptr, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)

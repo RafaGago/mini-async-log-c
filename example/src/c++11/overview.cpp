@@ -165,6 +165,13 @@ int main (int argc, char const* argv[])
       std::make_shared<std::string> ("hello from a reference counted string")
       );
 
+    err = log_error(
+      "weak_ptr<std::string> with no reference: \"{}\"",
+      std::weak_ptr<std::string>(
+        std::make_shared<std::string> ("hello from a reference counted string")
+        )
+      );
+
     /* literal (or string guaranteed to outlive the logger)*/
     err = log_error(
       "a literal: {}", malcpp::lit (1 ? "literal one" : "literal two")
@@ -190,6 +197,15 @@ int main (int argc, char const* argv[])
         std::initializer_list<double>{ .1, .2 }
         ),
       std::make_shared<std::vector<bl_i32> >()
+      );
+
+    err = log_error(
+      "weak_ptr<std::vector<T>> without reference: \"{}\"",
+      std::weak_ptr<std::vector<bl_u8>>(
+        std::make_shared<std::vector<bl_u8> >(
+          std::initializer_list<bl_u8>{ 1, 2, 9, 10, 11}
+          )
+        )
       );
 
     malc_compatibility_byte_refence_types();

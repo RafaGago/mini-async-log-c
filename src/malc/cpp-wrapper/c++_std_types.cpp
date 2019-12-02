@@ -2,11 +2,46 @@
 #include <string>
 #include <vector>
 #include <limits>
+#include <cassert>
 
 #include <malc/malc.hpp>
 
 namespace malcpp {
 
+//------------------------------------------------------------------------------
+static void string_filler (std::string& s, malc_obj_log_data& out)
+{
+  out.is_str = 1;
+  out.data.str.ptr = s.c_str();
+  out.data.str.len = s.size();
+  if (out.data.str.len < s.size()) {
+    /* overflow: truncating */
+    out.data.str.len =
+      std::numeric_limits<decltype (out.data.str.len)>::max();
+  }
+}
+//------------------------------------------------------------------------------
+template <class T>
+static T* shared_ptr_try_get (malc_obj_ref& obj)
+{
+  auto p = static_cast<std::shared_ptr<T>*> (obj.obj);
+  return p->get();
+}
+//------------------------------------------------------------------------------
+template <class T>
+static T* weak_ptr_try_get (malc_obj_ref& obj, malc_obj_log_data& out)
+{
+  auto w = static_cast<std::weak_ptr<T>*> (obj.obj);
+  if (auto p = w->lock()) {
+    return p.get();
+  }
+  else {
+    out.is_str = 1;
+    out.data.str.ptr = MALC_CPP_NULL_WEAK_PTR_STR;
+    out.data.str.len = sizeof MALC_CPP_NULL_WEAK_PTR_STR - 1;
+    return nullptr;
+  }
+}
 //------------------------------------------------------------------------------
 MALC_EXPORT void string_shared_ptr_get_data(
   malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
@@ -16,17 +51,23 @@ MALC_EXPORT void string_shared_ptr_get_data(
     /* no deallocations to be made */
     return;
   }
-  auto ptr = static_cast<std::shared_ptr<std::string>*> (obj->obj);
-  std::string* s = ptr->get();
-  if (s) {
-    out->is_str = 1;
-    out->data.str.ptr = s->c_str();
-    out->data.str.len = s->size();
-    if (out->data.str.len < s->size()) {
-      /* overflow: truncating */
-      out->data.str.len =
-        std::numeric_limits<decltype (out->data.str.len)>::max();
-    }
+  assert (obj);
+  if (auto s = shared_ptr_try_get<std::string> (*obj)) {
+    string_filler (*s, *out);
+  }
+}
+//------------------------------------------------------------------------------
+MALC_EXPORT void string_weak_ptr_get_data(
+  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
+  )
+{
+  if (!out) {
+    /* no deallocations to be made */
+    return;
+  }
+  assert (obj);
+  if (auto s = weak_ptr_try_get<std::string> (*obj, *out)) {
+    string_filler (*s, *out);
   }
 }
 //------------------------------------------------------------------------------
@@ -55,8 +96,7 @@ struct shared_ptr_vector_filler {
     malc_obj_ref& obj, malc_obj_log_data& out, bl_u8 builtin_type
     )
   {
-    auto p = static_cast<std::shared_ptr<std::vector<T> > *> (obj.obj);
-    if (auto vecptr = p->get()) {
+    if (auto vecptr = shared_ptr_try_get<std::vector<T>> (obj)) {
       vector_filler (*vecptr, out, builtin_type);
     }
   }
@@ -68,16 +108,8 @@ struct weak_ptr_vector_filler {
     malc_obj_ref& obj, malc_obj_log_data& out, bl_u8 builtin_type
     )
   {
-    auto w = static_cast<std::weak_ptr<std::vector<T> > *> (obj.obj);
-    if (auto p = w.lock()) {
-      if (auto vecptr = p->get()) {
-        vector_filler (*vecptr, out, builtin_type);
-      }
-    }
-    else {
-      out.is_str = 1;
-      out.data.str.ptr = "noref";
-      out.data.str.len = sizeof "noref" - 1;
+    if (auto vecptr = weak_ptr_try_get<std::vector<T> > (obj, out)) {
+      vector_filler (*vecptr, out, builtin_type);
     }
   }
 };
@@ -167,7 +199,6 @@ MALC_EXPORT void vector_shared_ptr_get_data(
 {
   vector_smartptr_get_data<shared_ptr_vector_filler> (obj, out, iter_context);
 }
-#if 0
 //------------------------------------------------------------------------------
 MALC_EXPORT void vector_weak_ptr_get_data(
   malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
@@ -176,5 +207,4 @@ MALC_EXPORT void vector_weak_ptr_get_data(
   vector_smartptr_get_data<weak_ptr_vector_filler> (obj, out, iter_context);
 }
 //------------------------------------------------------------------------------
-#endif
 } // namespace malcpp
