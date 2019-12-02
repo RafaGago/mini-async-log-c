@@ -373,7 +373,9 @@ functions for objects
 Malc allows serializations of "objects" up to "MALC_OBJ_MAX_ALIGN" and
 "MALC_OBJ_MAX_SIZE".
 ------------------------------------------------------------------------------*/
-#define MALC_OBJ_MAX_ALIGN 256
+#ifndef MALC_OBJ_MAX_ALIGN
+  #define MALC_OBJ_MAX_ALIGN 32
+#endif
 #define MALC_OBJ_MAX_SIZE \
   ((1ull << bl_sizeof_member (malc_obj, obj_sizeof) * 8) - 1)
 /*------------------------------------------------------------------------------

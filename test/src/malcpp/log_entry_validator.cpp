@@ -87,7 +87,13 @@ static void ignoring_rbrackets (void **state)
   assert_int_equal (exp, fmt ("{}}}{}}{}}} }", 1, 2, 3));
 }
 /*----------------------------------------------------------------------------*/
-static void unkown_type_no_modifers (void **state)
+static void void_pointer (void **state)
+{
+  int exp = fmterr_success;
+  assert_int_equal (exp, fmt ("{}", (void*) nullptr));
+}
+/*----------------------------------------------------------------------------*/
+static void void_pointer_no_modifiers (void **state)
 {
   int exp = fmterr_invalid_modifiers;
   assert_int_equal (exp, fmt ("{0}", (void*) nullptr));
@@ -321,7 +327,8 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test (lbracket_escaping),
   cmocka_unit_test (unclosed_lbrackets),
   cmocka_unit_test (ignoring_rbrackets),
-  cmocka_unit_test (unkown_type_no_modifers),
+  cmocka_unit_test (void_pointer),
+  cmocka_unit_test (void_pointer_no_modifiers),
   cmocka_unit_test (int_modifiers_flags),
   cmocka_unit_test (int_modifiers_flags_no_repetitions),
   cmocka_unit_test (int_modifiers_width),

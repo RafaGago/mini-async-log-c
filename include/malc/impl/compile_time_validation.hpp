@@ -394,7 +394,7 @@ private:
     many times.. */
     return
       (std::is_same<T, serialization::malc_refdtor>::value == false)
-      ? (serialization::type<T>::id != serialization::malc_type_error)
+      ? (serialization::sertype<T>::id != serialization::malc_type_error)
         ? verify_next<N, tail> (l, placeholder::validate_next<T> (l, litpos))
         : fmtret::make (fmterr_invalid_type, N)
       : iterate<N + 1, tail> (l , litpos); //malc_refdtor: skipping.

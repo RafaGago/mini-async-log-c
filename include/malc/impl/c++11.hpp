@@ -30,7 +30,7 @@ struct info<sev, T<Args...> >
   {
     static const char info[] = {
       (char) sev,
-      (::malcpp::detail::serialization::type<remove_cvref_t<Args> >::id) ...,
+      (::malcpp::detail::serialization::sertype<remove_cvref_t<Args> >::id) ...,
       0
     };
     return info;
@@ -44,7 +44,7 @@ public:
   template <class T>
   static inline bl_uword get_payload_size (const T& tup)
   {
-    bl_uword v = serialization::type<
+    bl_uword v = serialization::sertype<
       remove_cvref_t<decltype (std::get<N>(tup))>
         >::size (std::get<N>(tup));
     return v + arg_ops<END, N + 1>::get_payload_size (tup);
@@ -173,7 +173,9 @@ static inline bl_err log(
 {
   using argops = arg_ops<sizeof...(types)>;
   auto values = std::make_tuple(
-    serialization::type<types>::transform (std::forward<types> (args))...
+    serialization::sertype<types>::to_serialization_type(
+      std::forward<types> (args)
+      )...
     );
   malc_serializer s;
   bl_err err = malc_log_entry_prepare(

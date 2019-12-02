@@ -26,6 +26,8 @@
 
 #warning "TODO: mutex wrapping or example about how to do it"
 #warning "TODO: ostream adapters"
+#warning "TODO: Move the serialization to the C header"
+#warning "TODO: wrapper for writing get_data_fn"
 
 #ifndef MALC_CPP_NULL_WEAK_PTR_STR
   #define MALC_CPP_NULL_WEAK_PTR_STR "null_weak_ptr"
@@ -90,10 +92,10 @@ struct malc_obj_smartptr_w_flag : public malc_obj_smartptr<T, smartptr> {
   bl_u8 flag;
 };
 /*----------------------------------------------------------------------------*/
-/* serialization (transformed) types */
+/* serialization types */
 /*----------------------------------------------------------------------------*/
 template <class T>
-struct malc_transformed_obj {
+struct malc_serializable_obj {
 #if MALC_PTR_COMPRESSION == 0
   malc_obj_get_data_fn getdata;
   malc_obj_destroy_fn  destroy;
@@ -105,8 +107,8 @@ struct malc_transformed_obj {
 };
 
 template <class T>
-struct malc_transformed_obj_w_context {
-  malc_transformed_obj<T> base;
+struct malc_serializable_obj_w_context {
+  malc_serializable_obj<T> base;
 #if MALC_PTR_COMPRESSION == 0
   void* context;
 #else
@@ -115,26 +117,17 @@ struct malc_transformed_obj_w_context {
 };
 
 template <class T>
-struct malc_transformed_obj_w_flag {
-  malc_transformed_obj<T> base;
+struct malc_serializable_obj_w_flag {
+  malc_serializable_obj<T> base;
   bl_u8                   flag;
 };
 /*----------------------------------------------------------------------------*/
-/* type transformations. Classes of smart pointers to RAW. It is possible to log
-these (malc_transformed_obj_*) types directly, but it requires the user
-to provide the "malc_obj_get_data_fn" and "malc_obj_destroy_fn" functions
-manually.
-
-This classes are using "transform" to convert from a user-friendly format to
-a serialization-friendly format.
-
-As a reminder "type<T>::transform" is called for every argument passed to the
-log functions, and then "type<decltype (type<T>::transform)>::size" is called
-to compute the serialized memory requirements.
-*/
+/* type transformations. It is possible to log these (malc_serializable_obj_*)
+types directly, but it requires the user to provide the "malc_obj_get_data_fn"
+and "malc_obj_destroy_fn" functions manually. */
 /*----------------------------------------------------------------------------*/
 template <class T, template <class> class smartptr>
-struct type<malc_obj_smartptr<T, smartptr> > {
+struct sertype<malc_obj_smartptr<T, smartptr> > {
 public:
   static_assert(
     sizeof (smartptr<T>) <= 255,
@@ -145,24 +138,28 @@ public:
     "malc can only serialize objects aligned up to \"std::max_align_t\"."
     );
 
-  using transformed = malc_transformed_obj<smartptr<T> >;
+  using serializable = malc_serializable_obj<smartptr<T> >;
 
   static constexpr char id = malc_type_obj;
 
-  static inline transformed transform (malc_obj_smartptr<T, smartptr>&& v)
+  static inline serializable to_serialization_type(
+    malc_obj_smartptr<T, smartptr>&& v
+    )
   {
-    return transform_impl (std::move (v));
+    return to_serialization_type_impl (std::move (v));
   }
 
-  static inline transformed transform (malc_obj_smartptr<T, smartptr>& v)
+  static inline serializable to_serialization_type(
+    malc_obj_smartptr<T, smartptr>& v
+    )
   {
-    return transform_impl (v);
+    return to_serialization_type_impl (v);
   }
 private:
   template <class V>
-  static inline transformed transform_impl (V v)
+  static inline serializable to_serialization_type_impl (V v)
   {
-    transformed r;
+    serializable r;
     if (std::is_rvalue_reference<V>::value) {
       new (&r.storage) smartptr<T> (std::move (v.ptr));
     }
@@ -181,34 +178,40 @@ private:
 };
 /*----------------------------------------------------------------------------*/
 template <class T, template <class> class smartptr>
-struct type<malc_obj_smartptr_w_context<T, smartptr> > {
+struct sertype<malc_obj_smartptr_w_context<T, smartptr> > {
 public:
-  using base = type<malc_obj_smartptr<T, smartptr> >;
-  using transformed = malc_transformed_obj_w_context<smartptr<T> >;
+  using base = sertype<malc_obj_smartptr<T, smartptr> >;
+  using serializable = malc_serializable_obj_w_context<smartptr<T> >;
 
   static constexpr char id = malc_type_obj_ctx;
 
-  static inline transformed transform(
-    malc_obj_smartptr_w_context<T, smartptr>&& v
-    )
+  static inline serializable
+    to_serialization_type (malc_obj_smartptr_w_context<T, smartptr>&& v)
   {
-    return transform_impl (std::move (v));
+    return to_serialization_type_impl (std::move (v));
   }
 
-  static inline transformed transform(
-    malc_obj_smartptr_w_context<T, smartptr>& v
-    )
+  static inline serializable
+    to_serialization_type (malc_obj_smartptr_w_context<T, smartptr>& v)
   {
-    return transform_impl (v);
+    return to_serialization_type_impl (v);
   }
 
 private:
-  static inline transformed transform_impl(
-    malc_obj_smartptr_w_context<T, smartptr>& v
-    )
+  template <class V>
+  static inline serializable to_serialization_type_impl (V v)
   {
-    transformed r;
-    r.base = base::transform (static_cast<malc_obj_smartptr<T, smartptr>&> (v));
+    serializable r;
+    if (std::is_rvalue_reference<V>::value) {
+      r.base = base::to_serialization_type(
+        static_cast<malc_obj_smartptr<T, smartptr>&&> (std::move (v))
+        );
+    }
+    else {
+      r.base = base::to_serialization_type(
+        static_cast<malc_obj_smartptr<T, smartptr>&> (v)
+        );
+    }
 #if MALC_PTR_COMPRESSION == 0
     r.context = v.context;
 #else
@@ -219,50 +222,58 @@ private:
 };
 /*----------------------------------------------------------------------------*/
 template <class T, template <class> class smartptr>
-struct type<malc_obj_smartptr_w_flag<T, smartptr> > {
+struct sertype<malc_obj_smartptr_w_flag<T, smartptr> > {
 public:
-  using base = type<malc_obj_smartptr<T, smartptr> >;
-  using transformed = malc_transformed_obj_w_flag<smartptr<T> >;
+  using base = sertype<malc_obj_smartptr<T, smartptr> >;
+  using serializable = malc_serializable_obj_w_flag<smartptr<T> >;
 
   static constexpr char id = malc_type_obj_flag;
 
-  static inline transformed transform(
-    malc_obj_smartptr_w_flag<T, smartptr>&& v
-    )
+  static inline serializable
+    to_serialization_type (malc_obj_smartptr_w_flag<T, smartptr>&& v)
   {
-    return transform_impl (std::move (v));
+    return to_serialization_type_impl (std::move (v));
   }
 
-  static inline transformed transform (malc_obj_smartptr_w_flag<T, smartptr>& v)
+  static inline serializable
+    to_serialization_type (malc_obj_smartptr_w_flag<T, smartptr>& v)
   {
-    return transform_impl (v);
+    return to_serialization_type_impl (v);
   }
 
 private:
-  static inline transformed transform_impl(
-    malc_obj_smartptr_w_flag<T, smartptr>& v
-    )
+  template <class V>
+  static inline serializable to_serialization_type_impl (V v)
   {
-    transformed r;
-    r.base = base::transform (static_cast<malc_obj_smartptr<T, smartptr>&> (v));
+    serializable r;
+    if (std::is_rvalue_reference<V>::value) {
+      r.base = base::to_serialization_type(
+        static_cast<malc_obj_smartptr<T, smartptr>&&> (std::move (v))
+        );
+    }
+    else {
+      r.base = base::to_serialization_type(
+        static_cast<malc_obj_smartptr<T, smartptr>&> (v)
+        );
+    }
     r.flag = v.flag;
     return r;
   }
 };
 /*----------------------------------------------------------------------------*/
-/*providing "type" for transformed C++ types. (See comment above).
+/*providing "type" for serializable C++ types. (See comment above).
 /*----------------------------------------------------------------------------*/
 template <class T, template <class> class smartptr>
-struct type<malc_transformed_obj<smartptr<T> > > {
+struct sertype<malc_serializable_obj<smartptr<T> > > {
 
-  using transformed = malc_transformed_obj<smartptr<T> >;
+  using serializable = malc_serializable_obj<smartptr<T> >;
 
-  static inline bl_uword size (transformed const& v)
+  static inline bl_uword size (serializable const& v)
   {
     return
 #if MALC_PTR_COMPRESSION == 0
-      bl_sizeof_member (transformed, getdata)
-      + bl_sizeof_member (transformed, destroy)
+      bl_sizeof_member (serializable, getdata)
+      + bl_sizeof_member (serializable, destroy)
 #else
       malc_compressed_get_size (v.getdata.format_nibble)
       + malc_compressed_get_size (v.destroy.format_nibble)
@@ -273,16 +284,16 @@ struct type<malc_transformed_obj<smartptr<T> > > {
 };
 /*----------------------------------------------------------------------------*/
 template <class T, template <class> class smartptr>
-struct type<malc_transformed_obj_w_context<smartptr<T> > > {
+struct sertype<malc_serializable_obj_w_context<smartptr<T> > > {
 
-  using base = type<malc_transformed_obj<smartptr<T> > >;
-  using transformed = malc_transformed_obj_w_context<smartptr<T> >;
+  using base = sertype<malc_serializable_obj<smartptr<T> > >;
+  using serializable = malc_serializable_obj_w_context<smartptr<T> >;
 
-  static inline bl_uword size (transformed const& v)
+  static inline bl_uword size (serializable const& v)
   {
     return base::size (v.base)
 #if MALC_PTR_COMPRESSION == 0
-      + bl_sizeof_member (transformed, context);
+      + bl_sizeof_member (serializable, context);
 #else
       + malc_compressed_get_size (v.context.format_nibble);
 #endif
@@ -290,15 +301,15 @@ struct type<malc_transformed_obj_w_context<smartptr<T> > > {
 };
 /*----------------------------------------------------------------------------*/
 template <class T, template <class> class smartptr>
-struct type<malc_transformed_obj_w_flag<smartptr<T> > > {
+struct sertype<malc_serializable_obj_w_flag<smartptr<T> > > {
 
-  using base = type<malc_transformed_obj<smartptr<T> > >;
-  using transformed = malc_transformed_obj_w_flag<smartptr<T> >;
+  using base = sertype<malc_serializable_obj<smartptr<T> > >;
+  using serializable = malc_serializable_obj_w_flag<smartptr<T> >;
 
-  static inline bl_uword size (transformed const& v)
+  static inline bl_uword size (serializable const& v)
   {
     return base::size (v.base)
-      + bl_sizeof_member (transformed, flag);
+      + bl_sizeof_member (serializable, flag);
   }
 };
 /*----------------------------------------------------------------------------*/
@@ -320,7 +331,7 @@ static inline void serialize_type (malc_serializer& s, malc_compressed_ptr& v)
 /*----------------------------------------------------------------------------*/
 template <class T>
 static inline void malc_serialize(
-  malc_serializer* s, malc_transformed_obj<T> const& v
+  malc_serializer* s, malc_serializable_obj<T> const& v
   )
 {
   serialize_type (*s, v.getdata);
@@ -333,7 +344,7 @@ static inline void malc_serialize(
 /*----------------------------------------------------------------------------*/
 template <class T>
 static inline void malc_serialize(
-  malc_serializer* s, malc_transformed_obj_w_context<T> const& v
+  malc_serializer* s, malc_serializable_obj_w_context<T> const& v
   )
 {
   serialize_type (*s, v.context);
@@ -342,7 +353,7 @@ static inline void malc_serialize(
 /*----------------------------------------------------------------------------*/
 template <class T>
 static inline void malc_serialize(
-  malc_serializer* s, malc_transformed_obj_w_flag<T> const& v
+  malc_serializer* s, malc_serializable_obj_w_flag<T> const& v
   )
 {
   serialize_type (*s, v.flag);
@@ -379,7 +390,7 @@ type directly from C++ types.
 /*----------------------------------------------------------------------------*/
 template<class T, template <class> class smartptr>
 struct smartptr_type  {
-  using base = type<malc_obj_smartptr<T, smartptr> >;
+  using base = sertype<malc_obj_smartptr<T, smartptr> >;
   static constexpr char id = base::id;
 
   static void destroy (malc_obj_ref* obj)
@@ -406,14 +417,16 @@ struct smartptr_type  {
     return b;
   }
 
-  static inline typename base::transformed transform (smartptr<T>& v)
+  static inline typename base::serializable
+    to_serialization_type (smartptr<T>& v)
   {
-    return base::transform (to_obj_smartptr (v));
+    return base::to_serialization_type (to_obj_smartptr (v));
   }
 
-  static inline typename base::transformed transform (smartptr<T>&& v)
+  static inline typename base::serializable
+    to_serialization_type (smartptr<T>&& v)
   {
-    return base::transform (to_obj_smartptr (std::move (v)));
+    return base::to_serialization_type (to_obj_smartptr (std::move (v)));
   }
 };
 /*----------------------------------------------------------------------------*/
@@ -423,10 +436,10 @@ template<
   unsigned char          flag_default
   >
 struct smartptr_type_w_flag {
-  using base = type<malc_obj_smartptr_w_flag<T, smartptr> >;
+  using base = sertype<malc_obj_smartptr_w_flag<T, smartptr> >;
   static constexpr char id = base::id;
 
-  static inline typename base::transformed transform(
+  static inline typename base::serializable to_serialization_type(
     smartptr<T>& v, unsigned char flag = flag_default
     )
   {
@@ -434,10 +447,10 @@ struct smartptr_type_w_flag {
     *(static_cast<malc_obj_smartptr<T, smartptr>*> (&b)) =
       smartptr_type<T, smartptr>::to_obj_smartptr (v);
     b.flag = flag;
-    return base::transform (b);
+    return base::to_serialization_type (b);
   }
 
-  static inline typename base::transformed transform(
+  static inline typename base::serializable to_serialization_type(
     smartptr<T>&& v, unsigned char flag = flag_default
     )
   {
@@ -445,14 +458,14 @@ struct smartptr_type_w_flag {
     *(static_cast<malc_obj_smartptr<T, smartptr>*> (&b)) =
       smartptr_type<T, smartptr>::to_obj_smartptr (std::move (v));
     b.flag = flag;
-    return base::transform (b);
+    return base::to_serialization_type (b);
   }
 };
 /*----------------------------------------------------------------------------*/
 /* type instantiations of smart pointer types*/
 /*----------------------------------------------------------------------------*/
 template<template <class> class smartptr>
-struct type<
+struct sertype<
   smartptr<std::string>,
   typename std::enable_if<is_valid_smartptr<smartptr>::value>::type
   > :
@@ -492,7 +505,7 @@ template <
   template <class, class...> class container,
   class T,
   class... Args>
-struct type<
+struct sertype<
   smartptr<container<T, Args...> > ,
   typename std::enable_if<
     is_valid_builtin<T>::value &&
