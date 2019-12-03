@@ -247,4 +247,38 @@ MALC_EXPORT void vector_unique_ptr_get_data(
   vector_smartptr_get_data<unique_ptr_vector_filler> (obj, out, iter_context);
 }
 //------------------------------------------------------------------------------
+MALC_EXPORT void ostringstream_get_data(
+  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
+  )
+{
+  if (*iter_context) {
+    /*2nd call*/
+    delete (std::string*) *iter_context;
+    *iter_context = nullptr;
+    return;
+  }
+  /*1st call*/
+  std::string* str;
+  try {
+    std::ostringstream ostream;
+    str = new std::string;
+    assert (obj && obj->extra.context);
+    void (*printfn) (void*, std::ostringstream&);
+    *((void**)(&printfn)) = obj->extra.context; // not fully portable
+    printfn (obj->obj, ostream);
+    *str = ostream.str();
+    out->data.str.ptr = str->c_str();
+    out->data.str.len = str->size();
+    out->is_str = 1;
+    *iter_context = (void*) str;
+  }
+  catch (...) {
+    if (str) {
+      out->data.str.ptr = nullptr;
+      out->data.str.len = 0;
+      delete str;
+    }
+  }
+}
+//------------------------------------------------------------------------------
 } // namespace malcpp

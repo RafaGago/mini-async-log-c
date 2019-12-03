@@ -1,6 +1,7 @@
 #ifndef __MALC_CPP_HPP__
 #define __MALC_CPP_HPP__
 
+#include <sstream>
 #include <memory>
 #include <cstddef>
 #include <utility>
@@ -25,9 +26,9 @@
 // deleter that class "delete[]" that the user is prone to miss.
 
 #warning "TODO: mutex wrapping or example about how to do it"
-#warning "TODO: logging of typed arrays (maybe)"
-#warning "TODO: ostream adapters"
-#warning "TODO: easy ostreamer object"
+#warning "TODO: logging of typed arrays/vectors by value (maybe)"
+#warning "TODO: logging of std::string"
+#warning "TODO: ostream smart pointers"
 #warning "TODO: Move the serialization and definitions to the C header"
 #warning "TODO: allow obj types from C"
 #warning "TODO: examples obj types from C"
@@ -59,7 +60,7 @@ extern MALC_EXPORT void string_unique_ptr_get_data(
 extern MALC_EXPORT void vector_unique_ptr_get_data(
   malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const* f
   );
-extern MALC_EXPORT void stringstream_get_data(
+extern MALC_EXPORT void ostringstream_get_data(
   malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const* f
   );
 
@@ -518,6 +519,82 @@ struct sertype<
     >
 {};
 /*----------------------------------------------------------------------------*/
-}}} // namespace malcpp { namespace detail { namespace serialization {
+/* type instantiations for streamable types */
+/*----------------------------------------------------------------------------*/
+template <class T>
+struct ostreamable_lvalue {
+  ostreamable_lvalue (T& v): ptr (&v) {}
+  T* ptr;
+};
+/*----------------------------------------------------------------------------*/
+template <class T>
+struct ostreamable_rvalue {
+  ostreamable_rvalue (T&& v): obj (std::move (v)) {}
+  T obj;
+};
+/*----------------------------------------------------------------------------*/
+template <class T, template <class> class ostreamable>
+struct sertype<
+  ostreamable<T>,
+  typename std::enable_if<
+    std::is_same<ostreamable<T>, ostreamable_lvalue<T> >::value ||
+    std::is_same<ostreamable<T>, ostreamable_rvalue<T> >::value
+    >::type
+   > {
+  static constexpr char id = malc_type_obj_ctx;
+  //----------------------------------------------------------------------------
+  static inline serializable_obj_w_context<T>
+    to_serialization_type (const ostreamable_lvalue<T>& v)
+  {
+    using itype = interface_obj_w_context<T*>;
+    itype i;
+    i.obj = v.ptr;
+    i.getdata = ostringstream_get_data;
+    i.destroy = destroy;
+    i.context = (void*) print;
+    return sertype<itype>::to_serialization_type (i);
+  }
+  //----------------------------------------------------------------------------
+  static inline serializable_obj_w_context<T>
+    to_serialization_type (const ostreamable_rvalue<T>& v)
+  {
+    using itype = interface_obj_w_context<T>;
+    itype i;
+    i.obj = std::move (v.obj);
+    i.getdata = ostringstream_get_data;
+    i.destroy = destroy;
+    i.context = (void*) print;
+    return sertype<itype>::to_serialization_type (std::move (i));
+  }
+  //----------------------------------------------------------------------------
+private:
+  //----------------------------------------------------------------------------
+  static void destroy (malc_obj_ref* obj)
+  {
+    static_cast<T*> (obj->obj)->~T();
+  }
+  //----------------------------------------------------------------------------
+  static void print (void* ptr, std::ostringstream& o)
+  {
+    o << *static_cast<T*> (ptr);
+  }
+  //----------------------------------------------------------------------------
+};
+/*----------------------------------------------------------------------------*/
+}} // namespace detail { namespace serialization {
+/*----------------------------------------------------------------------------*/
+template <class T>
+detail::serialization::ostreamable_lvalue<T> ostr (T& v)
+{
+  return detail::serialization::ostreamable_lvalue<T> (v);
+}
+/*----------------------------------------------------------------------------*/
+template <class T>
+detail::serialization::ostreamable_rvalue<T> ostr (T&& v)
+{
+  return detail::serialization::ostreamable_rvalue<T> (std::move (v));
+}
+/*----------------------------------------------------------------------------*/
+} // namespace malcpp {
 
 #endif // __MALC_CPP_STD_TYPES_HPP__

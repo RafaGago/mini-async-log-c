@@ -5,12 +5,14 @@
 #include <memory>
 #include <vector>
 
-#include <bl/cmocka_pre.h>
 #include <bl/base/default_allocator.h>
 #include <bl/base/utility.h>
 #include <bl/base/thread.h>
 
 #include <malc/malc.hpp>
+/* cmocka is so braindead to define a fail() macro!!!, which clashes with e.g.
+ostream's fail(), we include this header the last and hope it never breaks.*/
+#include <bl/cmocka_pre.h>
 
 typedef malcpp::malcpp<false, false, false> malc_nonthrow;
 /*----------------------------------------------------------------------------*/
@@ -751,6 +753,39 @@ static void vector_unique_ptr (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+struct ostreamable_type {
+  int a{1};
+  int b{2};
+};
+std::ostream & operator << (std::ostream &out, const ostreamable_type &t)
+{
+  out << "ostreamable: " << t.a << ", " << t.b ;
+  return out;
+}
+/*----------------------------------------------------------------------------*/
+static void ostreamable_type_by_value (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  err = log_warning("{}", malcpp::ostr (ostreamable_type()));
+  assert_int_equal (err.own, bl_ok);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "ostreamable: 1, 2");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -779,6 +814,7 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (vector_weak_ptr, setup, teardown),
   cmocka_unit_test_setup_teardown (string_unique_ptr, setup, teardown),
   cmocka_unit_test_setup_teardown (vector_unique_ptr, setup, teardown),
+  cmocka_unit_test_setup_teardown (ostreamable_type_by_value, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)

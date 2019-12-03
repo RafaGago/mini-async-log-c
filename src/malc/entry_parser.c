@@ -326,6 +326,9 @@ static bl_err append_obj(
       err = bl_dstr_append_l (&ep->str, ld.data.str.ptr, ld.data.str.len);
     }
     else {
+      if (ld.data.builtin.count == 0 || ld.data.builtin.ptr == nullptr) {
+        continue;
+      }
       bl_uword prev_len = bl_dstr_len (&ep->str);
       for (bl_uword i = 0; i < ld.data.builtin.count && !err.own; ++i) {
         bl_uword len = bl_dstr_len (&ep->str);

@@ -1,9 +1,10 @@
-#include <bl/cmocka_pre.h>
-
 #include <memory>
 #include <vector>
 
 #include <malc/malc.hpp>
+/* cmocka is so braindead to define a fail() macro!!!, which clashes with e.g.
+ostream's fail(), we include this header the last and hope it never breaks.*/
+#include <bl/cmocka_pre.h>
 
 using namespace malcpp::detail::fmt;
 /*----------------------------------------------------------------------------*/

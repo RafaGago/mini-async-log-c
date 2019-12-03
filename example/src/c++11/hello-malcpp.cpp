@@ -1,3 +1,5 @@
+#include <sstream>
+
 #include <thread>
 #include <malc/malc_lean.hpp>
 

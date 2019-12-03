@@ -83,6 +83,16 @@ static void malc_compatibility_byte_refence_types()
       );
 }
 /*----------------------------------------------------------------------------*/
+struct ostreamable_type {
+  int a{1};
+  int b{2};
+};
+std::ostream & operator << (std::ostream &out, const ostreamable_type &t)
+{
+  out << "logged by using the ostream operator: " << t.a << ", " << t.b ;
+  return out;
+}
+/*----------------------------------------------------------------------------*/
 int main (int argc, char const* argv[])
 {
   /* destination register: adding logging to stdout/stderr */
@@ -150,6 +160,11 @@ int main (int argc, char const* argv[])
     err = log_error ("1. using \"E\" specifier: {E}", 1.);
     err = log_error ("1. using \"G\" specifier: {G}", 1.);
     err = log_error ("1. using \"A\" specifier: {A}", 1.);
+
+    /*deferred logging using the "ostream operator<<" doing a copy by value of
+    "ostreamable_type. Notice that this call has an overhead of three pointers
+    + the copied-by-value object." */
+    err = log_error ("{}", malcpp::ostr (ostreamable_type()));
 
     /* strings */
     char const str[] = "a demo string";
