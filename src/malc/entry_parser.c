@@ -296,6 +296,91 @@ static bl_err append_arg(
   char const*         fmt_end
   );
 /*----------------------------------------------------------------------------*/
+static int push_obj_data(
+  void*                    epv,
+  char const*              fmt_beg,
+  char const*              fmt_end,
+  malc_obj_log_data const* ld
+  )
+{
+  entry_parser* ep = (entry_parser*) epv;
+  bl_err err;
+
+  if (bl_unlikely (!ep || !fmt_beg || !fmt_end || !ld)) {
+    bl_assert (false);
+    return bl_invalid;
+  }
+  if (ld->is_str) {
+    err = bl_dstr_append_l (&ep->str, ld->data.str.ptr, ld->data.str.len);
+    return (int) err.own;
+  }
+
+  if (ld->data.builtin.count == 0 || ld->data.builtin.ptr == nullptr) {
+    //empty
+    return 0;
+  }
+  log_argument arg;
+  bl_uword prev_len = bl_dstr_len (&ep->str);
+  err.own = 0;
+  for (bl_uword i = 0; i < ld->data.builtin.count && !err.own; ++i) {
+    bl_uword len = bl_dstr_len (&ep->str);
+    if (prev_len < len) {
+      /* space separation between values */
+      err = bl_dstr_append_lit (&ep->str, " ");
+      if (err.own) {
+        break;
+      }
+      prev_len = len;
+    }
+    switch (ld->data.builtin.type) {
+    case malc_obj_u8:
+      arg.vu8 = ((bl_u8 const*) ld->data.builtin.ptr)[i];
+      err = append_arg (ep, &arg, malc_type_u8, fmt_beg, fmt_end);
+      break;
+    case malc_obj_u16:
+      arg.vu16 = ((bl_u16 const*) ld->data.builtin.ptr)[i];
+      err = append_arg (ep, &arg, malc_type_u16, fmt_beg, fmt_end);
+      break;
+    case malc_obj_u32:
+      arg.vu32 = ((bl_u32 const*) ld->data.builtin.ptr)[i];
+      err = append_arg (ep, &arg, malc_type_u32, fmt_beg, fmt_end);
+      break;
+    case malc_obj_u64:
+      arg.vu64 = ((bl_u64 const*) ld->data.builtin.ptr)[i];
+      err = append_arg (ep, &arg, malc_type_u64, fmt_beg, fmt_end);
+      break;
+    case malc_obj_i8:
+      arg.vu8 = ((bl_i8 const*) ld->data.builtin.ptr)[i];
+      err = append_arg (ep, &arg, malc_type_i8, fmt_beg, fmt_end);
+      break;
+    case malc_obj_i16:
+      arg.vi16 = ((bl_i16 const*) ld->data.builtin.ptr)[i];
+      err = append_arg (ep, &arg, malc_type_i16, fmt_beg, fmt_end);
+      break;
+    case malc_obj_i32:
+      arg.vi32 = ((bl_i32 const*) ld->data.builtin.ptr)[i];
+      err = append_arg (ep, &arg, malc_type_i32, fmt_beg, fmt_end);
+      break;
+    case malc_obj_i64:
+      arg.vi64 = ((bl_i64 const*) ld->data.builtin.ptr)[i];
+      err = append_arg (ep, &arg, malc_type_i64, fmt_beg, fmt_end);
+      break;
+    case malc_obj_float:
+      arg.vfloat = ((float const*) ld->data.builtin.ptr)[i];
+      err = append_arg (ep, &arg, malc_type_float, fmt_beg, fmt_end);
+      break;
+    case malc_obj_double:
+      arg.vdouble = ((double const*) ld->data.builtin.ptr)[i];
+      err = append_arg (ep, &arg, malc_type_double, fmt_beg, fmt_end);
+      break;
+    default:
+      err = bl_mkerr (bl_invalid);
+      break;
+    }
+  }
+  return (int) err.own;
+}
+/*----------------------------------------------------------------------------*/
 static bl_err append_obj(
   entry_parser*   ep,
   char const*     fmt_beg,
@@ -307,101 +392,13 @@ static bl_err append_obj(
   if (bl_unlikely (!obj->table->getdata)) {
     return bl_mkerr (bl_invalid);
   }
-  log_argument arg;
-  void* itercontext = nullptr;
-  bl_dstr modif;
-
-  bl_dstr_init (&modif, ep->alloc);
-  bl_err err = bl_dstr_set_l (&modif, fmt_beg, fmt_end - fmt_beg);
-  if (err.own) {
-    return err;
-  }
-  /* TODO: entry max chars? */
-  do {
-    malc_obj_log_data ld;
-    memset (&ld, 0, sizeof ld);
-    obj->table->getdata(
-      &od, &ld, &itercontext, obj->table, bl_dstr_get (&modif), ep->alloc
-      );
-    if (ld.is_str) {
-      err = bl_dstr_append_l (&ep->str, ld.data.str.ptr, ld.data.str.len);
-    }
-    else {
-      if (ld.data.builtin.count == 0 || ld.data.builtin.ptr == nullptr) {
-        continue;
-      }
-      bl_uword prev_len = bl_dstr_len (&ep->str);
-      for (bl_uword i = 0; i < ld.data.builtin.count && !err.own; ++i) {
-        bl_uword len = bl_dstr_len (&ep->str);
-        if (prev_len < len) {
-          /* space separation between values */
-          err = bl_dstr_append_lit (&ep->str, " ");
-          if (err.own) {
-            break;
-          }
-          prev_len = len;
-        }
-        switch (ld.data.builtin.type) {
-        case malc_obj_u8:
-          arg.vu8 = ((bl_u8 const*) ld.data.builtin.ptr)[i];
-          err = append_arg (ep, &arg, malc_type_u8, fmt_beg, fmt_end);
-          break;
-        case malc_obj_u16:
-          arg.vu16 = ((bl_u16 const*) ld.data.builtin.ptr)[i];
-          err = append_arg (ep, &arg, malc_type_u16, fmt_beg, fmt_end);
-          break;
-        case malc_obj_u32:
-          arg.vu32 = ((bl_u32 const*) ld.data.builtin.ptr)[i];
-          err = append_arg (ep, &arg, malc_type_u32, fmt_beg, fmt_end);
-          break;
-        case malc_obj_u64:
-          arg.vu64 = ((bl_u64 const*) ld.data.builtin.ptr)[i];
-          err = append_arg (ep, &arg, malc_type_u64, fmt_beg, fmt_end);
-          break;
-        case malc_obj_i8:
-          arg.vu8 = ((bl_i8 const*) ld.data.builtin.ptr)[i];
-          err = append_arg (ep, &arg, malc_type_i8, fmt_beg, fmt_end);
-          break;
-        case malc_obj_i16:
-          arg.vi16 = ((bl_i16 const*) ld.data.builtin.ptr)[i];
-          err = append_arg (ep, &arg, malc_type_i16, fmt_beg, fmt_end);
-          break;
-        case malc_obj_i32:
-          arg.vi32 = ((bl_i32 const*) ld.data.builtin.ptr)[i];
-          err = append_arg (ep, &arg, malc_type_i32, fmt_beg, fmt_end);
-          break;
-        case malc_obj_i64:
-          arg.vi64 = ((bl_i64 const*) ld.data.builtin.ptr)[i];
-          err = append_arg (ep, &arg, malc_type_i64, fmt_beg, fmt_end);
-          break;
-        case malc_obj_float:
-          arg.vfloat = ((float const*) ld.data.builtin.ptr)[i];
-          err = append_arg (ep, &arg, malc_type_float, fmt_beg, fmt_end);
-          break;
-        case malc_obj_double:
-          arg.vdouble = ((double const*) ld.data.builtin.ptr)[i];
-          err = append_arg (ep, &arg, malc_type_double, fmt_beg, fmt_end);
-          break;
-        default:
-          err = bl_mkerr (bl_invalid);
-          break;
-        }
-      }
-    }
-    if (err.own && itercontext) {
-      /* giving "getdata" an opportunity to deallocate "itercontext" */
-      obj->table->getdata(
-        &od, nullptr, &itercontext, obj->table, bl_dstr_get (&modif), ep->alloc
-        );
-      bl_assert(
-        itercontext == nullptr &&
-        "Check if you did forget to reset the pointer or to deallocate it"
-        );
-    }
-  }
-  while (itercontext && !err.own);
-  bl_dstr_destroy (&modif);
-  return err;
+  malc_obj_push_context pc;
+  pc.push        = push_obj_data;
+  pc.pushcontext = (void*) ep;
+  pc.fmt_beg     = fmt_beg;
+  pc.fmt_end     = fmt_end;
+  int err = obj->table->getdata (&od, obj->table, &pc, ep->alloc);
+  return bl_mkerr (!err ? bl_ok: bl_error);
 }
 /*----------------------------------------------------------------------------*/
 static bl_err append_arg(

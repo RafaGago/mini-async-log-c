@@ -408,51 +408,57 @@ typedef struct malc_obj_log_data {
     str;
     struct {
       void const* ptr;
-      bl_u8       count;
-      bl_u8       type; /* malc_obj_i8 ... malc_obj_double ( ints + floats) */
+      bl_u8       type;  /* a "malc_obj_type_id" saying the type of "ptr" */
+      bl_u8       count; /* number of elements of "type" contained in "ptr" */
     }
     builtin;
   }
   data;
-  bl_u8 is_str;
+  bl_u8 is_str; /* 0: buitin, nonzero: str*/
 }
 malc_obj_log_data;
+/*----------------------------------------------------------------------------*/
+typedef struct malc_obj_push_context {
+  int (*push) (void*, char const*, char const*, malc_obj_log_data const*);
+  void*       pushcontext; /* opaque data structure to forward to "push" */
+  char const* fmt_beg; /* starting position of the format string modifiers */
+  char const* fmt_end; /* end position of the format string modifiers */
+}
+malc_obj_push_context;
 /*------------------------------------------------------------------------------
-The function that returns data to print from the object.
+pushes data to the log entry. To be called from "malc_obj_get_data_fn".
+Returns 0: no error, non-zero: error.
+------------------------------------------------------------------------------*/
+static inline int malc_obj_push(
+  malc_obj_push_context const* pc, malc_obj_log_data const* ld
+  )
+{
+  return pc->push (pc->pushcontext, pc->fmt_beg, pc->fmt_end, ld);
+}
+/*------------------------------------------------------------------------------
+malc_obj_get_data_fn: Function to generate log data for an entry. Its mission
+is to call "malc_obj_push" (above) one or more times.
 
 -"obj": Contains the pointer to the serialized (by-value) object and any
- additional data that was passed (on the "extra" union).
-
--"out": The data for "malc" to log.
-
--"iter_context": A free storage pointer for the function implementation, so the
- function can have state (on the heap) when multiple invocations are required.
- "malc" will never modify this pointer. "malc_obj_get_data_fn" will be called
- once and then will be called in a loop for as long as the content of this
- pointer is not NULL. The first call will have *itercontext = NULL, so the
- function won't loop if this parameter isn't deliberately modified.
-
- If an internal malc error happens and "iter_context" is non-NULL,
- "malc_obj_get_data_fn" will be called with "out" set to NULL to give the
- function an oportunity to deallocate resources soted on "*iter_context".
+ additional (non-static) data that was passed (on the "extra" union).
 
 -"obj_table": The address passed as the "malc_obj_table" table when serializing,
  this parameter is forwarded to this function because the implementor might
  decide to place additional static data on contiguous memory after the
- "malc_obj_table" data to save on serialization costs.
+ "malc_obj_table" data to save on serialization costs..
 
--"fmt": A pointer to a substring containing the modifiers passed to the format
- string.
+-"push": A structure packing all the data necessary for generating data to
+  log by calling "malc_obj_push".
 
 -"alloc": The allocator passed to malc on "malc_create".
+
+Return: 0: no error, other value: error
 ------------------------------------------------------------------------------*/
-typedef void (*malc_obj_get_data_fn) (
-  malc_obj_ref*       obj,
-  malc_obj_log_data*  out,
-  void**              iter_context,
-  void const*         obj_table,
-  char const*         fmt,
-  bl_alloc_tbl const* alloc
+typedef int (*malc_obj_get_data_fn) (
+  malc_obj_ref*                obj,
+  void const*                  obj_table,
+  malc_obj_push_context const* push,
+  bl_alloc_tbl const*          alloc
   );
 /*------------------------------------------------------------------------------
 Object destructor

@@ -3,11 +3,11 @@
 
 #include <sstream>
 #include <memory>
-#include <cstddef>
-#include <cassert>
 #include <utility>
 #include <type_traits>
 #include <vector>
+#include <cstddef>
+#include <cassert>
 
 #ifndef MALC_COMMON_NAMESPACED
 #define MALC_COMMON_NAMESPACED 1
@@ -17,26 +17,16 @@
 
 #include <malc/impl/serialization.hpp>
 
-// A header including C++ types. To avoid header bloat.
-
-// Most of the types included here are wrapped on shared_ptr, as it is the only
-// standard way to have object lifetime guarantees on C++
-
-// NOTICE: As this is C++11, "std::shared_ptr<char const[]>" and
-// "std::shared_ptr<void const[]>" are not provided, as they require a default
-// deleter that class "delete[]" that the user is prone to miss.
+// A header including C++ types. To avoid header bloat and to make a clear
+// separation about what is C++ only.
 
 #warning "TODO: mutex wrapping or example about how to do it"
 #warning "TODO: logging of typed arrays/vectors by value (maybe)"
-#warning "TODO: logging of std::string"
-#warning "TODO: ostream smart pointers"
 #warning "TODO: test passing both l and rvalues"
 #warning "TODO: Move the serialization and definitions to the C header"
 #warning "TODO: allow obj types from C"
 #warning "TODO: examples obj types from C"
 #warning "TODO: examples obj types from C++"
-#warning "TODO: wrapper for writing get_data_fn"
-#warning "TODO: move "get_data" implementations to separate translation units"
 
 #ifndef MALC_CPP_NULL_SMART_PTR_STR
   #define MALC_CPP_NULL_SMART_PTR_STR "nullptr"
@@ -44,19 +34,14 @@
 
 namespace malcpp {
 
-#define MALCPP_GET_DATA_FUNC_SIGNATURE(funcname) \
-  void funcname( \
-    malc_obj_ref*, \
-    malc_obj_log_data*, \
-    void**, \
-    void const*, \
-    char const*, \
-    bl_alloc_tbl const* \
+#define MALCPP_DECLARE_GET_DATA_FUNC(funcname) \
+  int funcname( \
+    malc_obj_ref*, void const*, malc_obj_push_context const*, bl_alloc_tbl const* \
     )
 
-extern MALC_EXPORT MALCPP_GET_DATA_FUNC_SIGNATURE (string_smartptr_get_data);
-extern MALC_EXPORT MALCPP_GET_DATA_FUNC_SIGNATURE (vector_smartptr_get_data);
-extern MALC_EXPORT MALCPP_GET_DATA_FUNC_SIGNATURE (ostringstream_get_data);
+extern MALC_EXPORT MALCPP_DECLARE_GET_DATA_FUNC (string_smartptr_get_data);
+extern MALC_EXPORT MALCPP_DECLARE_GET_DATA_FUNC (vector_smartptr_get_data);
+extern MALC_EXPORT MALCPP_DECLARE_GET_DATA_FUNC (ostringstream_get_data);
 
 namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/
