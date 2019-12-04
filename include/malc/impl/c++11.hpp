@@ -174,7 +174,7 @@ static inline bl_err log(
   using argops = arg_ops<sizeof...(types)>;
   auto values = std::make_tuple(
     serialization::sertype<
-      typename std::remove_reference<types>::type
+      remove_cvref_t<types>
         >::to_serialization_type(
           std::forward<types> (args)
         )...

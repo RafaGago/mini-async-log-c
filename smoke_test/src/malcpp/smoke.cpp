@@ -563,11 +563,17 @@ static void string_shared_ptr (void **state)
   assert_int_equal (err.own, bl_ok);
   assert_int_equal (ptr.use_count(), 2);
 
+  auto const& ptrc = ptr;
+  err = log_warning ("{}", ptrc);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (ptr.use_count(), 3);
+
   err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
   assert_int_equal (ptr.use_count(), 1);
-  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_int_equal (c->dst.try_get()->size(), 2);
   assert_string_equal ((*c->dst.try_get())[0], "paco");
+  assert_string_equal ((*c->dst.try_get())[1], "paco");
 
   err = log_warning ("{}", std::move (ptr));
   assert_int_equal (err.own, bl_ok);
@@ -575,8 +581,8 @@ static void string_shared_ptr (void **state)
 
   err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
-  assert_int_equal (c->dst.try_get()->size(), 2);
-  assert_string_equal ((*c->dst.try_get())[1], "paco");
+  assert_int_equal (c->dst.try_get()->size(), 3);
+  assert_string_equal ((*c->dst.try_get())[2], "paco");
 
   termination_check (c);
 }
@@ -602,11 +608,17 @@ static void vector_shared_ptr (void **state)
   assert_int_equal (err.own, bl_ok);
   assert_int_equal (ptr.use_count(), 2);
 
+  auto const& ptrc = ptr;
+  err = log_warning ("{}", ptrc);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (ptr.use_count(), 3);
+
   err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
   assert_int_equal (ptr.use_count(), 1);
-  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_int_equal (c->dst.try_get()->size(), 2);
   assert_string_equal ((*c->dst.try_get())[0], "u08[1 2 3]");
+  assert_string_equal ((*c->dst.try_get())[1], "u08[1 2 3]");
 
   err = log_warning ("{}", std::move (ptr));
   assert_int_equal (err.own, bl_ok);
@@ -614,8 +626,8 @@ static void vector_shared_ptr (void **state)
 
   err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
-  assert_int_equal (c->dst.try_get()->size(), 2);
-  assert_string_equal ((*c->dst.try_get())[1], "u08[1 2 3]");
+  assert_int_equal (c->dst.try_get()->size(), 3);
+  assert_string_equal ((*c->dst.try_get())[2], "u08[1 2 3]");
 
   termination_check (c);
 }
@@ -674,6 +686,10 @@ static void string_weak_ptr (void **state)
   err = log_warning ("{}", w);
   assert_int_equal (err.own, bl_ok);
 
+  auto const& wkc = w;
+  err = log_warning ("{}", wkc);
+  assert_int_equal (err.own, bl_ok);
+
   err = log_warning ("{}", std::move (w));
   assert_int_equal (err.own, bl_ok);
 
@@ -687,10 +703,11 @@ static void string_weak_ptr (void **state)
   err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
 
-  assert_int_equal (c->dst.try_get()->size(), 3);
+  assert_int_equal (c->dst.try_get()->size(), 4);
   assert_string_equal ((*c->dst.try_get())[0], "paco");
   assert_string_equal ((*c->dst.try_get())[1], "paco");
-  assert_string_equal ((*c->dst.try_get())[2], MALC_CPP_NULL_SMART_PTR_STR);
+  assert_string_equal ((*c->dst.try_get())[2], "paco");
+  assert_string_equal ((*c->dst.try_get())[3], MALC_CPP_NULL_SMART_PTR_STR);
 
   termination_check (c);
 }
@@ -717,6 +734,11 @@ static void vector_weak_ptr (void **state)
   assert_int_equal (err.own, bl_ok);
   assert_int_equal (ptr.use_count(), 1);
 
+  auto const& wc = w;
+  err = log_warning ("{}", wc);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (ptr.use_count(), 1);
+
   err = log_warning ("{}", std::move (w));
   assert_int_equal (err.own, bl_ok);
   assert_int_equal (ptr.use_count(), 1);
@@ -724,9 +746,10 @@ static void vector_weak_ptr (void **state)
   err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
   assert_int_equal (ptr.use_count(), 1);
-  assert_int_equal (c->dst.try_get()->size(), 2);
+  assert_int_equal (c->dst.try_get()->size(), 3);
   assert_string_equal ((*c->dst.try_get())[0], "u08[1 2 3]");
   assert_string_equal ((*c->dst.try_get())[1], "u08[1 2 3]");
+  assert_string_equal ((*c->dst.try_get())[2], "u08[1 2 3]");
 
   termination_check (c);
 }
@@ -817,13 +840,18 @@ static void ostreamable_type_by_value (void **state)
   err = log_warning ("{}", malcpp::ostr (four));
   assert_int_equal (err.own, bl_ok);
 
+  const int& four_ref = 4;
+  err = log_warning ("{}", malcpp::ostr (four_ref));
+  assert_int_equal (err.own, bl_ok);
+
   err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
-  assert_int_equal (c->dst.try_get()->size(), 4);
+  assert_int_equal (c->dst.try_get()->size(), 5);
   assert_string_equal ((*c->dst.try_get())[0], "ostreamable: 1, 2");
   assert_string_equal ((*c->dst.try_get())[1], "ostreamable: 1, 2");
   assert_string_equal ((*c->dst.try_get())[2], "3");
   assert_string_equal ((*c->dst.try_get())[3], "4");
+  assert_string_equal ((*c->dst.try_get())[4], "4");
 
   termination_check (c);
 }
@@ -868,14 +896,19 @@ static void ostreamable_type_by_shared_ptr (void **state)
   err = log_warning ("{}", malcpp::ostr (ptr));
   assert_int_equal (err.own, bl_ok);
 
+  auto const& ptrc = ptr;
+  err = log_warning ("{}", malcpp::ostr (ptrc));
+  assert_int_equal (err.own, bl_ok);
+
   err = log_warning ("{}", malcpp::ostr (std::move (ptr)));
   assert_int_equal (err.own, bl_ok);
 
   err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
-  assert_int_equal (c->dst.try_get()->size(), 2);
+  assert_int_equal (c->dst.try_get()->size(), 3);
   assert_string_equal ((*c->dst.try_get())[0], "ostreamable: 1, 2");
   assert_string_equal ((*c->dst.try_get())[1], "ostreamable: 1, 2");
+  assert_string_equal ((*c->dst.try_get())[2], "ostreamable: 1, 2");
 
   termination_check (c);
 }
@@ -898,15 +931,19 @@ static void ostreamable_type_by_weak_ptr (void **state)
   err = log_warning ("{}", malcpp::ostr (wk));
   assert_int_equal (err.own, bl_ok);
 
+  const auto& wkc = wk;
+  err = log_warning ("{}", malcpp::ostr (wkc));
+  assert_int_equal (err.own, bl_ok);
+
   err = log_warning ("{}", malcpp::ostr (std::move (wk)));
   assert_int_equal (err.own, bl_ok);
 
-
   err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
-  assert_int_equal (c->dst.try_get()->size(), 2);
+  assert_int_equal (c->dst.try_get()->size(), 3);
   assert_string_equal ((*c->dst.try_get())[0], "ostreamable: 1, 2");
   assert_string_equal ((*c->dst.try_get())[1], "ostreamable: 1, 2");
+  assert_string_equal ((*c->dst.try_get())[2], "ostreamable: 1, 2");
 
   termination_check (c);
 }

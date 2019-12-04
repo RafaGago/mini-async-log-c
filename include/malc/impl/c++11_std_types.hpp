@@ -19,15 +19,15 @@
 
 // A header including C++ types. To avoid header bloat and to make a clear
 // separation about what is C++ only.
-
+#if 1
 #warning "TODO: mutex wrapping or example about how to do it"
 #warning "TODO: logging of typed arrays/vectors by value (maybe)"
 #warning "TODO: Move the object serialization and definitions to the C header. might require wrapping _Alignas"
-#warning "TODO: logging of const reference objects"
+#warning "TODO: allow string const references"
 #warning "TODO: allow obj types from C"
 #warning "TODO: examples obj types from C"
 #warning "TODO: examples obj types from C++"
-
+#endif
 #ifndef MALC_CPP_NULL_SMART_PTR_STR
   #define MALC_CPP_NULL_SMART_PTR_STR "nullptr"
 #endif
@@ -142,15 +142,15 @@ public:
   value_pass (value_pass&) = delete;
   value_pass (const value_pass&) = delete;
 
-  value_pass (T& pv) :v (std::ref (pv)) {}
-  value_pass (value_pass&& rv) :v (std::ref (rv.v)) {}
+  value_pass (T const& pv) :v (std::cref (pv)) {}
+  value_pass (value_pass&& rv) :v (std::cref (rv.v)) {}
 
-  inline T& move()
+  inline T const& move()
   {
     return v.get();
   }
 private:
-  std::reference_wrapper<T> v;
+  std::reference_wrapper<const T> v;
 };
 /*----------------------------------------------------------------------------*/
 template <class T>
@@ -167,7 +167,7 @@ value_pass<T, true> valpass (T&& v)
 /*----------------------------------------------------------------------------*/
 template <class T, bool is_rvalue>
 struct interface_obj {
-  using tref = typename std::conditional<is_rvalue, T&&, T&>::type;
+  using tref = typename std::conditional<is_rvalue, T&&, T const&>::type;
 
   interface_obj (tref v, malc_obj_table const* t) : obj (std::forward<tref> (v))
   {
@@ -371,7 +371,7 @@ struct sertype<interface_obj_w_flag<T, is_rvalue> > :
 /*----------------------------------------------------------------------------*/
 template <class T>
 static detail::serialization::interface_obj<T, false>
-  object (T& v, malc_obj_table const* table)
+  object (T const& v, malc_obj_table const* table)
 {
   return detail::serialization::interface_obj<T, false> (v, table);
 }
@@ -387,7 +387,7 @@ static detail::serialization::interface_obj<T, true>
 
 template <class T>
 static detail::serialization::interface_obj_w_context<T, false>
-  object (T& v, malc_obj_table const* table, void* context)
+  object (T const& v, malc_obj_table const* table, void* context)
 {
   return detail::serialization::interface_obj_w_context<T, false>(
     v, table, context
@@ -405,7 +405,7 @@ static detail::serialization::interface_obj_w_context<T, true>
 
 template <class T>
 static detail::serialization::interface_obj_w_flag<T, false>
-  object (T& v, malc_obj_table const* table, bl_u8 flag)
+  object (T const& v, malc_obj_table const* table, bl_u8 flag)
 {
   return detail::serialization::interface_obj_w_flag<T, false>(
     v, table, flag
@@ -606,7 +606,8 @@ struct smartptr_type  {
 public:
   static constexpr char id = malc_type_obj;
 
-  static inline serializable_obj<ptrtype> to_serialization_type (ptrtype& v)
+  static inline serializable_obj<ptrtype>
+    to_serialization_type (ptrtype const& v)
   {
     return to_serialization_type_base (object (v, &table.table));
   }
@@ -649,7 +650,7 @@ public:
   static smartptr_table const* const table;
 
   static inline serializable_obj_w_flag<ptrtype>
-    to_serialization_type (ptrtype& v, unsigned char flag = flag_default)
+    to_serialization_type (ptrtype const & v, unsigned char flag = flag_default)
   {
     return to_serialization_type_base (object (v, &table->table, flag));
   }
@@ -738,7 +739,7 @@ struct sertype<
 /*----------------------------------------------------------------------------*/
 template <class T, bool is_rvalue>
 struct ostreamable {
-  using tref = typename std::conditional<is_rvalue, T&&, T&>::type;
+  using tref = typename std::conditional<is_rvalue, T&&, T const&>::type;
 
   ostreamable (tref v) : obj (std::forward<tref> (v)) {};
 
@@ -783,13 +784,19 @@ public:
   static inline serializable_obj<T>
     to_serialization_type (ostreamable<T, is_rvalue>& v)
   {
-    return to_serialization_type_base (object (v.obj.move(), &table.table));
+    return to_serialization_type_base(
+      detail::serialization::interface_obj<T, is_rvalue>(
+        v.obj.move(), &table.table
+        ));
   }
   //----------------------------------------------------------------------------
   static inline serializable_obj<T>
     to_serialization_type (ostreamable<T, is_rvalue>&& v)
   {
-    return to_serialization_type_base (object (v.obj.move(), &table.table));
+    return to_serialization_type_base(
+      detail::serialization::interface_obj<T, is_rvalue>(
+        v.obj.move(), &table.table
+        ));
   }
   //----------------------------------------------------------------------------
 private:
@@ -816,19 +823,20 @@ const ostreamable_table ostreamable_impl<T, is_rvalue>::table{
   .table = {
     ostringstream_get_data, destroy, sizeof (T)
   },
-  .print = ostreamable_printer<T>::run,
+  .print = ostreamable_printer<remove_cvref_t<T> >::run,
 };
 /*----------------------------------------------------------------------------*/
 template <class T, bool is_rvalue>
 struct builtin_use_no_ostream {
-  static constexpr char id = sertype<T>::id;
+  using builtin = remove_cvref_t<T>;
+  static constexpr char id = sertype<builtin>::id;
   //----------------------------------------------------------------------------
-  static inline T to_serialization_type (ostreamable<T, is_rvalue>& v)
+  static inline builtin to_serialization_type (ostreamable<T, is_rvalue>& v)
   {
     return v.obj.move();
   }
   //----------------------------------------------------------------------------
-  static inline T to_serialization_type (ostreamable<T, is_rvalue>&& v)
+  static inline builtin to_serialization_type (ostreamable<T, is_rvalue>&& v)
   {
     return v.obj.move();
   }
@@ -838,7 +846,7 @@ struct builtin_use_no_ostream {
 template <class T, bool is_rvalue>
 struct sertype<ostreamable<T, is_rvalue> > :
   public std::conditional<
-    !is_valid_builtin<T>::value,
+    !is_valid_builtin<remove_cvref_t<T> >::value,
     ostreamable_impl<T, is_rvalue>,
     builtin_use_no_ostream<T, is_rvalue>
     >::type
