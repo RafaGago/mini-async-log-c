@@ -51,7 +51,12 @@ static T* unique_ptr_try_get (malc_obj_ref& obj)
 }
 //------------------------------------------------------------------------------
 MALC_EXPORT void string_shared_ptr_get_data(
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
+  malc_obj_ref*       obj,
+  malc_obj_log_data*  out,
+  void**              iter_context,
+  void const*,
+  char const*,
+  bl_alloc_tbl const*
   )
 {
   if (!out) {
@@ -65,7 +70,12 @@ MALC_EXPORT void string_shared_ptr_get_data(
 }
 //------------------------------------------------------------------------------
 MALC_EXPORT void string_weak_ptr_get_data(
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
+  malc_obj_ref*       obj,
+  malc_obj_log_data*  out,
+  void**              iter_context,
+  void const*,
+  char const*,
+  bl_alloc_tbl const*
   )
 {
   if (!out) {
@@ -79,7 +89,12 @@ MALC_EXPORT void string_weak_ptr_get_data(
 }
 //------------------------------------------------------------------------------
 MALC_EXPORT void string_unique_ptr_get_data(
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
+  malc_obj_ref*       obj,
+  malc_obj_log_data*  out,
+  void**              iter_context,
+  void const*,
+  char const*,
+  bl_alloc_tbl const*
   )
 {
   if (!out) {
@@ -227,28 +242,48 @@ static inline void vector_smartptr_get_data(
 }
 //------------------------------------------------------------------------------
 MALC_EXPORT void vector_shared_ptr_get_data(
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
+  malc_obj_ref*       obj,
+  malc_obj_log_data*  out,
+  void**              iter_context,
+  void const*,
+  char const*,
+  bl_alloc_tbl const*
   )
 {
   vector_smartptr_get_data<shared_ptr_vector_filler> (obj, out, iter_context);
 }
 //------------------------------------------------------------------------------
 MALC_EXPORT void vector_weak_ptr_get_data(
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
+  malc_obj_ref*       obj,
+  malc_obj_log_data*  out,
+  void**              iter_context,
+  void const*,
+  char const*,
+  bl_alloc_tbl const*
   )
 {
   vector_smartptr_get_data<weak_ptr_vector_filler> (obj, out, iter_context);
 }
 //------------------------------------------------------------------------------
 MALC_EXPORT void vector_unique_ptr_get_data(
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
+  malc_obj_ref*       obj,
+  malc_obj_log_data*  out,
+  void**              iter_context,
+  void const*,
+  char const*,
+  bl_alloc_tbl const*
   )
 {
   vector_smartptr_get_data<unique_ptr_vector_filler> (obj, out, iter_context);
 }
 //------------------------------------------------------------------------------
 MALC_EXPORT void ostringstream_get_data(
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context, char const*
+  malc_obj_ref*       obj,
+  malc_obj_log_data*  out,
+  void**              iter_context,
+  void const*,
+  char const*,
+  bl_alloc_tbl const*
   )
 {
   if (*iter_context) {

@@ -368,17 +368,6 @@ typedef void (*malc_refdtor_fn)(
   void* context, malc_ref const* refs, bl_uword refs_count
   );
 /*------------------------------------------------------------------------------
-functions for objects
-
-Malc allows serializations of "objects" up to "MALC_OBJ_MAX_ALIGN" and
-"MALC_OBJ_MAX_SIZE".
-------------------------------------------------------------------------------*/
-#ifndef MALC_OBJ_MAX_ALIGN
-  #define MALC_OBJ_MAX_ALIGN 32
-#endif
-#define MALC_OBJ_MAX_SIZE \
-  ((1ull << bl_sizeof_member (malc_obj, obj_sizeof) * 8) - 1)
-/*------------------------------------------------------------------------------
 This is passed by the log functions. On the log function you select a callback
 and if you log with context.
 ------------------------------------------------------------------------------*/
@@ -431,28 +420,65 @@ malc_obj_log_data;
 /*------------------------------------------------------------------------------
 The function that returns data to print from the object.
 
-It will be called in a loop for as long as "*iter_context" is not NULL.
+-"obj": Contains the pointer to the serialized (by-value) object and any
+ additional data that was passed (on the "extra" union).
 
-The content of "*iter_context" will never modified by malc, so it can be used
-to pass dynamically allocated data that has to be persistent between calls or
-just be set to a non NULL value to signal malc to continue iterating.
+-"out": The data for "malc" to log.
 
-If an internal malc error happens and "iter_context" is non-NULL,
-"malc_obj_get_data_fn" will be called with "out" set to NULL to give the
-function an oportunity to deallocate resources on "iter_context".
+-"iter_context": A free storage pointer for the function implementation, so the
+ function can have state (on the heap) when multiple invocations are required.
+ "malc" will never modify this pointer. "malc_obj_get_data_fn" will be called
+ once and then will be called in a loop for as long as the content of this
+ pointer is not NULL. The first call will have *itercontext = NULL, so the
+ function won't loop if this parameter isn't deliberately modified.
 
-The "fmt" string contains the passed printf modifiers.
+ If an internal malc error happens and "iter_context" is non-NULL,
+ "malc_obj_get_data_fn" will be called with "out" set to NULL to give the
+ function an oportunity to deallocate resources soted on "*iter_context".
+
+-"obj_table": The address passed as the "malc_obj_table" table when serializing,
+ this parameter is forwarded to this function because the implementor might
+ decide to place additional static data on contiguous memory after the
+ "malc_obj_table" data to save on serialization costs.
+
+-"fmt": A pointer to a substring containing the modifiers passed to the format
+ string.
+
+-"alloc": The allocator passed to malc on "malc_create".
 ------------------------------------------------------------------------------*/
 typedef void (*malc_obj_get_data_fn) (
-  malc_obj_ref*      obj,
-  malc_obj_log_data* out,
-  void**             iter_context,
-  char const*        fmt
+  malc_obj_ref*       obj,
+  malc_obj_log_data*  out,
+  void**              iter_context,
+  void const*         obj_table,
+  char const*         fmt,
+  bl_alloc_tbl const* alloc
   );
 /*------------------------------------------------------------------------------
 Object destructor
 ------------------------------------------------------------------------------*/
-typedef void (*malc_obj_destroy_fn) (malc_obj_ref* obj);
+typedef void (*malc_obj_destroy_fn) (malc_obj_ref* obj, void const* obj_table);
+/*------------------------------------------------------------------------------
+Object table.
+------------------------------------------------------------------------------*/
+typedef struct malc_obj_table {
+  malc_obj_get_data_fn getdata;
+  malc_obj_destroy_fn  destroy;
+  bl_u8                obj_sizeof;
+}
+malc_obj_table;
+/*------------------------------------------------------------------------------
+functions for objects
+
+Malc allows serializations of "objects" up to "MALC_OBJ_MAX_ALIGN" and
+"MALC_OBJ_MAX_SIZE".
+------------------------------------------------------------------------------*/
+#ifndef MALC_OBJ_MAX_ALIGN
+  #define MALC_OBJ_MAX_ALIGN 32
+#endif
+#define MALC_OBJ_MAX_SIZE \
+  ((1ull << bl_sizeof_member (malc_obj_table, obj_sizeof) * 8) - 1)
+/*----------------------------------------------------------------------------*/
 
 #ifdef MALC_COMMON_NAMESPACED
 } //namespace malcpp {

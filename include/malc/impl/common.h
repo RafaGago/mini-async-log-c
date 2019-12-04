@@ -96,10 +96,8 @@ typedef struct malc_refdtor {
 malc_refdtor;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_obj {
-  malc_obj_get_data_fn getdata;
-  malc_obj_destroy_fn  destroy;
-  void*                obj;
-  bl_u8                obj_sizeof;
+  malc_obj_table const* table;
+  void*                 obj;
 }
 malc_obj;
 /*----------------------------------------------------------------------------*/

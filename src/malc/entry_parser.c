@@ -264,7 +264,7 @@ static inline malc_obj_ref get_aligned_obj_ref(
   )
 {
   malc_obj_ref r;
-  memcpy (&ep->objstorage, obj->obj, obj->obj_sizeof);
+  memcpy (&ep->objstorage, obj->obj, obj->table->obj_sizeof);
   r.obj = (void*) &ep->objstorage;
   r.extra.context = nullptr;
   return r;
@@ -304,7 +304,7 @@ static bl_err append_obj(
   malc_obj_ref    od
   )
 {
-  if (bl_unlikely (!obj->getdata)) {
+  if (bl_unlikely (!obj->table->getdata)) {
     return bl_mkerr (bl_invalid);
   }
   log_argument arg;
@@ -316,12 +316,13 @@ static bl_err append_obj(
   if (err.own) {
     return err;
   }
-
-  /* TODO entry char limit? */
+  /* TODO: entry max chars? */
   do {
     malc_obj_log_data ld;
     memset (&ld, 0, sizeof ld);
-    obj->getdata (&od, &ld, &itercontext, bl_dstr_get (&modif));
+    obj->table->getdata(
+      &od, &ld, &itercontext, obj->table, bl_dstr_get (&modif), ep->alloc
+      );
     if (ld.is_str) {
       err = bl_dstr_append_l (&ep->str, ld.data.str.ptr, ld.data.str.len);
     }
@@ -389,7 +390,13 @@ static bl_err append_obj(
     }
     if (err.own && itercontext) {
       /* giving "getdata" an opportunity to deallocate "itercontext" */
-      obj->getdata (&od, nullptr, &itercontext, bl_dstr_get (&modif));
+      obj->table->getdata(
+        &od, nullptr, &itercontext, obj->table, bl_dstr_get (&modif), ep->alloc
+        );
+      bl_assert(
+        itercontext == nullptr &&
+        "Check if you did forget to reset the pointer or to deallocate it"
+        );
     }
   }
   while (itercontext && !err.own);
@@ -561,8 +568,8 @@ static bl_err parse_text(
 /*----------------------------------------------------------------------------*/
 static inline void destroy_obj (malc_obj const* obj, malc_obj_ref od)
 {
-  if (obj->destroy) {
-    return obj->destroy (&od);
+  if (obj->table->destroy) {
+    return obj->table->destroy (&od, obj->table);
   }
 }
 /*----------------------------------------------------------------------------*/

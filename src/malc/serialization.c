@@ -276,23 +276,15 @@ static inline bl_err DECODE_NAME_BUILD(_obj)(
   compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_obj* v
   )
 {
-  bl_err err = DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->getdata);
+  bl_err err = DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->table);
   if (bl_unlikely (err.own)) {
     return err;
   }
-  err = DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->destroy);
-  if (bl_unlikely (err.own)) {
-    return err;
-  }
-  err = DECODE_NAME_BUILD(_8) (ch, mem, mem_end, &v->obj_sizeof);
-  if (bl_unlikely (err.own)) {
-    return err;
-  }
-  if (bl_unlikely (*mem + v->obj_sizeof > mem_end)) {
+  if (bl_unlikely (*mem + v->table->obj_sizeof > mem_end)) {
     return bl_mkerr (bl_invalid);
   }
   v->obj = (void*) *mem;
-  *mem += v->obj_sizeof;
+  *mem += v->table->obj_sizeof;
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/

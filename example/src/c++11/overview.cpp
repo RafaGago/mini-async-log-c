@@ -162,8 +162,7 @@ int main (int argc, char const* argv[])
     err = log_error ("1. using \"A\" specifier: {A}", 1.);
 
     /*deferred logging using the "ostream operator<<" doing a copy by value of
-    "ostreamable_type. Notice that this call has an overhead of three pointers
-    + the copied-by-value object." */
+    "ostreamable_type. copies the object by value */
     err = log_error ("{}", malcpp::ostr (ostreamable_type()));
 
     /* strings */
