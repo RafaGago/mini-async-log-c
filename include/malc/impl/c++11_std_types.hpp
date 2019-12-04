@@ -25,6 +25,7 @@
 // NOTICE: As this is C++11, "std::shared_ptr<char const[]>" and
 // "std::shared_ptr<void const[]>" are not provided, as they require a default
 // deleter that class "delete[]" that the user is prone to miss.
+#if 0
 #warning "TODO: mutex wrapping or example about how to do it"
 #warning "TODO: logging of typed arrays/vectors by value (maybe)"
 #warning "TODO: logging of std::string"
@@ -35,6 +36,7 @@
 #warning "TODO: examples obj types from C++"
 #warning "TODO: wrapper for writing get_data_fn"
 #warning "TODO: move "get_data" implementations to separate translation units"
+#endif
 #ifndef MALC_CPP_NULL_SMART_PTR_STR
   #define MALC_CPP_NULL_SMART_PTR_STR "nullptr"
 #endif
@@ -80,12 +82,12 @@ struct interface_obj_w_flag : public interface_obj<T> {
 template <class T>
 struct serializable_obj {
   static_assert(
-    sizeof (T) <= 255,
-    "malc can only serialize small objects from 0 to 255 bytes."
+    sizeof (T) <= MALC_OBJ_MAX_SIZE,
+    "malc can only serialize objects from 0 to \"MALC_OBJ_MAX_SIZE\" bytes."
     );
   static_assert(
     alignof (T) <= MALC_OBJ_MAX_ALIGN,
-    "malc can only serialize objects aligned up to \"std::max_align_t\"."
+    "malc can only serialize objects aligned up to \"MALC_OBJ_MAX_ALIGN\" bytes."
     );
 #if MALC_PTR_COMPRESSION == 0
   malc_obj_table const* table;
@@ -115,13 +117,11 @@ and "malc_obj_destroy_fn" functions manually. */
 /*----------------------------------------------------------------------------*/
 struct to_serialization_type_helper {
 public:
-  /* the interface type rvalues should contain the type to move on obj, lvalues
-  a pointer, that's why this template has two parameters. See get_ref. */
   //----------------------------------------------------------------------------
   template <class T, class U>
   static inline void run (serializable_obj<T>& s, interface_obj<U>& v)
   {
-    new (&s.storage) T (get_ref (v.obj));
+    new (&s.storage) T (move_nonpointer_types (v.obj));
 #if MALC_PTR_COMPRESSION == 0
     s.table = v.table;
 #else
@@ -158,19 +158,30 @@ public:
 private:
   //----------------------------------------------------------------------------
   template <class T>
-  static inline T& get_ref (T* ref)
+  static inline T& move_nonpointer_types (T* ref)
   {
     return *ref;
   }
   //----------------------------------------------------------------------------
   template <class T>
-  static inline T&& get_ref (T& ref)
+  static inline T&& move_nonpointer_types (T& ref)
   {
     return std::move (ref);
   }
   //----------------------------------------------------------------------------
 };
 /*----------------------------------------------------------------------------*/
+/* This class is the base implementation for the "sertype<interface_obj*>"
+specialization family.
+
+This class gets passed objects of the "interface_type" "type", which use to
+contain all the required data to be able to serialize and print. Unfortunately
+at this point we don't know if the contained object (to copy) was passed as
+an rvalue or an lvalue.
+
+As of now, to simplify things, if the value is a full object copy we assume it
+was moved (rvalue) and we can move it again. If it doesn't we assumed the object
+was passed by an lvalue. This is a HIDDEN CONVENTION to fix.*/
 template <
   class T,
   char malc_id,
@@ -179,9 +190,6 @@ template <
   >
 struct sertype_base {
 public:
-  /* the interface type rvalues should contain the type to move on obj,
-  lvalues a pointer, but we will always have a serializable refering to the
-  decayed type. */
   using serializable = serializable_type<typename std::remove_pointer<T>::type>;
 
   static constexpr char id = malc_id;
@@ -360,21 +368,21 @@ struct smartpr_get_data_function<
 
 /*----------------------------------------------------------------------------*/
 template <class T>
-struct smartptr_dereferencer;
+struct dereference_smarptr;
 
 template <class T>
-struct smartptr_dereferencer<std::shared_ptr<T> > {
-  static void* run (malc_obj_ref& obj)
+struct dereference_smarptr<std::shared_ptr<T> > {
+  static void* run (void* ptr)
   {
-    return (void*) static_cast<std::shared_ptr<T>*> (obj.obj)->get();
+    return (void*) static_cast<std::shared_ptr<T>*> (ptr)->get();
   }
 };
 
 template <class T>
-struct smartptr_dereferencer<std::weak_ptr<T> > {
-  static void* run (malc_obj_ref& obj)
+struct dereference_smarptr<std::weak_ptr<T> > {
+  static void* run (void* ptr)
   {
-    if (auto p = static_cast<std::weak_ptr<T>*> (obj.obj)->lock()) {
+    if (auto p = static_cast<std::weak_ptr<T>*> (ptr)->lock()) {
       return p.get();
     }
     return nullptr;
@@ -382,16 +390,16 @@ struct smartptr_dereferencer<std::weak_ptr<T> > {
 };
 
 template <class T, class D>
-struct smartptr_dereferencer<std::unique_ptr<T, D> > {
-  static void* run (malc_obj_ref& obj)
+struct dereference_smarptr<std::unique_ptr<T, D> > {
+  static void* run (void* ptr)
   {
-    return static_cast<std::unique_ptr<T, D>*> (obj.obj)->get();
+    return static_cast<std::unique_ptr<T, D>*> (ptr)->get();
   }
 };
 /*----------------------------------------------------------------------------*/
 struct smartptr_table  {
   malc_obj_table table;
-  void* (*dereference) (malc_obj_ref& obj);
+  void* (*dereference) (void* ptr);
 };
 /*----------------------------------------------------------------------------*/
 /* Transformations for smart pointers. These create a serialization-friendly
@@ -443,7 +451,7 @@ const smartptr_table smartptr_type<ptrtype>::table{
   .table = {
     smartpr_get_data_function<ptrtype>::value, destroy, sizeof (ptrtype)
   },
-  .dereference = smartptr_dereferencer<ptrtype>::run,
+  .dereference = dereference_smarptr<ptrtype>::run,
 };
 /*----------------------------------------------------------------------------*/
 template< class ptrtype, unsigned char flag_default>
@@ -535,52 +543,75 @@ struct sertype<
 /* type instantiations for streamable types */
 /*----------------------------------------------------------------------------*/
 template <class T>
-struct ostreamable_lvalue {
-  ostreamable_lvalue (T& v): ptr (&v) {}
-  T* ptr;
+struct ostreamable {
+  T obj;
 };
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct ostreamable_rvalue {
-  ostreamable_rvalue (T&& v): obj (std::move (v)) {}
-  T obj;
+template <class T, class enable = void>
+struct ostreamable_printer {
+  static bool run (void* ptr, std::ostringstream& o)
+  {
+    o << *static_cast<T*> (ptr);
+    return true;
+  }
+};
+
+template <template <class, class...> class smartptr, class T, class... types>
+struct ostreamable_printer<
+  smartptr<T, types...>,
+  typename std::enable_if<is_valid_smartptr<smartptr>::value>::type
+  >
+{
+  static bool run (void* ptr, std::ostringstream& o)
+  {
+    if (void* p = dereference_smarptr<smartptr<T, types...> >::run (ptr))
+    {
+      return ostreamable_printer<T>::run (p, o);
+    }
+    return false;
+  }
 };
 /*----------------------------------------------------------------------------*/
 struct ostreamable_table  {
   malc_obj_table table;
-  void (*print) (void* ptr, std::ostringstream& o);
+  bool (*print) (void* ptr, std::ostringstream& o);
 };
 /*----------------------------------------------------------------------------*/
-/* This class is only done because if implementing it directly as "sertype" it
-would require the "enable_if" twice, one for the class definition and another
-one for the "static const malc_obj_table table" definition, which has to be
- done outside the class (C++11).*/
-
-template <class T, template <class> class ostreamable>
-struct sertype_ostreamable_impl {
+template <class T>
+struct sertype<ostreamable<T> > {
   static constexpr char id = malc_type_obj;
   //----------------------------------------------------------------------------
-  static inline serializable_obj<T>
-    to_serialization_type (const ostreamable_lvalue<T>& v)
+  static inline serializable_obj<T> to_serialization_type (ostreamable<T>& v)
   {
-    using itype = interface_obj<T*>;
+    using itype = interface_obj<T>;
     itype i;
-    i.obj = v.ptr;
+    i.obj = move_nonpointer_types (v.obj);
     i.table = &table.table;
     return sertype<itype>::to_serialization_type (i);
   }
   //----------------------------------------------------------------------------
-  static inline serializable_obj<T>
-    to_serialization_type (const ostreamable_rvalue<T>& v)
+  static inline serializable_obj<T> to_serialization_type (ostreamable<T>&& v)
   {
     using itype = interface_obj<T>;
     itype i;
-    i.obj = std::move (v.obj);
+    i.obj = move_nonpointer_types (v.obj);
     i.table = &table.table;
     return sertype<itype>::to_serialization_type (std::move (i));
   }
   //----------------------------------------------------------------------------
 private:
+  //----------------------------------------------------------------------------
+  template <class U>
+  static inline U* move_nonpointer_types (U* ref)
+  {
+    return ref;
+  }
+  //----------------------------------------------------------------------------
+  template <class U>
+  static inline U&& move_nonpointer_types (U& ref)
+  {
+    return std::move (ref);
+  }
   //----------------------------------------------------------------------------
   static void destroy (malc_obj_ref* obj, void const*)
   {
@@ -594,37 +625,26 @@ private:
   //----------------------------------------------------------------------------
   static const ostreamable_table table;
 };
-
-template <class T, template <class> class ostreamable>
-const ostreamable_table sertype_ostreamable_impl<T, ostreamable>::table{
+template <class T>
+const ostreamable_table sertype<ostreamable<T> >::table{
   .table = {
     ostringstream_get_data, destroy, sizeof (T)
   },
-  .print = print,
+  .print = ostreamable_printer<T>::run,
 };
-/*----------------------------------------------------------------------------*/
-template <class T, template <class> class ostreamable>
-struct sertype<
-  ostreamable<T>,
-  typename std::enable_if<
-    std::is_same<ostreamable<T>, ostreamable_lvalue<T> >::value ||
-    std::is_same<ostreamable<T>, ostreamable_rvalue<T> >::value
-    >::type
-   > : public sertype_ostreamable_impl<T, ostreamable>
-{};
 /*----------------------------------------------------------------------------*/
 }} // namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/
 template <class T>
-detail::serialization::ostreamable_lvalue<T> ostr (T& v)
+detail::serialization::ostreamable<T> ostr (T& v)
 {
-  return detail::serialization::ostreamable_lvalue<T> (v);
+  return detail::serialization::ostreamable<T*> {&v};
 }
 /*----------------------------------------------------------------------------*/
 template <class T>
-detail::serialization::ostreamable_rvalue<T> ostr (T&& v)
+detail::serialization::ostreamable<T> ostr (T&& v)
 {
-  return detail::serialization::ostreamable_rvalue<T> (std::move (v));
+  return detail::serialization::ostreamable<T> {std::move (v)};
 }
 /*----------------------------------------------------------------------------*/
 } // namespace malcpp {

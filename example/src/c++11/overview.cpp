@@ -165,6 +165,15 @@ int main (int argc, char const* argv[])
     "ostreamable_type. copies the object by value */
     err = log_error ("{}", malcpp::ostr (ostreamable_type()));
 
+    /*malc only allows copy-by value of small objects (exceeding the size
+    triggers a compile-time assertion). You can workaround this by passing
+    smart pointers (shared, unique and weak). malcpp::ostr will detect smart
+    pointers and try to stream the contained type*/
+    err = log_error(
+      "from std::unique_ptr: {}",
+      malcpp::ostr (std::unique_ptr<ostreamable_type> (new ostreamable_type()))
+      );
+
     /* strings */
     char const str[] = "a demo string";
     err = log_error(

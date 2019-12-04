@@ -31,7 +31,7 @@ MALC_EXPORT void string_smartptr_get_data(
   }
   assert (obj);
   auto tbl = static_cast<detail::serialization::smartptr_table const*> (table);
-  if (void* ptr = tbl->dereference (*obj)) {
+  if (void* ptr = tbl->dereference (obj->obj)) {
     std::string& s = *static_cast<std::string*> (ptr);
     out->is_str = 1;
     out->data.str.ptr = s.c_str();
@@ -114,7 +114,7 @@ MALC_EXPORT void vector_smartptr_get_data(
   /* logging the vector data */
   *iter_context = (void*) 2;
   auto tbl = static_cast<detail::serialization::smartptr_table const*> (table);
-  void* ptr = tbl->dereference (*obj);
+  void* ptr = tbl->dereference (obj->obj);
   if (!ptr) {
     fill_null_smart_ptr (*out);
     return;
@@ -181,11 +181,16 @@ MALC_EXPORT void ostringstream_get_data(
   try {
     std::ostringstream ostream;
     str = new std::string;
-    tbl->print (obj->obj, ostream);
-    *str = ostream.str();
-    out->data.str.ptr = str->c_str();
-    out->data.str.len = str->size();
-    out->is_str = 1;
+    bool notnull = tbl->print (obj->obj, ostream);
+    if (notnull) {
+      *str = ostream.str();
+      out->data.str.ptr = str->c_str();
+      out->data.str.len = str->size();
+      out->is_str = 1;
+    }
+    else {
+      fill_null_smart_ptr (*out);
+    }
     *iter_context = (void*) str;
   }
   catch (...) {

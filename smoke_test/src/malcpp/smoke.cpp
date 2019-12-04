@@ -786,6 +786,82 @@ static void ostreamable_type_by_value (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void ostreamable_type_by_unique_ptr (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  err = log_warning(
+    "{}",
+    malcpp::ostr (std::unique_ptr<ostreamable_type>(new ostreamable_type()))
+    );
+  assert_int_equal (err.own, bl_ok);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "ostreamable: 1, 2");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
+static void ostreamable_type_by_shared_ptr (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  err = log_warning(
+    "{}",
+    malcpp::ostr (std::shared_ptr<ostreamable_type>(new ostreamable_type()))
+    );
+  assert_int_equal (err.own, bl_ok);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "ostreamable: 1, 2");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
+static void ostreamable_type_by_weak_ptr (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  std::shared_ptr<ostreamable_type> ptr (new ostreamable_type());
+  err = log_warning ("{}", malcpp::ostr (std::weak_ptr<ostreamable_type>(ptr)));
+  assert_int_equal (err.own, bl_ok);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "ostreamable: 1, 2");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -815,6 +891,15 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (string_unique_ptr, setup, teardown),
   cmocka_unit_test_setup_teardown (vector_unique_ptr, setup, teardown),
   cmocka_unit_test_setup_teardown (ostreamable_type_by_value, setup, teardown),
+  cmocka_unit_test_setup_teardown(
+    ostreamable_type_by_unique_ptr, setup, teardown
+    ),
+  cmocka_unit_test_setup_teardown(
+    ostreamable_type_by_shared_ptr, setup, teardown
+    ),
+  cmocka_unit_test_setup_teardown(
+    ostreamable_type_by_weak_ptr, setup, teardown
+    ),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)
