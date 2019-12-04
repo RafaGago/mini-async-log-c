@@ -25,7 +25,6 @@
 // NOTICE: As this is C++11, "std::shared_ptr<char const[]>" and
 // "std::shared_ptr<void const[]>" are not provided, as they require a default
 // deleter that class "delete[]" that the user is prone to miss.
-#if 0
 #warning "TODO: mutex wrapping or example about how to do it"
 #warning "TODO: logging of typed arrays/vectors by value (maybe)"
 #warning "TODO: logging of std::string"
@@ -36,9 +35,8 @@
 #warning "TODO: examples obj types from C++"
 #warning "TODO: wrapper for writing get_data_fn"
 #warning "TODO: move "get_data" implementations to separate translation units"
-#endif
-#ifndef MALC_CPP_NULL_WEAK_PTR_STR
-  #define MALC_CPP_NULL_WEAK_PTR_STR "null_weak_ptr"
+#ifndef MALC_CPP_NULL_SMART_PTR_STR
+  #define MALC_CPP_NULL_SMART_PTR_STR "nullptr"
 #endif
 
 namespace malcpp {
@@ -53,50 +51,11 @@ namespace malcpp {
     bl_alloc_tbl const* \
     )
 
-extern MALC_EXPORT MALCPP_GET_DATA_FUNC_SIGNATURE (string_shared_ptr_get_data);
-extern MALC_EXPORT MALCPP_GET_DATA_FUNC_SIGNATURE (vector_shared_ptr_get_data);
-extern MALC_EXPORT MALCPP_GET_DATA_FUNC_SIGNATURE (string_weak_ptr_get_data);
-extern MALC_EXPORT MALCPP_GET_DATA_FUNC_SIGNATURE (vector_weak_ptr_get_data);
-extern MALC_EXPORT MALCPP_GET_DATA_FUNC_SIGNATURE (string_unique_ptr_get_data);
-extern MALC_EXPORT MALCPP_GET_DATA_FUNC_SIGNATURE (vector_unique_ptr_get_data);
+extern MALC_EXPORT MALCPP_GET_DATA_FUNC_SIGNATURE (string_smartptr_get_data);
+extern MALC_EXPORT MALCPP_GET_DATA_FUNC_SIGNATURE (vector_smartptr_get_data);
 extern MALC_EXPORT MALCPP_GET_DATA_FUNC_SIGNATURE (ostringstream_get_data);
 
 namespace detail { namespace serialization {
-
-template <class T>
-struct smartpr_get_data_function;
-
-template <>
-struct smartpr_get_data_function<std::shared_ptr<std::string> > {
-  static constexpr malc_obj_get_data_fn value = string_shared_ptr_get_data;
-};
-
-template <class T, class... types>
-struct smartpr_get_data_function<std::shared_ptr<std::vector<T, types...> > > {
-  static constexpr malc_obj_get_data_fn value = vector_shared_ptr_get_data;
-};
-
-template <>
-struct smartpr_get_data_function<std::weak_ptr<std::string> > {
-  static constexpr malc_obj_get_data_fn value = string_weak_ptr_get_data;
-};
-
-template <class T, class... types>
-struct smartpr_get_data_function<std::weak_ptr<std::vector<T, types...> > > {
-  static constexpr malc_obj_get_data_fn value = vector_weak_ptr_get_data;
-};
-
-template <class ptrdeleter>
-struct smartpr_get_data_function<std::unique_ptr<std::string, ptrdeleter> > {
-  static constexpr malc_obj_get_data_fn value = string_unique_ptr_get_data;
-};
-
-template <class T, class ptrdeleter, class... types>
-struct smartpr_get_data_function<
-  std::unique_ptr<std::vector<T, types...>, ptrdeleter>
-  > {
-  static constexpr malc_obj_get_data_fn value = vector_unique_ptr_get_data;
-};
 /*----------------------------------------------------------------------------*/
 /* interface types */
 /*----------------------------------------------------------------------------*/
@@ -354,27 +313,86 @@ static inline void malc_serialize(
 /* validation helpers */
 /*----------------------------------------------------------------------------*/
 template <template <class, class...> class smartptr>
-struct is_valid_smartptr : public std::conditional<
-    std::is_same<smartptr<char>, std::shared_ptr<char> >::value ||
-    std::is_same<smartptr<char>, std::weak_ptr<char> >::value ||
-    std::is_same<smartptr<char>, std::unique_ptr<char> >::value,
-    std::true_type,
-    std::false_type
-  >::type {};
+struct is_valid_smartptr : public std::integral_constant<
+  bool,
+  std::is_same<smartptr<char>, std::shared_ptr<char> >::value ||
+  std::is_same<smartptr<char>, std::weak_ptr<char> >::value ||
+  std::is_same<smartptr<char>, std::unique_ptr<char> >::value
+  >
+{};
 
 template <template <class, class...> class container>
-struct is_valid_container : public std::conditional<
-    std::is_same<container<char>, std::vector<char> >::value,
-    std::true_type,
-    std::false_type
-  >::type {};
+struct is_valid_container : public std::integral_constant<
+  bool,
+  std::is_same<container<char>, std::vector<char> >::value
+  >
+{};
 
 template <class T>
-struct is_valid_builtin : public std::conditional<
-    std::is_arithmetic<T>::value && ! std::is_same<T, bool>::value,
-    std::true_type,
-    std::false_type
-  >::type {};
+struct is_valid_builtin : public std::integral_constant<
+  bool,
+  std::is_arithmetic<T>::value && ! std::is_same<T, bool>::value
+  >
+{};
+/*----------------------------------------------------------------------------*/
+/* smartpr get_data functions */
+/*----------------------------------------------------------------------------*/
+template <class T, class enable = void>
+struct smartpr_get_data_function;
+
+template <template <class, class...> class smartptr, class... types>
+struct smartpr_get_data_function<
+    smartptr<std::string, types...>,
+    typename std::enable_if<is_valid_smartptr<smartptr>::value>::type
+  > {
+  static constexpr malc_obj_get_data_fn value = string_smartptr_get_data;
+};
+
+template <
+  template <class, class...> class smartptr, class T, class D, class... types
+  >
+struct smartpr_get_data_function<
+    smartptr<std::vector<T, D>, types...>,
+    typename std::enable_if<is_valid_smartptr<smartptr>::value>::type
+  > {
+  static constexpr malc_obj_get_data_fn value = vector_smartptr_get_data;
+};
+
+/*----------------------------------------------------------------------------*/
+template <class T>
+struct smartptr_dereferencer;
+
+template <class T>
+struct smartptr_dereferencer<std::shared_ptr<T> > {
+  static void* run (malc_obj_ref& obj)
+  {
+    return (void*) static_cast<std::shared_ptr<T>*> (obj.obj)->get();
+  }
+};
+
+template <class T>
+struct smartptr_dereferencer<std::weak_ptr<T> > {
+  static void* run (malc_obj_ref& obj)
+  {
+    if (auto p = static_cast<std::weak_ptr<T>*> (obj.obj)->lock()) {
+      return p.get();
+    }
+    return nullptr;
+  }
+};
+
+template <class T, class D>
+struct smartptr_dereferencer<std::unique_ptr<T, D> > {
+  static void* run (malc_obj_ref& obj)
+  {
+    return static_cast<std::unique_ptr<T, D>*> (obj.obj)->get();
+  }
+};
+/*----------------------------------------------------------------------------*/
+struct smartptr_table  {
+  malc_obj_table table;
+  void* (*dereference) (malc_obj_ref& obj);
+};
 /*----------------------------------------------------------------------------*/
 /* Transformations for smart pointers. These create a serialization-friendly
 type directly from C++ types.
@@ -404,27 +422,28 @@ public:
   static inline void set_base_data (interface_obj<ptrtype*>& i, ptrtype& ptr)
   {
     i.obj = &ptr;
-    i.table = &table;
+    i.table = &table.table;
   }
 
   static inline void set_base_data (interface_obj<ptrtype>& i, ptrtype&& ptr)
   {
     i.obj = std::move (ptr);
-    i.table = &table;
+    i.table = &table.table;
   }
 private:
   static void destroy (malc_obj_ref* obj, void const*)
   {
     static_cast<ptrtype*> (obj->obj)->~ptrtype();
   }
-  static const malc_obj_table table;
+  static const smartptr_table table;
 };
 
 template <class ptrtype>
-const malc_obj_table smartptr_type<ptrtype>::table{
-  .getdata    = smartpr_get_data_function<ptrtype>::value,
-  .destroy    = destroy,
-  .obj_sizeof = sizeof (ptrtype)
+const smartptr_table smartptr_type<ptrtype>::table{
+  .table = {
+    smartpr_get_data_function<ptrtype>::value, destroy, sizeof (ptrtype)
+  },
+  .dereference = smartptr_dereferencer<ptrtype>::run,
 };
 /*----------------------------------------------------------------------------*/
 template< class ptrtype, unsigned char flag_default>
@@ -527,6 +546,11 @@ struct ostreamable_rvalue {
   T obj;
 };
 /*----------------------------------------------------------------------------*/
+struct ostreamable_table  {
+  malc_obj_table table;
+  void (*print) (void* ptr, std::ostringstream& o);
+};
+/*----------------------------------------------------------------------------*/
 /* This class is only done because if implementing it directly as "sertype" it
 would require the "enable_if" twice, one for the class definition and another
 one for the "static const malc_obj_table table" definition, which has to be
@@ -534,27 +558,25 @@ one for the "static const malc_obj_table table" definition, which has to be
 
 template <class T, template <class> class ostreamable>
 struct sertype_ostreamable_impl {
-  static constexpr char id = malc_type_obj_ctx;
+  static constexpr char id = malc_type_obj;
   //----------------------------------------------------------------------------
-  static inline serializable_obj_w_context<T>
+  static inline serializable_obj<T>
     to_serialization_type (const ostreamable_lvalue<T>& v)
   {
-    using itype = interface_obj_w_context<T*>;
+    using itype = interface_obj<T*>;
     itype i;
     i.obj = v.ptr;
-    i.table = &table;
-    i.context = (void*) print;
+    i.table = &table.table;
     return sertype<itype>::to_serialization_type (i);
   }
   //----------------------------------------------------------------------------
-  static inline serializable_obj_w_context<T>
+  static inline serializable_obj<T>
     to_serialization_type (const ostreamable_rvalue<T>& v)
   {
-    using itype = interface_obj_w_context<T>;
+    using itype = interface_obj<T>;
     itype i;
     i.obj = std::move (v.obj);
-    i.table = &table;
-    i.context = (void*) print;
+    i.table = &table.table;
     return sertype<itype>::to_serialization_type (std::move (i));
   }
   //----------------------------------------------------------------------------
@@ -570,14 +592,15 @@ private:
     o << *static_cast<T*> (ptr);
   }
   //----------------------------------------------------------------------------
-  static const malc_obj_table table;
+  static const ostreamable_table table;
 };
 
 template <class T, template <class> class ostreamable>
-const malc_obj_table sertype_ostreamable_impl<T, ostreamable>::table{
-  .getdata    = ostringstream_get_data,
-  .destroy    = destroy,
-  .obj_sizeof = sizeof (T)
+const ostreamable_table sertype_ostreamable_impl<T, ostreamable>::table{
+  .table = {
+    ostringstream_get_data, destroy, sizeof (T)
+  },
+  .print = print,
 };
 /*----------------------------------------------------------------------------*/
 template <class T, template <class> class ostreamable>

@@ -9,101 +9,41 @@
 namespace malcpp {
 
 //------------------------------------------------------------------------------
-static void string_filler (std::string& s, malc_obj_log_data& out)
+static void fill_null_smart_ptr (malc_obj_log_data& out)
 {
   out.is_str = 1;
-  out.data.str.ptr = s.c_str();
-  out.data.str.len = s.size();
-  if (out.data.str.len < s.size()) {
-    /* overflow: truncating */
-    out.data.str.len =
-      std::numeric_limits<decltype (out.data.str.len)>::max();
+  out.data.str.ptr = MALC_CPP_NULL_SMART_PTR_STR;
+  out.data.str.len = sizeof MALC_CPP_NULL_SMART_PTR_STR - 1;
+}
+//------------------------------------------------------------------------------
+MALC_EXPORT void string_smartptr_get_data(
+  malc_obj_ref*       obj,
+  malc_obj_log_data*  out,
+  void**              iter_context,
+  void const*         table,
+  char const*,
+  bl_alloc_tbl const*
+  )
+{
+  if (!out) {
+    /* no deallocations to be made */
+    return;
   }
-}
-//------------------------------------------------------------------------------
-template <class T>
-static T* shared_ptr_try_get (malc_obj_ref& obj)
-{
-  auto p = static_cast<std::shared_ptr<T>*> (obj.obj);
-  return p->get();
-}
-//------------------------------------------------------------------------------
-template <class T>
-static T* weak_ptr_try_get (malc_obj_ref& obj, malc_obj_log_data& out)
-{
-  auto w = static_cast<std::weak_ptr<T>*> (obj.obj);
-  if (auto p = w->lock()) {
-    return p.get();
+  assert (obj);
+  auto tbl = static_cast<detail::serialization::smartptr_table const*> (table);
+  if (void* ptr = tbl->dereference (*obj)) {
+    std::string& s = *static_cast<std::string*> (ptr);
+    out->is_str = 1;
+    out->data.str.ptr = s.c_str();
+    out->data.str.len = s.size();
+    if (out->data.str.len < s.size()) {
+      /* overflow: truncating */
+      out->data.str.len =
+        std::numeric_limits<decltype (out->data.str.len)>::max();
+    }
   }
   else {
-    out.is_str = 1;
-    out.data.str.ptr = MALC_CPP_NULL_WEAK_PTR_STR;
-    out.data.str.len = sizeof MALC_CPP_NULL_WEAK_PTR_STR - 1;
-    return nullptr;
-  }
-}
-//------------------------------------------------------------------------------
-template <class T>
-static T* unique_ptr_try_get (malc_obj_ref& obj)
-{
-  auto p = static_cast<std::unique_ptr<T>*> (obj.obj);
-  return p->get();
-}
-//------------------------------------------------------------------------------
-MALC_EXPORT void string_shared_ptr_get_data(
-  malc_obj_ref*       obj,
-  malc_obj_log_data*  out,
-  void**              iter_context,
-  void const*,
-  char const*,
-  bl_alloc_tbl const*
-  )
-{
-  if (!out) {
-    /* no deallocations to be made */
-    return;
-  }
-  assert (obj);
-  if (auto s = shared_ptr_try_get<std::string> (*obj)) {
-    string_filler (*s, *out);
-  }
-}
-//------------------------------------------------------------------------------
-MALC_EXPORT void string_weak_ptr_get_data(
-  malc_obj_ref*       obj,
-  malc_obj_log_data*  out,
-  void**              iter_context,
-  void const*,
-  char const*,
-  bl_alloc_tbl const*
-  )
-{
-  if (!out) {
-    /* no deallocations to be made */
-    return;
-  }
-  assert (obj);
-  if (auto s = weak_ptr_try_get<std::string> (*obj, *out)) {
-    string_filler (*s, *out);
-  }
-}
-//------------------------------------------------------------------------------
-MALC_EXPORT void string_unique_ptr_get_data(
-  malc_obj_ref*       obj,
-  malc_obj_log_data*  out,
-  void**              iter_context,
-  void const*,
-  char const*,
-  bl_alloc_tbl const*
-  )
-{
-  if (!out) {
-    /* no deallocations to be made */
-    return;
-  }
-  assert (obj);
-  if (auto s = unique_ptr_try_get<std::string> (*obj)) {
-    string_filler (*s, *out);
+    fill_null_smart_ptr (*out);
   }
 }
 //------------------------------------------------------------------------------
@@ -126,45 +66,13 @@ static void vector_filler(
   }
 }
 //------------------------------------------------------------------------------
-template <class T>
-struct shared_ptr_vector_filler {
-  static void run(
-    malc_obj_ref& obj, malc_obj_log_data& out, bl_u8 builtin_type
-    )
-  {
-    if (auto vecptr = shared_ptr_try_get<std::vector<T>> (obj)) {
-      vector_filler (*vecptr, out, builtin_type);
-    }
-  }
-};
-//------------------------------------------------------------------------------
-template <class T>
-struct weak_ptr_vector_filler {
-  static void run(
-    malc_obj_ref& obj, malc_obj_log_data& out, bl_u8 builtin_type
-    )
-  {
-    if (auto vecptr = weak_ptr_try_get<std::vector<T> > (obj, out)) {
-      vector_filler (*vecptr, out, builtin_type);
-    }
-  }
-};
-//------------------------------------------------------------------------------
-template <class T>
-struct unique_ptr_vector_filler {
-  static void run(
-    malc_obj_ref& obj, malc_obj_log_data& out, bl_u8 builtin_type
-    )
-  {
-    if (auto vecptr = unique_ptr_try_get<std::vector<T> > (obj)) {
-      vector_filler (*vecptr, out, builtin_type);
-    }
-  }
-};
-//------------------------------------------------------------------------------
-template <template <class> class filler >
-static inline void vector_smartptr_get_data(
-  malc_obj_ref* obj, malc_obj_log_data* out, void** iter_context
+MALC_EXPORT void vector_smartptr_get_data(
+  malc_obj_ref*       obj,
+  malc_obj_log_data*  out,
+  void**              iter_context,
+  void const*         table,
+  char const*,
+  bl_alloc_tbl const*
   )
 {
   if (!out) {
@@ -204,84 +112,57 @@ static inline void vector_smartptr_get_data(
     return;
   }
   /* logging the vector data */
+  *iter_context = (void*) 2;
+  auto tbl = static_cast<detail::serialization::smartptr_table const*> (table);
+  void* ptr = tbl->dereference (*obj);
+  if (!ptr) {
+    fill_null_smart_ptr (*out);
+    return;
+  }
   switch (obj->extra.flag) {
+    /* notice: "extra.flag" could be passed through the table to save 1 byte,
+    but it would require a different template specialization. This premature
+    optimization is not done. */
   case malc_obj_u8:
-    filler<bl_u8>::run (*obj, *out, obj->extra.flag);
+    vector_filler (*((std::vector<bl_u8>*) ptr), *out, obj->extra.flag);
     break;
   case malc_obj_u16:
-    filler<bl_u16>::run (*obj, *out, obj->extra.flag);
+    vector_filler (*((std::vector<bl_u16>*) ptr), *out, obj->extra.flag);
     break;
   case malc_obj_u32:
-    filler<bl_u32>::run (*obj, *out, obj->extra.flag);
+    vector_filler (*((std::vector<bl_u32>*) ptr), *out, obj->extra.flag);
     break;
   case malc_obj_u64:
-    filler<bl_u64>::run (*obj, *out, obj->extra.flag);
+    vector_filler (*((std::vector<bl_u64>*) ptr), *out, obj->extra.flag);
     break;
   case malc_obj_i8:
-    filler<bl_i8>::run (*obj, *out, obj->extra.flag);
+    vector_filler (*((std::vector<bl_i8>*) ptr), *out, obj->extra.flag);
     break;
   case malc_obj_i16:
-    filler<bl_i16>::run (*obj, *out, obj->extra.flag);
+    vector_filler (*((std::vector<bl_i16>*) ptr), *out, obj->extra.flag);
     break;
   case malc_obj_i32:
-    filler<bl_i32>::run (*obj, *out, obj->extra.flag);
+    vector_filler (*((std::vector<bl_i32>*) ptr), *out, obj->extra.flag);
     break;
   case malc_obj_i64:
-    filler<bl_i64>::run (*obj, *out, obj->extra.flag);
+    vector_filler (*((std::vector<bl_i64>*) ptr), *out, obj->extra.flag);
     break;
   case malc_obj_float:
-    filler<float>::run (*obj, *out, obj->extra.flag);
+    vector_filler (*((std::vector<float>*) ptr), *out, obj->extra.flag);
     break;
   case malc_obj_double:
-    filler<double>::run (*obj, *out, obj->extra.flag);
+    vector_filler (*((std::vector<double>*) ptr), *out, obj->extra.flag);
     break;
   default:
     break;
   }
-  *iter_context = (void*) 2;
-}
-//------------------------------------------------------------------------------
-MALC_EXPORT void vector_shared_ptr_get_data(
-  malc_obj_ref*       obj,
-  malc_obj_log_data*  out,
-  void**              iter_context,
-  void const*,
-  char const*,
-  bl_alloc_tbl const*
-  )
-{
-  vector_smartptr_get_data<shared_ptr_vector_filler> (obj, out, iter_context);
-}
-//------------------------------------------------------------------------------
-MALC_EXPORT void vector_weak_ptr_get_data(
-  malc_obj_ref*       obj,
-  malc_obj_log_data*  out,
-  void**              iter_context,
-  void const*,
-  char const*,
-  bl_alloc_tbl const*
-  )
-{
-  vector_smartptr_get_data<weak_ptr_vector_filler> (obj, out, iter_context);
-}
-//------------------------------------------------------------------------------
-MALC_EXPORT void vector_unique_ptr_get_data(
-  malc_obj_ref*       obj,
-  malc_obj_log_data*  out,
-  void**              iter_context,
-  void const*,
-  char const*,
-  bl_alloc_tbl const*
-  )
-{
-  vector_smartptr_get_data<unique_ptr_vector_filler> (obj, out, iter_context);
 }
 //------------------------------------------------------------------------------
 MALC_EXPORT void ostringstream_get_data(
   malc_obj_ref*       obj,
   malc_obj_log_data*  out,
   void**              iter_context,
-  void const*,
+  void const*         table,
   char const*,
   bl_alloc_tbl const*
   )
@@ -293,14 +174,14 @@ MALC_EXPORT void ostringstream_get_data(
     return;
   }
   /*1st call*/
+  auto tbl = static_cast<
+    detail::serialization::ostreamable_table const*
+    > (table);
   std::string* str;
   try {
     std::ostringstream ostream;
     str = new std::string;
-    assert (obj && obj->extra.context);
-    void (*printfn) (void*, std::ostringstream&);
-    *((void**)(&printfn)) = obj->extra.context; // not fully portable
-    printfn (obj->obj, ostream);
+    tbl->print (obj->obj, ostream);
     *str = ostream.str();
     out->data.str.ptr = str->c_str();
     out->data.str.len = str->size();

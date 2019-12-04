@@ -669,7 +669,7 @@ static void string_weak_ptr (void **state)
   err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
   assert_int_equal (c->dst.try_get()->size(), 2);
-  assert_string_equal ((*c->dst.try_get())[1], MALC_CPP_NULL_WEAK_PTR_STR);
+  assert_string_equal ((*c->dst.try_get())[1], MALC_CPP_NULL_SMART_PTR_STR);
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
