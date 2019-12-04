@@ -179,7 +179,9 @@ int main (int argc, char const* argv[])
     err = log_error(
       "a string copied by value: {}", malcpp::strcp (str, sizeof str - 1)
       );
-
+    err = log_error(
+      "a std::string copied by value: {}", malcpp::strcp (std::string ("heap!"))
+      );
     /* reference counted strings. Notice that "std::string" is not
     "thread-safe" by itself so modifications after the string has been added to
     the logger result on undefined behavior. */

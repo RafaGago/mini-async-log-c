@@ -862,6 +862,38 @@ static void ostreamable_type_by_weak_ptr (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void std_string_cp (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  std::string str ("paco");
+  err = log_warning ("{}", malcpp::strcp (str));
+  assert_int_equal (err.own, bl_ok);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "paco");
+
+  err = log_warning ("{}", malcpp::strcp (std::string ("paco2")));
+  assert_int_equal (err.own, bl_ok);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (c->dst.try_get()->size(), 2);
+  assert_string_equal ((*c->dst.try_get())[1], "paco2");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -900,6 +932,7 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown(
     ostreamable_type_by_weak_ptr, setup, teardown
     ),
+  cmocka_unit_test_setup_teardown (std_string_cp, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)

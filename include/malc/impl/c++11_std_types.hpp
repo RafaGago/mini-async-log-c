@@ -23,6 +23,7 @@
 #warning "TODO: mutex wrapping or example about how to do it"
 #warning "TODO: logging of typed arrays/vectors by value (maybe)"
 #warning "TODO: test passing both l and rvalues"
+#warning "TODO: ostream specialization for builtins"
 #warning "TODO: Move the serialization and definitions to the C header"
 #warning "TODO: allow obj types from C"
 #warning "TODO: examples obj types from C"
@@ -43,9 +44,79 @@ extern MALC_EXPORT MALCPP_DECLARE_GET_DATA_FUNC (string_smartptr_get_data);
 extern MALC_EXPORT MALCPP_DECLARE_GET_DATA_FUNC (vector_smartptr_get_data);
 extern MALC_EXPORT MALCPP_DECLARE_GET_DATA_FUNC (ostringstream_get_data);
 
+static inline detail::serialization::malc_strcp strcp (std::string& s);
+
+namespace detail { namespace serialization {
+
+/*----------------------------------------------------------------------------*/
+/* STD STRING: special case to log "std::string" rvalues by copy, which is IMO
+not very desirable on most cases for performance optimized code, but it sure
+must have some legitimate uses. */
+/*----------------------------------------------------------------------------*/
+struct std_string_rvalue {
+  std::string s;
+};
+
+struct std_string_rvalue_strcp {
+  std_string_rvalue_strcp (std::string&& v)
+  {
+    s = std::move (v);
+    sdata = strcp (s);
+  }
+  std_string_rvalue_strcp (std_string_rvalue_strcp&& v) :
+    std_string_rvalue_strcp (std::move (v.s))
+  {}
+
+  std::string s;
+  malc_strcp  sdata;
+};
+
+template<>
+struct sertype<std_string_rvalue> {
+public:
+  static constexpr char id = malc_type_strcp;
+
+  static inline std_string_rvalue_strcp
+    to_serialization_type (std_string_rvalue& v)
+  {
+    return std_string_rvalue_strcp (std::move (v.s));
+  }
+  static inline std_string_rvalue_strcp
+    to_serialization_type (std_string_rvalue&& v)
+  {
+    return std_string_rvalue_strcp (std::move (v.s));
+  }
+};
+
+template<>
+struct sertype<std_string_rvalue_strcp> {
+  static inline bl_uword size (std_string_rvalue_strcp const& v)
+  {
+    return sertype<malc_strcp>::size (v.sdata);
+  }
+};
+
+static inline void malc_serialize (malc_serializer* s, malc_strcp v);
+
+static inline void malc_serialize(
+  malc_serializer* s, std_string_rvalue_strcp const& v
+  )
+{
+  malc_serialize (s, v.sdata);
+}
+/*----------------------------------------------------------------------------*/
+}} //namespace detail { namespace serialization {
+/*----------------------------------------------------------------------------*/
+/* STD STRING: "std::string" rvalues by copy: user-function */
+/*----------------------------------------------------------------------------*/
+static inline detail::serialization::std_string_rvalue strcp (std::string&& s)
+{
+  return detail::serialization::std_string_rvalue{.s = std::move (s)};
+}
+/*----------------------------------------------------------------------------*/
 namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/
-/* interface types */
+/* OBJECT TYPES: interface types */
 /*----------------------------------------------------------------------------*/
 template <class T, bool is_rvalue>
 struct value_pass {
@@ -181,7 +252,7 @@ struct interface_obj_w_flag : public interface_obj<T, is_rvalue> {
   bl_u8 flag;
 };
 /*----------------------------------------------------------------------------*/
-/* serialization types */
+/* OBJECT TYPES: serialization types */
 /*----------------------------------------------------------------------------*/
 template <class T>
 struct serializable_obj {
@@ -215,9 +286,9 @@ struct serializable_obj_w_flag : public serializable_obj<T> {
   bl_u8 flag;
 };
 /*----------------------------------------------------------------------------*/
-/* type transformations. It is possible to log these (serializable_obj_*)
-types directly, but it requires the user to provide the "malc_obj_get_data_fn"
-and "malc_obj_destroy_fn" functions manually. */
+/* OBJECT TYPES: type transformations. It is possible to log these
+(serializable_obj_*) types directly, but it requires the user to provide the
+"malc_obj_get_data_fn" and "malc_obj_destroy_fn" functions manually. */
 /*----------------------------------------------------------------------------*/
 struct to_serialization_type_helper {
 public:
@@ -265,7 +336,8 @@ public:
   //----------------------------------------------------------------------------
 };
 /*----------------------------------------------------------------------------*/
-/* This class is the base implementation for the "sertype<interface_obj*>"
+/* OBJECT TYPES:
+This class is the base implementation for the "sertype<interface_obj*>"
 specialization family.
 
 This class gets passed objects of the "interface_type" "type", which use to
@@ -328,7 +400,7 @@ struct sertype<interface_obj_w_flag<T, is_rvalue> > :
 /*----------------------------------------------------------------------------*/
 }} // namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/
-/* "object": user-facing functions to serialize object types */
+/* OBJECT TYPES: user-facing functions to serialize object types */
 /*----------------------------------------------------------------------------*/
 template <class T>
 static detail::serialization::interface_obj<T, false>
@@ -384,7 +456,7 @@ static detail::serialization::interface_obj_w_flag<T, true>
 /*----------------------------------------------------------------------------*/
 namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/
-//providing "type" for serializable C++ types. (See comment above).
+//OBJECT TYPES: providing some C++ types on the standard library.
 /*----------------------------------------------------------------------------*/
 template <class T>
 struct sertype<serializable_obj<T> >{
@@ -429,7 +501,7 @@ struct sertype<serializable_obj_w_flag<T> > {
   }
 };
 /*----------------------------------------------------------------------------*/
-/* serializations */
+/* //OBJECT TYPES: serializations */
 /*----------------------------------------------------------------------------*/
 template <class T>
 static inline void serialize_type (malc_serializer& s, T& v)
@@ -474,7 +546,7 @@ static inline void malc_serialize(
   malc_serialize (s, static_cast<serializable_obj<T> const&> (v));
 }
 /*----------------------------------------------------------------------------*/
-/* validation helpers */
+/* OBJECT TYPES: validation helpers */
 /*----------------------------------------------------------------------------*/
 template <template <class, class...> class smartptr>
 struct is_valid_smartptr : public std::integral_constant<
@@ -499,7 +571,7 @@ struct is_valid_builtin : public std::integral_constant<
   >
 {};
 /*----------------------------------------------------------------------------*/
-/* smartpr get_data functions */
+/* OBJECT TYPES: smartpr get_data functions */
 /*----------------------------------------------------------------------------*/
 template <class T, class enable = void>
 struct smartpr_get_data_function;
@@ -558,8 +630,8 @@ struct smartptr_table  {
   void* (*dereference) (void* ptr);
 };
 /*----------------------------------------------------------------------------*/
-/* Transformations for smart pointers. These create a serialization-friendly
-type directly from C++ types.
+/* OBJECT TYPES: Transformations for smart pointers. These create a
+serialization-friendly type directly from C++ types.
 */
 /*----------------------------------------------------------------------------*/
 template<class ptrtype>
@@ -634,7 +706,7 @@ template <class ptrtype, unsigned char flag>
 smartptr_table const* const smartptr_type_w_flag<ptrtype, flag>::table =
   &smartptr_type<ptrtype>::table;
 /*----------------------------------------------------------------------------*/
-/* type instantiations of smart pointer types*/
+/* OBJECT TYPES: type instantiations of smart pointer types*/
 /*----------------------------------------------------------------------------*/
 // "sertype" for smart pointers of std::string.
 template<template <class, class...> class smartptr, class... types>
@@ -695,7 +767,7 @@ struct sertype<
     >
 {};
 /*----------------------------------------------------------------------------*/
-/* type instantiations for streamable types */
+/* OBJECT TYPES: type instantiations for streamable types */
 /*----------------------------------------------------------------------------*/
 template <class T, bool is_rvalue>
 struct ostreamable {
@@ -778,6 +850,8 @@ const ostreamable_table sertype<ostreamable<T, is_rvalue> >::table{
 /*----------------------------------------------------------------------------*/
 }} // namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/
+// OBJECT TYPES: user-facing functions to log stream objects.
+/*----------------------------------------------------------------------------*/
 template <class T>
 detail::serialization::ostreamable<T, false> ostr (T& v)
 {
@@ -790,6 +864,9 @@ detail::serialization::ostreamable<T, true> ostr (T&& v)
   return detail::serialization::ostreamable<T, true> (std::forward<T> (v));
 }
 /*----------------------------------------------------------------------------*/
+
+
+
 } // namespace malcpp {
 
 #endif // __MALC_CPP_STD_TYPES_HPP__

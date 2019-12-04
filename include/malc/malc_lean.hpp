@@ -4,6 +4,7 @@
 #include <new>
 #include <stdexcept>
 #include <type_traits>
+#include <string>
 #include <cassert>
 #include <utility>
 
@@ -541,10 +542,16 @@ static inline detail::serialization::malc_strcp
   return s;
 }
 /*----------------------------------------------------------------------------*/
-static inline detail::serialization::malc_strcp strcpl (char const* str)
+static inline detail::serialization::malc_strcp strcp (char const* str)
 {
   bl_uword len = strlen (str);
   return strcp (str, (bl_u16) (len < 65536 ? len : 65535));
+}
+/*----------------------------------------------------------------------------*/
+static inline detail::serialization::malc_strcp strcp (std::string& s)
+{
+  auto len = s.size();
+  return strcp (s.c_str(), (bl_u16) (len < 65536 ? len : 65535));
 }
 /*------------------------------------------------------------------------------
 Passes a memory area by value (deep copy) to malc. It will be printed as hex.
