@@ -149,7 +149,7 @@ struct typelist_filter<filter, typelist<types...> > :
 template<class T>
 using remove_cvref_t =
   typename std::remove_cv<typename std::remove_reference<T>::type>::type;
-
+/*----------------------------------------------------------------------------*/
 }} //namespace malcpp { namespace detail {
 
 #endif

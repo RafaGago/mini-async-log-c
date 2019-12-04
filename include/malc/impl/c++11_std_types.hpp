@@ -25,18 +25,19 @@
 // NOTICE: As this is C++11, "std::shared_ptr<char const[]>" and
 // "std::shared_ptr<void const[]>" are not provided, as they require a default
 // deleter that class "delete[]" that the user is prone to miss.
-#if 0
+
 #warning "TODO: mutex wrapping or example about how to do it"
 #warning "TODO: logging of typed arrays/vectors by value (maybe)"
 #warning "TODO: logging of std::string"
 #warning "TODO: ostream smart pointers"
+#warning "TODO: test passing both l and rvalues"
 #warning "TODO: Move the serialization and definitions to the C header"
 #warning "TODO: allow obj types from C"
 #warning "TODO: examples obj types from C"
 #warning "TODO: examples obj types from C++"
 #warning "TODO: wrapper for writing get_data_fn"
 #warning "TODO: move "get_data" implementations to separate translation units"
-#endif
+
 #ifndef MALC_CPP_NULL_SMART_PTR_STR
   #define MALC_CPP_NULL_SMART_PTR_STR "nullptr"
 #endif
@@ -61,19 +62,137 @@ namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/
 /* interface types */
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct interface_obj {
-  malc_obj_table const* table;
-  T                     obj;
+template <class T, bool is_rvalue>
+struct value_pass {
+public:
+  value_pass() = delete;
+  value_pass (value_pass&) = delete;
+  value_pass (const value_pass&) = delete;
+
+  value_pass (T&& pv) :v (std::move (pv)) {}
+  value_pass (value_pass&& rv) :v (std::move (rv.v)) {}
+  value_pass& operator= (value_pass&& rv)
+  {
+    if (&rv != this) {
+      v = std::move (rv.v);
+    }
+  }
+  inline T&& move()
+  {
+    return std::move (v);
+  }
+private:
+  T v;
 };
 
 template <class T>
-struct interface_obj_w_context : public interface_obj<T> {
+struct value_pass<T, false> {
+public:
+  value_pass() = delete;
+  value_pass (value_pass&) = delete;
+  value_pass (const value_pass&) = delete;
+
+  value_pass (T& pv) :v (std::ref (pv)) {}
+  value_pass (value_pass&& rv) :v (std::ref (rv.v)) {}
+  value_pass& operator= (value_pass&& rv)
+  {
+    v = std::ref (rv.v);
+  }
+  inline T& move()
+  {
+    return v.get();
+  }
+private:
+  std::reference_wrapper<T> v;
+};
+/*----------------------------------------------------------------------------*/
+template <class T>
+value_pass<T, false> valpass (T& v)
+{
+  return value_pass<T, false> (v);
+}
+
+template <class T>
+value_pass<T, true> valpass (T&& v)
+{
+  return value_pass<T, true> (std::forward<T> (v));
+}
+/*----------------------------------------------------------------------------*/
+template <class T, bool is_rvalue>
+struct interface_obj {
+  using tref = typename std::conditional<is_rvalue, T&&, T&>::type;
+
+  interface_obj (tref v, malc_obj_table const* t) : obj (std::forward<tref> (v))
+  {
+    table = t;
+  }
+    interface_obj (interface_obj&& rv) : obj (std::move (rv.obj))
+  {
+    table = rv.table;
+  }
+  interface_obj& operator= (interface_obj&& rv)
+  {
+    if (&rv != this) {
+      obj   = std::move (rv.obj);
+      table = rv.table;
+    }
+  }
+  malc_obj_table const*    table;
+  value_pass<T, is_rvalue> obj;
+};
+
+template <class T, bool is_rvalue>
+struct interface_obj_w_context : public interface_obj<T, is_rvalue> {
+  using tref = typename interface_obj<T, is_rvalue>::tref;
+
+  interface_obj_w_context (tref v, malc_obj_table const* t, void* c) :
+    interface_obj<T, is_rvalue> (std::forward<tref> (v), t)
+  {
+    context = c;
+  }
+  interface_obj_w_context (interface_obj_w_context&& rv) :
+    interface_obj<T, is_rvalue>(
+      std::forward<interface_obj<T, is_rvalue> > (rv)
+      )
+  {
+    context = rv.context;
+  }
+  interface_obj_w_context& operator= (interface_obj_w_context&& rv)
+  {
+    if (&rv != this) {
+      *static_cast<interface_obj<T, is_rvalue>*> (this) =
+        static_cast<interface_obj<T, is_rvalue>*> (&rv);
+      context = rv.context;
+    }
+  }
   void* context;
 };
 
-template <class T>
-struct interface_obj_w_flag : public interface_obj<T> {
+template <class T, bool is_rvalue>
+struct interface_obj_w_flag : public interface_obj<T, is_rvalue> {
+  using tref = typename interface_obj<T, is_rvalue>::tref;
+
+  interface_obj_w_flag (tref v, malc_obj_table const* t, bl_u8 f) :
+    interface_obj<T, is_rvalue> (std::forward<tref> (v), t)
+  {
+    flag = f;
+  }
+  interface_obj_w_flag (interface_obj_w_flag&& rv) :
+    interface_obj<T, is_rvalue>(
+      std::forward<interface_obj<T, is_rvalue> > (rv)
+      )
+  {
+    flag = rv.flag;
+  }
+
+  interface_obj_w_flag& operator= (interface_obj_w_flag&& rv)
+  {
+    if (&rv != this) {
+      *static_cast<interface_obj<T, is_rvalue>*> (this) =
+        static_cast<interface_obj<T, is_rvalue>*> (&rv);
+      flag = rv.flag;
+    }
+  }
   bl_u8 flag;
 };
 /*----------------------------------------------------------------------------*/
@@ -118,10 +237,12 @@ and "malc_obj_destroy_fn" functions manually. */
 struct to_serialization_type_helper {
 public:
   //----------------------------------------------------------------------------
-  template <class T, class U>
-  static inline void run (serializable_obj<T>& s, interface_obj<U>& v)
+  template <class T, bool is_rvalue>
+  static inline void run(
+    serializable_obj<T>& s, interface_obj<T, is_rvalue>& v
+    )
   {
-    new (&s.storage) T (move_nonpointer_types (v.obj));
+    new (&s.storage) T (v.obj.move());
 #if MALC_PTR_COMPRESSION == 0
     s.table = v.table;
 #else
@@ -129,13 +250,14 @@ public:
 #endif
   }
   //----------------------------------------------------------------------------
-  template <class T, class U>
+  template <class T, bool is_rvalue>
   static inline void run(
-    serializable_obj_w_context<T>& s, interface_obj_w_context<U>& v
+    serializable_obj_w_context<T>& s, interface_obj_w_context<T, is_rvalue>& v
     )
   {
     run(
-      static_cast<serializable_obj<T>&> (s), static_cast<interface_obj<U>&> (v)
+      static_cast<serializable_obj<T>&> (s),
+      static_cast<interface_obj<T, is_rvalue>&> (v)
       );
 #if MALC_PTR_COMPRESSION == 0
     s.context = v.context;
@@ -144,29 +266,16 @@ public:
 #endif
   }
   //----------------------------------------------------------------------------
-  template <class T, class U>
+  template <class T, bool is_rvalue>
   static inline void run(
-    serializable_obj_w_flag<T>& s, interface_obj_w_flag<U>& v
+    serializable_obj_w_flag<T>& s, interface_obj_w_flag<T, is_rvalue>& v
     )
   {
     run(
-      static_cast<serializable_obj<T>&> (s), static_cast<interface_obj<U>&> (v)
+      static_cast<serializable_obj<T>&> (s),
+      static_cast<interface_obj<T, is_rvalue>&> (v)
       );
     s.flag = v.flag;
-  }
-  //----------------------------------------------------------------------------
-private:
-  //----------------------------------------------------------------------------
-  template <class T>
-  static inline T& move_nonpointer_types (T* ref)
-  {
-    return *ref;
-  }
-  //----------------------------------------------------------------------------
-  template <class T>
-  static inline T&& move_nonpointer_types (T& ref)
-  {
-    return std::move (ref);
   }
   //----------------------------------------------------------------------------
 };
@@ -185,23 +294,27 @@ was passed by an lvalue. This is a HIDDEN CONVENTION to fix.*/
 template <
   class T,
   char malc_id,
-  template <class> class interface_type,
+  template <class, bool> class interface_type,
   template <class> class serializable_type
   >
 struct sertype_base {
 public:
-  using serializable = serializable_type<typename std::remove_pointer<T>::type>;
+  using serializable   = serializable_type<T>;
 
   static constexpr char id = malc_id;
 
-  static inline serializable to_serialization_type (interface_type<T>&& v)
+  template <bool is_rvalue>
+  static inline serializable
+    to_serialization_type (interface_type<T, is_rvalue>&& v)
   {
     serializable s;
     to_serialization_type_helper::run (s, v);
     return s;
   }
 
-  static inline serializable to_serialization_type (interface_type<T>& v)
+  template <bool is_rvalue>
+  static inline serializable
+    to_serialization_type (interface_type<T, is_rvalue>& v)
   {
     serializable s;
     to_serialization_type_helper::run (s, v);
@@ -209,24 +322,82 @@ public:
   }
 };
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct sertype<interface_obj<T> > :
+template <class T, bool is_rvalue>
+struct sertype<interface_obj<T, is_rvalue> > :
   public sertype_base<T, malc_type_obj, interface_obj, serializable_obj>
 {};
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct sertype<interface_obj_w_context<T> > :
+template <class T, bool is_rvalue>
+struct sertype<interface_obj_w_context<T, is_rvalue> > :
   public sertype_base<
     T, malc_type_obj_ctx, interface_obj_w_context, serializable_obj_w_context
     >
 {};
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct sertype<interface_obj_w_flag<T> > :
+template <class T, bool is_rvalue>
+struct sertype<interface_obj_w_flag<T, is_rvalue> > :
   public sertype_base<
     T, malc_type_obj_flag, interface_obj_w_flag, serializable_obj_w_flag
     >
 {};
+/*----------------------------------------------------------------------------*/
+}} // namespace detail { namespace serialization {
+/*----------------------------------------------------------------------------*/
+/* "object": user-facing functions to serialize object types */
+/*----------------------------------------------------------------------------*/
+template <class T>
+static detail::serialization::interface_obj<T, false>
+  object (T& v, malc_obj_table const* table)
+{
+  return detail::serialization::interface_obj<T, false> (v, table);
+}
+
+template <class T>
+static detail::serialization::interface_obj<T, true>
+  object (T&& v, malc_obj_table const* table)
+{
+  return detail::serialization::interface_obj<T, true>(
+    std::forward<T> (v), table
+    );
+}
+
+template <class T>
+static detail::serialization::interface_obj_w_context<T, false>
+  object (T& v, malc_obj_table const* table, void* context)
+{
+  return detail::serialization::interface_obj_w_context<T, false>(
+    v, table, context
+    );
+}
+
+template <class T>
+static detail::serialization::interface_obj_w_context<T, true>
+  object (T&& v, malc_obj_table const* table, void* context)
+{
+  return detail::serialization::interface_obj_w_context<T, true>(
+    std::forward<T> (v), table, context
+    );
+}
+
+template <class T>
+static detail::serialization::interface_obj_w_flag<T, false>
+  object (T& v, malc_obj_table const* table, bl_u8 flag)
+{
+  return detail::serialization::interface_obj_w_flag<T, false>(
+    v, table, flag
+    );
+}
+
+template <class T>
+static detail::serialization::interface_obj_w_flag<T, true>
+  object (T&& v, malc_obj_table const* table, bl_u8 flag)
+{
+  return detail::serialization::interface_obj_w_flag<T, true>(
+    std::forward<T> (v), table, flag
+    );
+}
+/*----------------------------------------------------------------------------*/
+namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/
 //providing "type" for serializable C++ types. (See comment above).
 /*----------------------------------------------------------------------------*/
@@ -413,37 +584,29 @@ public:
 
   static inline serializable_obj<ptrtype> to_serialization_type (ptrtype& v)
   {
-    using itype = interface_obj<ptrtype*>;
-    itype i;
-    set_base_data (i, v);
-    return sertype<itype>::to_serialization_type (i);
+    return to_serialization_type_base (object (v, &table.table));
   }
 
   static inline serializable_obj<ptrtype> to_serialization_type (ptrtype&& v)
   {
-    using itype = interface_obj<ptrtype>;
-    itype i;
-    set_base_data (i, std::move (v));
-    return sertype<itype>::to_serialization_type (std::move (i));
+    return to_serialization_type_base(
+      object (std::forward<ptrtype> (v), &table.table)
+      );
   }
 
-  static inline void set_base_data (interface_obj<ptrtype*>& i, ptrtype& ptr)
-  {
-    i.obj = &ptr;
-    i.table = &table.table;
-  }
+  static const smartptr_table table;
 
-  static inline void set_base_data (interface_obj<ptrtype>& i, ptrtype&& ptr)
-  {
-    i.obj = std::move (ptr);
-    i.table = &table.table;
-  }
 private:
+  template <class T>
+  static serializable_obj<ptrtype> to_serialization_type_base (T&& v)
+  {
+    return sertype<T>::to_serialization_type (std::forward<T> (v));
+  }
+
   static void destroy (malc_obj_ref* obj, void const*)
   {
     static_cast<ptrtype*> (obj->obj)->~ptrtype();
   }
-  static const smartptr_table table;
 };
 
 template <class ptrtype>
@@ -456,28 +619,35 @@ const smartptr_table smartptr_type<ptrtype>::table{
 /*----------------------------------------------------------------------------*/
 template< class ptrtype, unsigned char flag_default>
 struct smartptr_type_w_flag {
+public:
   static constexpr char id = malc_type_obj_flag;
+
+  static smartptr_table const* const table;
 
   static inline serializable_obj_w_flag<ptrtype>
     to_serialization_type (ptrtype& v, unsigned char flag = flag_default)
   {
-    using itype = interface_obj_w_flag<ptrtype*>;
-    itype i;
-    smartptr_type<ptrtype>::set_base_data (i, v);
-    i.flag = flag;
-    return sertype<itype>::to_serialization_type (i);
+    return to_serialization_type_base (object (v, &table->table, flag));
   }
 
   static inline serializable_obj_w_flag<ptrtype>
     to_serialization_type (ptrtype&& v, unsigned char flag = flag_default)
   {
-    using itype = interface_obj_w_flag<ptrtype>;
-    itype i;
-    smartptr_type<ptrtype>::set_base_data (i, std::move (v));
-    i.flag = flag;
-    return sertype<itype>::to_serialization_type (std::move (i));
+    return to_serialization_type_base(
+      object (std::forward<ptrtype> (v), &table->table, flag)
+      );
+  }
+private:
+  template <class T>
+  static serializable_obj_w_flag<ptrtype> to_serialization_type_base (T&& v)
+  {
+    return sertype<T>::to_serialization_type (std::forward<T> (v));
   }
 };
+
+template <class ptrtype, unsigned char flag>
+smartptr_table const* const smartptr_type_w_flag<ptrtype, flag>::table =
+  &smartptr_type<ptrtype>::table;
 /*----------------------------------------------------------------------------*/
 /* type instantiations of smart pointer types*/
 /*----------------------------------------------------------------------------*/
@@ -542,9 +712,10 @@ struct sertype<
 /*----------------------------------------------------------------------------*/
 /* type instantiations for streamable types */
 /*----------------------------------------------------------------------------*/
-template <class T>
+template <class T, bool is_rvalue>
 struct ostreamable {
-  T obj;
+  ostreamable (T&& v) : obj (std::forward<T> (v)) {};
+  value_pass<T, is_rvalue> obj;
 };
 /*----------------------------------------------------------------------------*/
 template <class T, class enable = void>
@@ -577,40 +748,27 @@ struct ostreamable_table  {
   bool (*print) (void* ptr, std::ostringstream& o);
 };
 /*----------------------------------------------------------------------------*/
-template <class T>
-struct sertype<ostreamable<T> > {
+template <class T, bool is_rvalue>
+struct sertype<ostreamable<T, is_rvalue> > {
   static constexpr char id = malc_type_obj;
   //----------------------------------------------------------------------------
-  static inline serializable_obj<T> to_serialization_type (ostreamable<T>& v)
+  static inline serializable_obj<T>
+    to_serialization_type (ostreamable<T, is_rvalue>& v)
   {
-    using itype = interface_obj<T>;
-    itype i;
-    i.obj = move_nonpointer_types (v.obj);
-    i.table = &table.table;
-    return sertype<itype>::to_serialization_type (i);
+    return to_serialization_type_base (object (v.obj.move(), &table.table));
   }
   //----------------------------------------------------------------------------
-  static inline serializable_obj<T> to_serialization_type (ostreamable<T>&& v)
+  static inline serializable_obj<T>
+    to_serialization_type (ostreamable<T, is_rvalue>&& v)
   {
-    using itype = interface_obj<T>;
-    itype i;
-    i.obj = move_nonpointer_types (v.obj);
-    i.table = &table.table;
-    return sertype<itype>::to_serialization_type (std::move (i));
+    return to_serialization_type_base (object (v.obj.move(), &table.table));
   }
   //----------------------------------------------------------------------------
 private:
-  //----------------------------------------------------------------------------
   template <class U>
-  static inline U* move_nonpointer_types (U* ref)
+  static serializable_obj<T> to_serialization_type_base (U&& v)
   {
-    return ref;
-  }
-  //----------------------------------------------------------------------------
-  template <class U>
-  static inline U&& move_nonpointer_types (U& ref)
-  {
-    return std::move (ref);
+    return sertype<U>::to_serialization_type (std::forward<U> (v));
   }
   //----------------------------------------------------------------------------
   static void destroy (malc_obj_ref* obj, void const*)
@@ -625,8 +783,8 @@ private:
   //----------------------------------------------------------------------------
   static const ostreamable_table table;
 };
-template <class T>
-const ostreamable_table sertype<ostreamable<T> >::table{
+template <class T, bool is_rvalue>
+const ostreamable_table sertype<ostreamable<T, is_rvalue> >::table{
   .table = {
     ostringstream_get_data, destroy, sizeof (T)
   },
@@ -636,15 +794,15 @@ const ostreamable_table sertype<ostreamable<T> >::table{
 }} // namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/
 template <class T>
-detail::serialization::ostreamable<T> ostr (T& v)
+detail::serialization::ostreamable<T, false> ostr (T& v)
 {
-  return detail::serialization::ostreamable<T*> {&v};
+  return detail::serialization::ostreamable<T, false> (v);
 }
 /*----------------------------------------------------------------------------*/
 template <class T>
-detail::serialization::ostreamable<T> ostr (T&& v)
+detail::serialization::ostreamable<T, true> ostr (T&& v)
 {
-  return detail::serialization::ostreamable<T> {std::move (v)};
+  return detail::serialization::ostreamable<T, true> (std::forward<T> (v));
 }
 /*----------------------------------------------------------------------------*/
 } // namespace malcpp {
