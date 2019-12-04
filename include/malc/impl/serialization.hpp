@@ -29,7 +29,11 @@ serializable type.
 All the serializable types are serialized by calling "malc_serialize".
 malc_serialize is reused from the C implementation, so it isn't present here.
 ------------------------------------------------------------------------------*/
-namespace malcpp { namespace detail { namespace serialization {
+namespace malcpp {
+
+static inline detail::serialization::malc_strcp strcp (std::string const& s);
+
+namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/
 template<typename T, typename enable = void>
 struct sertype;
@@ -282,7 +286,6 @@ struct sertype<malc_compressed_refdtor> {
 };
 /*----------------------------------------------------------------------------*/
 #endif /* #if MALC_COMPRESSION == 1 */
-
 //------------------------------------------------------------------------------
 template <class T>
 struct is_malc_refvalue {
@@ -290,7 +293,60 @@ struct is_malc_refvalue {
     std::is_same<remove_cvref_t<T>, serialization::malc_memref>::value |
     std::is_same<remove_cvref_t<T>, serialization::malc_strref>::value;
 };
+//------------------------------------------------------------------------------
+/* STD STRING: special case to log "std::string" rvalues by copy, which is IMO
+not very desirable on most cases for performance optimized code, but it sure
+must have some legitimate uses. */
+/*----------------------------------------------------------------------------*/
+struct std_string_rvalue {
+  std::string s;
+};
 
+struct std_string_rvalue_strcp {
+  std_string_rvalue_strcp (std::string&& v)
+  {
+    s = std::move (v);
+    sdata = strcp (s);
+  }
+  std_string_rvalue_strcp (std_string_rvalue_strcp&& v) :
+    std_string_rvalue_strcp (std::move (v.s))
+  {}
+
+  std::string s;
+  malc_strcp  sdata;
+};
+template<>
+struct sertype<std_string_rvalue> {
+public:
+  static constexpr char id = malc_type_strcp;
+
+  static inline std_string_rvalue_strcp
+    to_serialization_type (std_string_rvalue& v)
+  {
+    return std_string_rvalue_strcp (std::move (v.s));
+  }
+  static inline std_string_rvalue_strcp
+    to_serialization_type (std_string_rvalue&& v)
+  {
+    return std_string_rvalue_strcp (std::move (v.s));
+  }
+};
+
+template<>
+struct sertype<std_string_rvalue_strcp> {
+  static inline bl_uword size (std_string_rvalue_strcp const& v)
+  {
+    return sertype<malc_strcp>::size (v.sdata);
+  }
+};
+/*----------------------------------------------------------------------------*/
+static inline void malc_serialize(
+  malc_serializer* s, std_string_rvalue_strcp const& v
+  )
+{
+  malc_serialize (s, v.sdata);
+}
+/*----------------------------------------------------------------------------*/
 }}} // namespace malcpp { namespace detail { namespace serialization {
 
 #endif // __MALC_SERIALIZATION_HPP__

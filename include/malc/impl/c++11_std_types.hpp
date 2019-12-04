@@ -23,7 +23,6 @@
 #warning "TODO: mutex wrapping or example about how to do it"
 #warning "TODO: logging of typed arrays/vectors by value (maybe)"
 #warning "TODO: Move the object serialization and definitions to the C header. might require wrapping _Alignas"
-#warning "TODO: allow string const references"
 #warning "TODO: allow obj types from C"
 #warning "TODO: examples obj types from C"
 #warning "TODO: examples obj types from C++"
@@ -36,82 +35,16 @@ namespace malcpp {
 
 #define MALCPP_DECLARE_GET_DATA_FUNC(funcname) \
   int funcname( \
-    malc_obj_ref*, void const*, malc_obj_push_context const*, bl_alloc_tbl const* \
+    malc_obj_ref*, \
+    void const*, \
+    malc_obj_push_context const*, \
+    bl_alloc_tbl const* \
     )
 
 extern MALC_EXPORT MALCPP_DECLARE_GET_DATA_FUNC (string_smartptr_get_data);
 extern MALC_EXPORT MALCPP_DECLARE_GET_DATA_FUNC (vector_smartptr_get_data);
 extern MALC_EXPORT MALCPP_DECLARE_GET_DATA_FUNC (ostringstream_get_data);
 
-static inline detail::serialization::malc_strcp strcp (std::string& s);
-
-namespace detail { namespace serialization {
-
-/*----------------------------------------------------------------------------*/
-/* STD STRING: special case to log "std::string" rvalues by copy, which is IMO
-not very desirable on most cases for performance optimized code, but it sure
-must have some legitimate uses. */
-/*----------------------------------------------------------------------------*/
-struct std_string_rvalue {
-  std::string s;
-};
-
-struct std_string_rvalue_strcp {
-  std_string_rvalue_strcp (std::string&& v)
-  {
-    s = std::move (v);
-    sdata = strcp (s);
-  }
-  std_string_rvalue_strcp (std_string_rvalue_strcp&& v) :
-    std_string_rvalue_strcp (std::move (v.s))
-  {}
-
-  std::string s;
-  malc_strcp  sdata;
-};
-
-template<>
-struct sertype<std_string_rvalue> {
-public:
-  static constexpr char id = malc_type_strcp;
-
-  static inline std_string_rvalue_strcp
-    to_serialization_type (std_string_rvalue& v)
-  {
-    return std_string_rvalue_strcp (std::move (v.s));
-  }
-  static inline std_string_rvalue_strcp
-    to_serialization_type (std_string_rvalue&& v)
-  {
-    return std_string_rvalue_strcp (std::move (v.s));
-  }
-};
-
-template<>
-struct sertype<std_string_rvalue_strcp> {
-  static inline bl_uword size (std_string_rvalue_strcp const& v)
-  {
-    return sertype<malc_strcp>::size (v.sdata);
-  }
-};
-
-static inline void malc_serialize (malc_serializer* s, malc_strcp v);
-
-static inline void malc_serialize(
-  malc_serializer* s, std_string_rvalue_strcp const& v
-  )
-{
-  malc_serialize (s, v.sdata);
-}
-/*----------------------------------------------------------------------------*/
-}} //namespace detail { namespace serialization {
-/*----------------------------------------------------------------------------*/
-/* STD STRING: "std::string" rvalues by copy: user-function */
-/*----------------------------------------------------------------------------*/
-static inline detail::serialization::std_string_rvalue strcp (std::string&& s)
-{
-  return detail::serialization::std_string_rvalue{.s = std::move (s)};
-}
 /*----------------------------------------------------------------------------*/
 namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/

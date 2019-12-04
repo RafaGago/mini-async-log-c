@@ -548,10 +548,15 @@ static inline detail::serialization::malc_strcp strcp (char const* str)
   return strcp (str, (bl_u16) (len < 65536 ? len : 65535));
 }
 /*----------------------------------------------------------------------------*/
-static inline detail::serialization::malc_strcp strcp (std::string& s)
+static inline detail::serialization::malc_strcp strcp (std::string const& s)
 {
   auto len = s.size();
   return strcp (s.c_str(), (bl_u16) (len < 65536 ? len : 65535));
+}
+/*----------------------------------------------------------------------------*/
+static inline detail::serialization::std_string_rvalue strcp (std::string&& s)
+{
+  return detail::serialization::std_string_rvalue{.s = std::move (s)};
 }
 /*------------------------------------------------------------------------------
 Passes a memory area by value (deep copy) to malc. It will be printed as hex.
