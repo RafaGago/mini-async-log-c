@@ -22,8 +22,8 @@
 
 #warning "TODO: mutex wrapping or example about how to do it"
 #warning "TODO: logging of typed arrays/vectors by value (maybe)"
-#warning "TODO: ostream specialization for builtins"
 #warning "TODO: Move the object serialization and definitions to the C header. might require wrapping _Alignas"
+#warning "TODO: logging of const reference objects"
 #warning "TODO: allow obj types from C"
 #warning "TODO: examples obj types from C"
 #warning "TODO: examples obj types from C++"
@@ -808,7 +808,8 @@ struct ostreamable_table  {
 };
 /*----------------------------------------------------------------------------*/
 template <class T, bool is_rvalue>
-struct sertype<ostreamable<T, is_rvalue> > {
+struct ostreamable_impl {
+public:
   static constexpr char id = malc_type_obj;
   //----------------------------------------------------------------------------
   static inline serializable_obj<T>
@@ -843,12 +844,37 @@ private:
   static const ostreamable_table table;
 };
 template <class T, bool is_rvalue>
-const ostreamable_table sertype<ostreamable<T, is_rvalue> >::table{
+const ostreamable_table ostreamable_impl<T, is_rvalue>::table{
   .table = {
     ostringstream_get_data, destroy, sizeof (T)
   },
   .print = ostreamable_printer<T>::run,
 };
+/*----------------------------------------------------------------------------*/
+template <class T, bool is_rvalue>
+struct builtin_use_no_ostream {
+  static constexpr char id = sertype<T>::id;
+  //----------------------------------------------------------------------------
+  static inline T to_serialization_type (ostreamable<T, is_rvalue>& v)
+  {
+    return v.obj.move();
+  }
+  //----------------------------------------------------------------------------
+  static inline T to_serialization_type (ostreamable<T, is_rvalue>&& v)
+  {
+    return v.obj.move();
+  }
+  //----------------------------------------------------------------------------
+};
+/*----------------------------------------------------------------------------*/
+template <class T, bool is_rvalue>
+struct sertype<ostreamable<T, is_rvalue> > :
+  public std::conditional<
+    !is_valid_builtin<T>::value,
+    ostreamable_impl<T, is_rvalue>,
+    builtin_use_no_ostream<T, is_rvalue>
+    >::type
+{};
 /*----------------------------------------------------------------------------*/
 }} // namespace detail { namespace serialization {
 /*----------------------------------------------------------------------------*/
@@ -866,8 +892,6 @@ detail::serialization::ostreamable<T, true> ostr (T&& v)
   return detail::serialization::ostreamable<T, true> (std::forward<T> (v));
 }
 /*----------------------------------------------------------------------------*/
-
-
 
 } // namespace malcpp {
 

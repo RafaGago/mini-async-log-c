@@ -810,11 +810,20 @@ static void ostreamable_type_by_value (void **state)
   err = log_warning ("{}", malcpp::ostr (v));
   assert_int_equal (err.own, bl_ok);
 
+  err = log_warning ("{}", malcpp::ostr (3));
+  assert_int_equal (err.own, bl_ok);
+
+  int four = 4;
+  err = log_warning ("{}", malcpp::ostr (four));
+  assert_int_equal (err.own, bl_ok);
+
   err = c->log.run_consume_task (10000);
   assert_int_equal (err.own, bl_ok);
-  assert_int_equal (c->dst.try_get()->size(), 2);
+  assert_int_equal (c->dst.try_get()->size(), 4);
   assert_string_equal ((*c->dst.try_get())[0], "ostreamable: 1, 2");
   assert_string_equal ((*c->dst.try_get())[1], "ostreamable: 1, 2");
+  assert_string_equal ((*c->dst.try_get())[2], "3");
+  assert_string_equal ((*c->dst.try_get())[3], "4");
 
   termination_check (c);
 }
