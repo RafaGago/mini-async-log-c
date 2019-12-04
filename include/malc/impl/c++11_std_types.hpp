@@ -22,9 +22,8 @@
 
 #warning "TODO: mutex wrapping or example about how to do it"
 #warning "TODO: logging of typed arrays/vectors by value (maybe)"
-#warning "TODO: test passing both l and rvalues"
 #warning "TODO: ostream specialization for builtins"
-#warning "TODO: Move the serialization and definitions to the C header"
+#warning "TODO: Move the object serialization and definitions to the C header. might require wrapping _Alignas"
 #warning "TODO: allow obj types from C"
 #warning "TODO: examples obj types from C"
 #warning "TODO: examples obj types from C++"
@@ -771,7 +770,10 @@ struct sertype<
 /*----------------------------------------------------------------------------*/
 template <class T, bool is_rvalue>
 struct ostreamable {
-  ostreamable (T&& v) : obj (std::forward<T> (v)) {};
+  using tref = typename std::conditional<is_rvalue, T&&, T&>::type;
+
+  ostreamable (tref v) : obj (std::forward<tref> (v)) {};
+
   value_pass<T, is_rvalue> obj;
 };
 /*----------------------------------------------------------------------------*/
