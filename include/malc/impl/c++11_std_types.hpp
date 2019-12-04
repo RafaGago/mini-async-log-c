@@ -126,12 +126,7 @@ public:
 
   value_pass (T&& pv) :v (std::move (pv)) {}
   value_pass (value_pass&& rv) :v (std::move (rv.v)) {}
-  value_pass& operator= (value_pass&& rv)
-  {
-    if (&rv != this) {
-      v = std::move (rv.v);
-    }
-  }
+
   inline T&& move()
   {
     return std::move (v);
@@ -149,10 +144,7 @@ public:
 
   value_pass (T& pv) :v (std::ref (pv)) {}
   value_pass (value_pass&& rv) :v (std::ref (rv.v)) {}
-  value_pass& operator= (value_pass&& rv)
-  {
-    v = std::ref (rv.v);
-  }
+
   inline T& move()
   {
     return v.get();
@@ -185,13 +177,6 @@ struct interface_obj {
   {
     table = rv.table;
   }
-  interface_obj& operator= (interface_obj&& rv)
-  {
-    if (&rv != this) {
-      obj   = std::move (rv.obj);
-      table = rv.table;
-    }
-  }
   malc_obj_table const*    table;
   value_pass<T, is_rvalue> obj;
 };
@@ -212,14 +197,6 @@ struct interface_obj_w_context : public interface_obj<T, is_rvalue> {
   {
     context = rv.context;
   }
-  interface_obj_w_context& operator= (interface_obj_w_context&& rv)
-  {
-    if (&rv != this) {
-      *static_cast<interface_obj<T, is_rvalue>*> (this) =
-        static_cast<interface_obj<T, is_rvalue>*> (&rv);
-      context = rv.context;
-    }
-  }
   void* context;
 };
 
@@ -238,15 +215,6 @@ struct interface_obj_w_flag : public interface_obj<T, is_rvalue> {
       )
   {
     flag = rv.flag;
-  }
-
-  interface_obj_w_flag& operator= (interface_obj_w_flag&& rv)
-  {
-    if (&rv != this) {
-      *static_cast<interface_obj<T, is_rvalue>*> (this) =
-        static_cast<interface_obj<T, is_rvalue>*> (&rv);
-      flag = rv.flag;
-    }
   }
   bl_u8 flag;
 };
