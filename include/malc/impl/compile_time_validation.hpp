@@ -15,10 +15,13 @@ namespace malcpp { namespace detail { namespace fmt { // string format validatio
 class literal {
 public:
   //----------------------------------------------------------------------------
+  constexpr literal (const char *const lit, const int size) :
+    m_lit  (lit),
+    m_size (size)
+  {}
+  //----------------------------------------------------------------------------
   template <int N>
-  constexpr literal (const char(&arr)[N]) :
-      m_lit  (arr),
-      m_size (N - 1)
+  constexpr literal (const char(&arr)[N]) : literal (arr, N - 1)
   {
       static_assert (N >= 1, "not a string literal");
   }
@@ -26,6 +29,7 @@ public:
   constexpr operator const char*() const  { return m_lit; }
   constexpr int size() const              { return m_size; }
   constexpr char operator[] (int i) const { return m_lit[i]; }
+  //----------------------------------------------------------------------------
   constexpr int find (char c, int beg, int end, int notfoundval = -1) const
   {
     return
@@ -42,6 +46,16 @@ public:
         ? has_repeated_chars (beg + 1, end)
         : true
       : false;
+  }
+  //----------------------------------------------------------------------------
+  constexpr literal substr (int beg, int end)
+  {
+    return literal (m_lit + beg, end - beg);
+  }
+  //----------------------------------------------------------------------------
+  constexpr literal substr (int beg)
+  {
+    return substr (beg, m_size);
   }
   //----------------------------------------------------------------------------
 private:
@@ -100,22 +114,22 @@ public:
   static constexpr typename std::enable_if<
     std::is_integral<T>::value, int
     >::type
-    validate (const literal& l, int beg, int end, T*)
+    validate (const literal& l, T*)
   {
-    return (beg == end)
+    return (l.size() == 0)
       ? fmterr_success
-      : validate_int (l, beg, end, literal (" #+-0"), beg);
+      : validate_int (l, 0, l.size(), literal (" #+-0"), 0);
   }
   //----------------------------------------------------------------------------
   template<class T>
   static constexpr typename std::enable_if<
     std::is_floating_point<T>::value, int
     >::type
-    validate (const literal& l, int beg, int end, T*)
+    validate (const literal& l, T*)
   {
-    return (beg == end)
+    return (l.size() == 0)
       ? fmterr_success
-      : validate_float (l, beg, end, literal (" #+-0"), beg);
+      : validate_float (l, 0, l.size(), literal (" #+-0"), 0);
   }
   //----------------------------------------------------------------------------
 #ifdef MALCPP_CPP11_TYPES
@@ -132,13 +146,10 @@ public:
       int
     >::type
     validate(
-      const literal& l,
-      int            beg,
-      int            end,
-      smartptr<container<T, containertypes...>, ptrtypes...>*
+      const literal& l, smartptr<container<T, containertypes...>, ptrtypes...>*
       )
   {
-    return validate (l, beg, end, (T*) nullptr);
+    return validate (l, (T*) nullptr);
   }
 #endif
   //----------------------------------------------------------------------------
@@ -146,7 +157,7 @@ public:
   static constexpr typename std::enable_if<
     std::is_same<T, remainder_type_tag>::value, int
     >::type
-    validate (const literal& l, int beg, int end, T*)
+    validate (const literal& l, T*)
   {
     /* This is called when all function parameters are processed to check if
     there are still placeholders on the string. At this point anything we return
@@ -156,15 +167,15 @@ public:
     placeholder, it will be reported  as "fmt_excess_placeholders". If they are
     non-consecutive we consider that the user forgot to escape the left bracket.
     Both return will generate an error on the parser. */
-    return (beg == end) ?  fmterr_success : fmterr_unclosed_lbracket;
+    return (l.size() == 0) ?  fmterr_success : fmterr_unclosed_lbracket;
   }
   //----------------------------------------------------------------------------
-  static constexpr int validate (const literal& l, int beg, int end, ...)
+  static constexpr int validate (const literal& l, ...)
   {
     /* unknown types have no modifiers, type validation happens later.
     "..." the elipsis operator gives this overload the lowest priority when
     searching for resolution candidates. */
-    return (beg == end) ? fmterr_success : fmterr_invalid_modifiers;
+    return (l.size() == 0) ? fmterr_success : fmterr_invalid_modifiers;
   }
 private:
   //----------------------------------------------------------------------------
@@ -276,13 +287,13 @@ class placeholder {
 public:
   //----------------------------------------------------------------------------
   template <class T>
-  static constexpr int validate_next (const literal& l, int pos)
+  static constexpr int validate_next (const literal& l)
   {
     /* function chaining because variables can't be created inside constexpr,
     so to declare variables on has to call functions with extra args. The
     variables are created to avoid doing the same compile time calculations
     many times*/
-    return validate_next_step1_lbracket<T> (l, find_lbracket (l, pos));
+    return validate_next_step1_lbracket<T> (l, find_lbracket (l, 0));
   }
 private:
   //----------------------------------------------------------------------------
@@ -329,7 +340,7 @@ private:
     many times*/
     return (end != fmterr_notfound)
       ? validate_next_step3_validation(
-          end, modifiers::validate (l, beg, end, (T*) nullptr)
+          end, modifiers::validate (l.substr (beg, end), (T*) nullptr)
           )
       : fmterr_unclosed_lbracket;
   }
@@ -377,22 +388,24 @@ private:
     return
       (std::is_same<T, serialization::malc_refdtor>::value == false)
       ? (serialization::sertype<T>::id != serialization::malc_type_error)
-        ? verify_next<N, tail> (l, placeholder::validate_next<T> (l, litpos))
+        ? verify_next<N, tail>(
+          l, litpos, placeholder::validate_next<T> (l.substr (litpos))
+          )
         : fmtret::make (fmterr_invalid_type, N)
       : iterate<N + 1, tail> (l , litpos); //malc_refdtor: skipping.
   }
   //----------------------------------------------------------------------------
   template <int N, class tail>
   static constexpr unsigned verify_next(
-    const literal& l, int validate_result
+    const literal& l, int placeholder_end_offset, int placeholder_end
     )
   {
     return
-      (validate_result == fmterr_notfound)
+      (placeholder_end == fmterr_notfound)
       ? fmtret::make (fmterr_excess_arguments, N)
-      : (validate_result < fmterr_success)
-        ? fmtret::make (validate_result, N)
-        : iterate<N + 1, tail> (l , validate_result);
+      : (placeholder_end < fmterr_success)
+        ? fmtret::make (placeholder_end, N)
+        : iterate<N + 1, tail> (l, placeholder_end_offset + placeholder_end);
   }
   //----------------------------------------------------------------------------
   template <int N, class listfwit>
@@ -408,7 +421,7 @@ private:
     variables are created to avoid doing the same compile time calculations
     many times */
     return process_last_error<N>(
-        placeholder::validate_next<remainder_type_tag> (l ,litpos)
+        placeholder::validate_next<remainder_type_tag> (l.substr (litpos))
         );
   }
   //----------------------------------------------------------------------------

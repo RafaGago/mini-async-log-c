@@ -106,7 +106,7 @@ struct interface_obj {
   {
     table = t;
   }
-    interface_obj (interface_obj&& rv) : obj (std::move (rv.obj))
+  interface_obj (interface_obj&& rv) : obj (std::move (rv.obj))
   {
     table = rv.table;
   }
