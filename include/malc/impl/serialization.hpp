@@ -1,6 +1,10 @@
 #ifndef __MALC_SERIALIZATION_HPP__
 #define __MALC_SERIALIZATION_HPP__
 
+#ifndef MALC_COMMON_NAMESPACED
+#define MALC_COMMON_NAMESPACED 1
+#endif
+
 #include <malc/common.h>
 #include <malc/impl/common.h>
 #include <malc/impl/serialization.h>
