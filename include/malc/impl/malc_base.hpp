@@ -22,9 +22,9 @@
 #ifndef MALC_LIBRARY_COMPILATION
   #include <malc/config.h>
 #endif
-#include <malc/destinations.hpp>
-#include <malc/log_macros.h>
+#include <malc/destinations/destinations.hpp>
 #include <malc/impl/c++11.hpp>
+#include <malc/log_macros.h>
 
 struct malc;
 

@@ -7,7 +7,6 @@
 #include <malc/destinations/file.h>
 #include <malc/destinations/stdouterr.h>
 #include <malc/malc.hpp>
-#include <malc/destinations.hpp>
 
 namespace malcpp {
 

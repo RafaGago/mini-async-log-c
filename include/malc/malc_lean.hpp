@@ -1,5 +1,9 @@
 #ifndef __MALC_LEAN_HPP__
 #define __MALC_LEAN_HPP__
+
+// Include this file to use malc without being able to log smart pointer and
+// ostreamable types, e.g. If you are using a project with exceptions disabled.
+
 /*------------------------------------------------------------------------------
 DOCUMENTATION: See "malc/impl/malc_base.hpp"
 

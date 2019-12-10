@@ -1,5 +1,8 @@
 #ifndef __MALC_HPP__
 #define __MALC_HPP__
+
+// Include this file to use all malc's feature set.
+
 /*------------------------------------------------------------------------------
 DOCUMENTATION: See "malc/impl/malc_base.hpp"
 
