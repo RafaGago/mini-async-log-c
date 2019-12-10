@@ -1,3 +1,8 @@
+//------------------------------------------------------------------------------
+// A program to test malc stability, basically the init/deinit sequence and the
+// producer side. Thought out to be running for hours. It adds a destination on RAM
+// with extra instrumentation.
+//------------------------------------------------------------------------------
 #include <atomic>
 #include <chrono>
 #include <map>
@@ -8,21 +13,16 @@
 
 #include <bl/base/processor_pause.h>
 #include <malc/malc_lean.hpp>
-
-/* A program to test malc stability, basically the init/deinit sequence and the
-producer side. Thought out to be running for hours. It adds a destination on RAM
-with extra instrumentation. */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 malcpp::malcpp<true, false, false> ilog;
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static inline decltype (ilog)& get_malc_logger_instance()
 {
   return ilog;
 }
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 // Stress destination to count messages
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 class message_count_destination {
 public:
   /*--------------------------------------------------------------------------*/
@@ -45,7 +45,7 @@ public:
 private:
   std::size_t* m_msgs;
 };
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 struct unpadded_thr_context {
   std::atomic<std::size_t> init{0};
   std::size_t              tls_bytes;
@@ -56,14 +56,14 @@ struct unpadded_thr_context {
 struct thr_context : public unpadded_thr_context {
   char padding [64 - sizeof (unpadded_thr_context) ];
 };
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 enum thread_launch_state {
   tl_launched,
   tl_ready,
   tl_clear_to_log,
   tl_done,
 };
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static void througput_thread (thr_context& c)
 {
   bl_err err;
@@ -88,28 +88,28 @@ static void througput_thread (thr_context& c)
   }
   c.init.store (tl_done, std::memory_order_release);
 }
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 enum cfg_mode {
   cfg_tls,
   cfg_heap,
   cfg_queue,
   cfg_queue_cpu,
 };
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 typedef struct pargs {
   std::size_t iterations;
   std::size_t msgs;
   std::size_t alloc_mode;
 }
 pargs;
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static void print_usage()
 {
   puts(
     "Usage: malc-stress-test <[tls|heap|queue|queue-cpu]> <msgs> <iterations>"
     );
 }
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static bool parse_args (pargs& args, int argc, char const* argv[])
 {
   if (argc < 4) {
@@ -148,11 +148,11 @@ static bool parse_args (pargs& args, int argc, char const* argv[])
   }
   return parse_uint (args.iterations, argv[3], "invalid iteration count");
 }
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static constexpr unsigned max_threads = 16;
 static constexpr unsigned qsize = 32 * 1024 * 1024;
 static constexpr int threads[] = { 1, 2, 4, 8, max_threads };
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static void configure_malcpp (malcpp::malc_cfg& cfg, pargs const& args)
 {
   cfg.consumer.start_own_thread = true;
@@ -172,7 +172,7 @@ static void configure_malcpp (malcpp::malc_cfg& cfg, pargs const& args)
     cfg.alloc.fixed_allocator_per_cpu = (args.alloc_mode == cfg_queue_cpu);
   }
 }
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 int main (int argc, char const* argv[])
 {
   pargs  args;
@@ -257,4 +257,4 @@ int main (int argc, char const* argv[])
   }
   return 0;
 }
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------

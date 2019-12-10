@@ -1,3 +1,7 @@
+/* A program to test malc stability, basically the init/deinit sequence and the
+producer side. Thought out to be running for hours. It adds a destination on RAM
+with extra instrumentation. */
+
 #include <stdio.h>
 #include <string.h>
 
@@ -15,10 +19,6 @@
 
 #include <malc/malc.h>
 #include <malc/destinations/array.h>
-
-/* A program to test malc stability, basically the init/deinit sequence and the
-producer side. Thought out to be running for hours. It adds a destination on RAM
-with extra instrumentation. */
 
 malc* ilog = nullptr;
 /*----------------------------------------------------------------------------*/

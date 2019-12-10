@@ -1,3 +1,5 @@
+/* shows logging by adding thread local storage to the log_thread */
+
 #include <stdio.h>
 
 #include <bl/base/default_allocator.h>

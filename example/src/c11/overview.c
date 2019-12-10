@@ -1,3 +1,5 @@
+/* A walkthrough on logging different data types. Using the exception based */
+
 #include <stdio.h>
 
 #include <bl/base/default_allocator.h>

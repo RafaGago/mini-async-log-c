@@ -1,8 +1,12 @@
+//------------------------------------------------------------------------------
+// A walkthrough on logging different data types. Using the exception based
+// interface.
+//------------------------------------------------------------------------------
 #include <thread>
 #include <malc/malc.hpp>
 
 malcpp::malcpp<> log;
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 /* koenig-lookup on this function is used on the log macros to get the relevant
 malc instance. You can override the function name with the macro
 "MALC_GET_LOGGER_INSTANCE_FUNCNAME".
@@ -14,85 +18,22 @@ static inline decltype(log)& get_malc_logger_instance()
 {
   return log;
 }
-/*----------------------------------------------------------------------------*/
-static void malc_compatibility_string_reference_types()
-{
-    /*
-    This method of logging strings is on malcpp for compatibility with the
-    C API, but not the prefered way of logging heap strings.
-
-    logging a string by reference.
-
-    the logger will call the deallocation function when the reference is no
-    longer needed. Be aware that:
-
-   *If the entry is filtered out because of the severity, or if an error happens
-    the destructor might be called in-place from the current thread.
-
-   *If the log call is stripped at compile time the log call is ommited, so
-    there is no memory deallocation, as the ownership would have never been
-    passed to the logger. That's why all this code is wrapped is on the
-    MALC_STRIP_LOG_ERROR, as we are logging with "error" severity. There is a
-    MALC_STRIP_LOG_[SEVERITY] macro defined for each of stripped severities.
-
-    The error code returned on stripped severities will be "bl_nothing_to_do".
-    */
-  #ifndef MALC_STRIP_LOG_ERROR
-    char const str[] = "a legacy string";
-    char* dstr = (char*) malloc (sizeof str - 1);
-    assert (dstr);
-    memcpy (dstr, str, sizeof str - 1);
-
-    void* context = (void*) 0x1ee7;
-    auto destructorfn =
-      [] (void* context, malcpp::malc_ref const* refs, bl_uword refs_count) {
-        assert (refs_count == 1); // the log entry just has one reference value
-        assert (context == (void*) 0x1ee7);
-        free (refs[0].ref);
-      };
-  #endif
-    (void) log_error(
-      "a string by ref: {}",
-      malcpp::strref (dstr, sizeof str - 1),
-      malcpp::refdtor (destructorfn, context)
-      );
-}
-/*----------------------------------------------------------------------------*/
-static void malc_compatibility_byte_refence_types()
-{
-  #ifndef MALC_STRIP_LOG_ERROR
-    /* bytes by reference: they work exactly as the strings by reference on
-    function "malc_compatibility_string_reference_types" */
-    bl_u8 const mem[] = { 10, 11, 12, 13 };
-    bl_u8* dmem = (bl_u8*) malloc (sizeof mem);
-    assert (dmem);
-    memcpy (dmem, mem, sizeof mem);
-
-    void* context = (void*) 0x1ee7;
-    auto destructorfn =
-      [] (void* context, malcpp::malc_ref const* refs, bl_uword refs_count) {
-        assert (refs_count == 1); // the log entry just has one reference value
-        assert (context == (void*) 0x1ee7);
-        free (refs[0].ref);
-      };
-  #endif
-    (void) log_error(
-      "[10,11,12,13] by ref: {}",
-      malcpp::memref (dmem, sizeof mem),
-      malcpp::refdtor (destructorfn, context)
-      );
-}
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+static void malc_legacy_string_reference_types();
+//------------------------------------------------------------------------------
+static void malc_legacy_byte_refence_types();
+//------------------------------------------------------------------------------
 struct ostreamable_type {
   int a{1};
   int b{2};
 };
+//------------------------------------------------------------------------------
 std::ostream & operator << (std::ostream &out, const ostreamable_type &t)
 {
   out << "logged by using the ostream operator: " << t.a << ", " << t.b ;
   return out;
 }
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 int main (int argc, char const* argv[])
 {
   /* destination register: adding logging to stdout/stderr */
@@ -207,7 +148,7 @@ int main (int argc, char const* argv[])
       "a literal: {}", malcpp::lit (1 ? "literal one" : "literal two")
       );
 
-    malc_compatibility_string_reference_types();
+    malc_legacy_string_reference_types();
 
     /* bytes: a memory area to log as an hex stream. */
     bl_u8 const mem[] = { 10, 11, 12, 13 };
@@ -244,7 +185,7 @@ int main (int argc, char const* argv[])
         )
       );
 
-    malc_compatibility_byte_refence_types();
+    malc_legacy_byte_refence_types();
 
     /* severities */
     err = log_debug ("this is not seen on stdout (sev > debug)");
@@ -270,4 +211,72 @@ int main (int argc, char const* argv[])
   thr.join();
   return 0;
 }
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+static void malc_legacy_string_reference_types()
+{
+    /*
+    This method of logging strings is on malcpp for compatibility with the
+    C API, but not the prefered way of logging heap strings.
+
+    logging a string by reference.
+
+    the logger will call the deallocation function when the reference is no
+    longer needed. Be aware that:
+
+   *If the entry is filtered out because of the severity, or if an error happens
+    the destructor might be called in-place from the current thread.
+
+   *If the log call is stripped at compile time the log call is ommited, so
+    there is no memory deallocation, as the ownership would have never been
+    passed to the logger. That's why all this code is wrapped is on the
+    MALC_STRIP_LOG_ERROR, as we are logging with "error" severity. There is a
+    MALC_STRIP_LOG_[SEVERITY] macro defined for each of stripped severities.
+
+    The error code returned on stripped severities will be "bl_nothing_to_do".
+    */
+  #ifndef MALC_STRIP_LOG_ERROR
+    char const str[] = "a legacy string";
+    char* dstr = (char*) malloc (sizeof str - 1);
+    assert (dstr);
+    memcpy (dstr, str, sizeof str - 1);
+
+    void* context = (void*) 0x1ee7;
+    auto destructorfn =
+      [] (void* context, malcpp::malc_ref const* refs, bl_uword refs_count) {
+        assert (refs_count == 1); // the log entry just has one reference value
+        assert (context == (void*) 0x1ee7);
+        free (refs[0].ref);
+      };
+  #endif
+    (void) log_error(
+      "a string by ref: {}",
+      malcpp::strref (dstr, sizeof str - 1),
+      malcpp::refdtor (destructorfn, context)
+      );
+}
+//------------------------------------------------------------------------------
+static void malc_legacy_byte_refence_types()
+{
+  #ifndef MALC_STRIP_LOG_ERROR
+    /* bytes by reference: they work exactly as the strings by reference on
+    function "malc_compatibility_string_reference_types" */
+    bl_u8 const mem[] = { 10, 11, 12, 13 };
+    bl_u8* dmem = (bl_u8*) malloc (sizeof mem);
+    assert (dmem);
+    memcpy (dmem, mem, sizeof mem);
+
+    void* context = (void*) 0x1ee7;
+    auto destructorfn =
+      [] (void* context, malcpp::malc_ref const* refs, bl_uword refs_count) {
+        assert (refs_count == 1); // the log entry just has one reference value
+        assert (context == (void*) 0x1ee7);
+        free (refs[0].ref);
+      };
+  #endif
+    (void) log_error(
+      "[10,11,12,13] by ref: {}",
+      malcpp::memref (dmem, sizeof mem),
+      malcpp::refdtor (destructorfn, context)
+      );
+}
+//------------------------------------------------------------------------------

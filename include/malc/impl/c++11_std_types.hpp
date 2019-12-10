@@ -20,12 +20,10 @@
 // A header including C++ types. To avoid header bloat and to make a clear
 // separation about what is C++ only.
 #if 1
-#warning "TODO: Move the object serialization and definitions to the C header."
-#warning "TODO: logging of typed arrays/vectors by value (maybe)"
 #warning "TODO: is passing volatile types broken: add tests"
-#warning "TODO: allow obj types from C"
-#warning "TODO: examples obj types from C"
 #warning "TODO: examples obj types from C++"
+#warning "TODO: assert bug"
+#warning "TODO: explain tradeoffs, e.g. call site overhead"
 #endif
 #ifndef MALC_CPP_NULL_SMART_PTR_STR
   #define MALC_CPP_NULL_SMART_PTR_STR "nullptr"

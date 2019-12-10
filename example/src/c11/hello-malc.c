@@ -1,3 +1,5 @@
+/* malc's hello world */
+
 #include <stdio.h>
 
 #include <bl/base/default_allocator.h>
