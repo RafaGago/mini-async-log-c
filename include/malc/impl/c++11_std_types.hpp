@@ -20,9 +20,9 @@
 // A header including C++ types. To avoid header bloat and to make a clear
 // separation about what is C++ only.
 #if 1
-#warning "TODO: is passing volatile types broken: add tests"
+#warning "TODO: Move the object serialization and definitions to the C header."
 #warning "TODO: logging of typed arrays/vectors by value (maybe)"
-#warning "TODO: Move the object serialization and definitions to the C header. might require wrapping _Alignas"
+#warning "TODO: is passing volatile types broken: add tests"
 #warning "TODO: allow obj types from C"
 #warning "TODO: examples obj types from C"
 #warning "TODO: examples obj types from C++"

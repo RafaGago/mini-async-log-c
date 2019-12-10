@@ -36,14 +36,18 @@
 #define TSTAMP_INTEGER  11
 #define TSTAMP_DECIMAL 9
 /*----------------------------------------------------------------------------*/
-#define MAX_
+#ifndef ___cplusplus
+  #define MALC_ALIGNAS(v) _Alignas (v)
+#else
+  #define MALC_ALIGNAS(v) alignas (v)
+#endif
 /*----------------------------------------------------------------------------*/
 typedef struct entry_parser {
   bl_dstr             str;
   bl_dstr             fmt;
   bl_alloc_tbl const* alloc;
   bool                sanitize_log_entries;
-  _Alignas (MALC_OBJ_MAX_ALIGN) bl_u8 objstorage[MALC_OBJ_MAX_SIZE];
+  MALC_ALIGNAS (MALC_OBJ_MAX_ALIGN) bl_u8 objstorage[MALC_OBJ_MAX_SIZE];
   char timestamp[TSTAMP_INTEGER + TSTAMP_DECIMAL + 1 + 1]; /* dot + teminating 0 */
 }
 entry_parser;
@@ -56,4 +60,5 @@ BL_EXPORT bl_err entry_parser_get_log_strings(
   entry_parser* ep, log_entry const* e, malc_log_strings* strs
   );
 /*----------------------------------------------------------------------------*/
+#undef MALC_ALIGNAS
 #endif
