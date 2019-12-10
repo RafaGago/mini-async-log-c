@@ -156,8 +156,6 @@ static inline void malc_do_run_refdtor_compressed(
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifndef __cplusplus
-/*----------------------------------------------------------------------------*/
 #if MALC_PTR_COMPRESSION == 0
 
 static inline void malc_do_add_to_refarray_pass(
@@ -224,82 +222,6 @@ static inline void malc_do_run_refdtor_pass(
     );
 
 #endif /* MALC_PTR_COMPRESSION == 0 */
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-#else /* __cplusplus is defined*/
-/*----------------------------------------------------------------------------*/
-template<typename T>
-inline void malc_do_add_to_refarray_cpp(
-  malc_ref* a, bl_uword* idx, T const* v
-  )
-{}
-
-template <typename T>
-inline void malc_do_run_refdtor_cpp(
-  T* d, malc_ref const* refs, bl_uword refs_count
-  )
-{}
-
-/*----------------------------------------------------------------------------*/
-#if MALC_PTR_COMPRESSION == 0
-
-template<>
-inline void malc_do_add_to_refarray_cpp(
-  malc_ref* a, bl_uword* idx, malc_strref const* v
-  )
-{
-  malc_do_add_to_refarray (a, idx, (malc_ref const*) v);
-}
-
-template<>
-inline void malc_do_add_to_refarray_cpp(
-  malc_ref* a, bl_uword* idx, malc_memref const* v
-  )
-{
-  malc_do_add_to_refarray (a, idx, (malc_ref const*) v);
-}
-
-template <>
-inline void malc_do_run_refdtor_cpp(
-  malc_refdtor* d, malc_ref const* refs, bl_uword refs_count
-  )
-{
-  malc_do_run_refdtor (d, refs, refs_count);
-}
-#else /* MALC_PTR_COMPRESSION != 0 */
-
-template<>
-inline void malc_do_add_to_refarray_cpp(
-  malc_ref* a, bl_uword* idx, malc_compressed_ref const* v
-  )
-{
-  malc_do_add_to_refarray_compressed (a, idx, v);
-}
-
-template <>
-inline void malc_do_run_refdtor_cpp(
-  malc_compressed_refdtor* d, malc_ref const* refs, bl_uword refs_count
-  )
-{
-  malc_do_run_refdtor_compressed (d, refs, refs_count);
-}
-#endif /* MALC_PTR_COMPRESSION == 0 */
-/*----------------------------------------------------------------------------*/
-#define MALC_LOG_FILL_REF_ARRAY_VAR_IF_REF(expr, name)\
-  malc_do_add_to_refarray_cpp( \
-    bl_pp_tokconcat(malc_deallocrefs_, __LINE__), \
-    &bl_pp_tokconcat(malc_deallocrefs_idx, __LINE__), \
-    &(name) \
-    );
-
-#define MALC_LOG_REF_ARRAY_DEALLOC_SEARCH_EXEC(expr, name) \
-  malc_do_run_refdtor_cpp( \
-    &name, \
-    bl_pp_tokconcat(malc_deallocrefs_, __LINE__), \
-    bl_pp_tokconcat(malc_deallocrefs_idx, __LINE__) \
-    );
-
-#endif /* * __cplusplus */
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_FILL_REF_ARRAY(...) \
   /* Iterates all the variables (I, II, III, etc) and only adds the reference*/\

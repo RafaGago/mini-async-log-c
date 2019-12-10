@@ -19,7 +19,7 @@
 #include <malc/impl/common.h>
 
 #ifndef __cplusplus
-  /* use logging functions for C11 */
+  /* Don't load the C11 producer-side implementation when including from C++ */
   #include <malc/log_macros.h>
   #include <malc/impl/c11.h>
 #endif
