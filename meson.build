@@ -127,6 +127,7 @@ malcpp_srcs = [
     'src/malc/cpp-wrapper/destinations.cpp',
     'src/malc/cpp-wrapper/wrapper.cpp',
     'src/malc/cpp-wrapper/c++_std_types.cpp',
+    'src/malc/cpp-wrapper/custom_type.cpp',
     'src/malc/cpp-wrapper/malcpp-e-c-nd.cpp',
     'src/malc/cpp-wrapper/malcpp-ne-nc-nd.cpp',
     'src/malc/cpp-wrapper/malcpp-ne-nc-d.cpp',
@@ -303,7 +304,15 @@ if not get_option ('bare')
         cpp_args            : cflags,
         dependencies        : threads
         )
-
+    executable(
+        'malcpp-example-custom-type',
+        [ 'example/src/c++11/custom-type.cpp' ],
+        include_directories : smoke_test_include_dirs,
+        link_with           : malcpp_lib,
+        link_args           : test_link_args,
+        cpp_args            : cflags,
+        dependencies        : threads
+        )
     stcpp = executable(
             'malcpp-example-stress-test',
             [ 'example/src/c++11/stress-test.cpp' ],
