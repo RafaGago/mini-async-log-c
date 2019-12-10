@@ -11,45 +11,84 @@ Design
 
 The life of a log message under this logger is.
 
-At compile time:
+At compile time
+---------------
 
--The validation of the format string is done at compile-time (C++ only).
+-The format string is validated (C++ only).
 
 -A "static const" data structure is created containing the format string, the
  severity, a code for each data type and the number of compressed datatypes (if
  enabled). All the previous data can be passed with just the overhead of one
  pointer.
 
-At run time:
+At run time
+---------------
 
 -A log call is made.
 
--The passed values are stored on the stack after being passed through a
- type-specific conversion function, which leaves them ready to serialize. The
- conversion function is just doing nothing on most cases.
+-The passed arguments are stored on the stack after being passed through a
+ type-specific conversion function, which leaves the data type ready to
+ serialize and to retrieve it size on the wire. The conversion function is most
+ cases just doing nothing. Easy for the compiler to optimize away.
 
--The required payload for serializing the log entry is computed, taking as input
- the transformed type on the step above. For simple cases it's just a compile
- time constant (sizeof (type)).
+-The required payload size for serializing the unformatted log entry is
+ computed, taking as input the transformed type on the step above. For simple
+ cases it's just a compile time constant (sizeof (type)). Again easy to be
+ optimized away.
 
 -Memory for an intrusive linked list node and all the serialization payload is
- requested in a single memory chunk.
+ requested from the logger in a single contiguous memory chunk.
 
 -The pointer to the "static const" data structure and the payload data is
- serialized after the intrusive linked list node (unused at this point).
+ serialized on the memory chunk after the intrusive linked list node (unused at
+ this point).
 
--The intrusive node is passed to the logging list.
+-The intrusive node is passed to the logging queue.
 
 -At some point the consumer thread fetches the node, deserializes it, applies
  formatting, forwards it to the log destinations/sinks and then frees the node
  memory.
+
+The log queue
+-------------
+
+It's the well known Dmitry Vyukov's intrusive MPSC queue. Wait-free producers.
+Blocking consumer. Perfect for this use case. Very good performance under low
+contention and good performance when contended.
+
+The memory
+----------
+
+3 configurable memory sources:
+
+-Thread Local Storage. A per-thread bounded SPSC array-based cache-friendly
+ memory queue that has to be explictly iniatized by each thread using it.
+
+-Global bounded size queue. Again a Dmitry Vyukov queue. This time it's MPMC one
+ but broken in prepare-commit blocks and with a custom modification to accept
+ variable-size allocations (at the expense of fairness unfortunately). Can be
+ configured to use one queue per CPU to try to fight contention. This queue has
+ extremely good performance on the uncontended case but doesn't scale as good as
+ the modern Linux heap allocator under big contention. It's included because
+ bounded queues are desirable sometimes.
+
+-Allocator. Defaults to the heap but can allocate from any user-provided source.
+
+All three sources can be used together, separately or mixed. The priority order
+is: TLS, bounded, allocator.
+
+Formatting
+----------
+
+This is already hinted, there is no formatting on the producer-side. It happens
+on the consumer side and it's cost is masked by file-io.
 
 Features
 ========
 
 Common:
 
-- Dual C/C++ library.
+- Dual C/C++ library. The main implementation is C11.
 
 - Very high performance. I have not found yet a faster data logger from the
   consumer side. Even when comparing against non-textual ones. The benchmarks
@@ -96,17 +135,18 @@ C++ only:
   This logger can be used in projects with non-throwing coding standards.
   Projects that are willing to use exceptions can write less error handling
   boilerplate by enabling the exception based interface. The logging functions
-  are error code-based only, as they are free functions.
+  are error-code based only (noexcept), as they are free functions on the
+  fast-path.
 
-- Can log ostreamable types by value or wrapped in a shared pointer.
+- Can log std::ostream-able types by value or wrapped in a shared pointer.
 
 - Can log std::string, smart pointers to std::string and smart pointers to
   std::vector containing arithmetic types.
 
 - It allows adding custom logging for additional data types.
 
-- It almost doesn't leak any C function or type to the global namespace, and the
-  few they do are prefixed.
+- It almost doesn't leak any C function or data type to the global namespace,
+  and the few they do are prefixed.
 
 Usage Quickstart
 ==================
@@ -190,7 +230,7 @@ examples
 `"Escaped open brace: {{"`
 
 Build and test
-==================
+==============
 
 Linux
 ------
