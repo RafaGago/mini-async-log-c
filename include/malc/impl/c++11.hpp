@@ -212,7 +212,7 @@ static inline bl_err log(
   malctype&               malc,
   const char*,
   types&&...              args
-  )
+  ) noexcept
 {
   using argops = arg_ops<sizeof...(types)>;
   auto values = std::make_tuple(

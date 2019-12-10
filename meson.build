@@ -15,7 +15,7 @@ project(
 version_major = '1'
 version_minor = '0'
 version_rev   = '0'
-version       = version_minor + '.' + version_major + '.' + version_rev
+version       = version_major + '.' + version_minor + '.' + version_rev
 
 is_bare = get_option ('bare') ? 'true' : 'false'
 
