@@ -1,5 +1,5 @@
-#ifndef __MALC_CPP_HPP__
-#define __MALC_CPP_HPP__
+#ifndef __MALC_CPP_STD_TYPES_HPP__
+#define __MALC_CPP_STD_TYPES_HPP__
 
 #include <sstream>
 #include <memory>
@@ -15,12 +15,12 @@
 
 #include <bl/base/static_integer_math.h>
 
-#include <malc/impl/serialization.hpp>
+#include <malc/impl/c++11_basic_types.hpp>
 
 // A header including C++ types. To avoid header bloat and to make a clear
 // separation about what is C++ only.
 #if 1
-#warning "TODO: mutex wrapping or example about how to do it"
+#warning "TODO: is passing volatile types broken: add tests"
 #warning "TODO: logging of typed arrays/vectors by value (maybe)"
 #warning "TODO: Move the object serialization and definitions to the C header. might require wrapping _Alignas"
 #warning "TODO: allow obj types from C"
@@ -45,11 +45,11 @@ extern MALC_EXPORT MALCPP_DECLARE_GET_DATA_FUNC (string_smartptr_get_data);
 extern MALC_EXPORT MALCPP_DECLARE_GET_DATA_FUNC (vector_smartptr_get_data);
 extern MALC_EXPORT MALCPP_DECLARE_GET_DATA_FUNC (ostringstream_get_data);
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 namespace detail { namespace serialization {
-/*----------------------------------------------------------------------------*/
-/* OBJECT TYPES: interface types */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// OBJECT TYPES: interface types
+//------------------------------------------------------------------------------
 template <class T, bool is_rvalue>
 struct value_pass {
 public:
@@ -85,77 +85,62 @@ public:
 private:
   std::reference_wrapper<const T> v;
 };
-/*----------------------------------------------------------------------------*/
-template <class T>
-value_pass<T, false> valpass (T& v)
-{
-  return value_pass<T, false> (v);
-}
-
-template <class T>
-value_pass<T, true> valpass (T&& v)
-{
-  return value_pass<T, true> (std::forward<T> (v));
-}
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+}} //namespace detail { namespace serialization {
+//------------------------------------------------------------------------------
 template <class T, bool is_rvalue>
-struct interface_obj {
+struct raw_object {
   using tref = typename std::conditional<is_rvalue, T&&, T const&>::type;
 
-  interface_obj (tref v, malc_obj_table const* t) : obj (std::forward<tref> (v))
+  raw_object (tref v, void const* t) : obj (std::forward<tref> (v))
   {
     table = t;
   }
-  interface_obj (interface_obj&& rv) : obj (std::move (rv.obj))
-  {
-    table = rv.table;
-  }
-  malc_obj_table const*    table;
-  value_pass<T, is_rvalue> obj;
+  raw_object (raw_object&& rv) : raw_object (rv.obj.move(), rv.table)
+  {}
+
+  void const* table;
+  detail::serialization::value_pass<T, is_rvalue> obj;
 };
-
+//------------------------------------------------------------------------------
 template <class T, bool is_rvalue>
-struct interface_obj_w_context : public interface_obj<T, is_rvalue> {
-  using tref = typename interface_obj<T, is_rvalue>::tref;
+struct raw_object_w_context : public raw_object<T, is_rvalue> {
+  using tref = typename raw_object<T, is_rvalue>::tref;
 
-  interface_obj_w_context (tref v, malc_obj_table const* t, void* c) :
-    interface_obj<T, is_rvalue> (std::forward<tref> (v), t)
+  raw_object_w_context (tref v, malc_obj_table const* t, void* c) :
+    raw_object<T, is_rvalue> (std::forward<tref> (v), t)
   {
     context = c;
   }
-  interface_obj_w_context (interface_obj_w_context&& rv) :
-    interface_obj<T, is_rvalue>(
-      std::forward<interface_obj<T, is_rvalue> > (rv)
-      )
-  {
-    context = rv.context;
-  }
+  raw_object_w_context (raw_object_w_context&& rv) :
+    raw_object_w_context (std::move (rv.obj), rv.table, rv.context)
+  {}
+
   void* context;
 };
-
+//------------------------------------------------------------------------------
 template <class T, bool is_rvalue>
-struct interface_obj_w_flag : public interface_obj<T, is_rvalue> {
-  using tref = typename interface_obj<T, is_rvalue>::tref;
+struct raw_object_w_flag : public raw_object<T, is_rvalue> {
+  using tref = typename raw_object<T, is_rvalue>::tref;
 
-  interface_obj_w_flag (tref v, malc_obj_table const* t, bl_u8 f) :
-    interface_obj<T, is_rvalue> (std::forward<tref> (v), t)
+  raw_object_w_flag (tref v, malc_obj_table const* t, bl_u8 f) :
+    raw_object<T, is_rvalue> (std::forward<tref> (v), t)
   {
     flag = f;
   }
-  interface_obj_w_flag (interface_obj_w_flag&& rv) :
-    interface_obj<T, is_rvalue>(
-      std::forward<interface_obj<T, is_rvalue> > (rv)
-      )
-  {
-    flag = rv.flag;
-  }
+  raw_object_w_flag (raw_object_w_flag&& rv) :
+    raw_object_w_flag (std::move (rv.obj), rv.table, rv.flag)
+  {}
+
   bl_u8 flag;
 };
-/*----------------------------------------------------------------------------*/
-/* OBJECT TYPES: serialization types */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+namespace detail { namespace serialization {
+//------------------------------------------------------------------------------
+// OBJECT TYPES: serialization types
+//------------------------------------------------------------------------------
 template <class T>
-struct serializable_obj {
+struct wire_raw_object {
   static_assert(
     sizeof (T) <= MALC_OBJ_MAX_SIZE,
     "malc can only serialize objects from 0 to \"MALC_OBJ_MAX_SIZE\" bytes."
@@ -165,7 +150,7 @@ struct serializable_obj {
     "malc can only serialize objects aligned up to \"MALC_OBJ_MAX_ALIGN\" bytes."
     );
 #if MALC_PTR_COMPRESSION == 0
-  malc_obj_table const* table;
+  void const* table;
 #else
   malc_compressed_ptr table;
 #endif
@@ -173,7 +158,7 @@ struct serializable_obj {
 };
 
 template <class T>
-struct serializable_obj_w_context : public serializable_obj<T> {
+struct wire_raw_object_w_context : public wire_raw_object<T> {
 #if MALC_PTR_COMPRESSION == 0
   void* context;
 #else
@@ -182,272 +167,203 @@ struct serializable_obj_w_context : public serializable_obj<T> {
 };
 
 template <class T>
-struct serializable_obj_w_flag : public serializable_obj<T> {
+struct wire_raw_object_w_flag : public wire_raw_object<T> {
   bl_u8 flag;
 };
-/*----------------------------------------------------------------------------*/
+
+static constexpr bl_u16 cpp_std_types_compressed_count (bl_u8 type_id)
+{
+#if MALC_PTR_COMPRESSION == 0
+  return 0;
+#else
+  return
+    ((bl_u16) (type_id == malc_type_obj)) +
+    ((bl_u16) (type_id == malc_type_obj_flag)) +
+    (((bl_u16) (type_id == malc_type_obj_ctx)) * 2);
+#endif
+}
+//------------------------------------------------------------------------------
 /* OBJECT TYPES: type transformations. It is possible to log these
-(serializable_obj_*) types directly, but it requires the user to provide the
+(wire_raw_object_*) types directly, but it requires the user to provide the
 "malc_obj_get_data_fn" and "malc_obj_destroy_fn" functions manually. */
-/*----------------------------------------------------------------------------*/
-struct to_serialization_type_helper {
+//------------------------------------------------------------------------------
+template <class T, template <class, bool> class external>
+class obj_types_deduce_id_and_types;
+//------------------------------------------------------------------------------
+template <class T>
+struct obj_types_deduce_id_and_types<T, raw_object> :
+  public attach_type_id<malc_type_obj>
+{
+  template <bool value>
+  using external_type = raw_object<remove_cvref_t<T>, value>;
+  using serializable_type = wire_raw_object<remove_cvref_t<T> >;
+};
+//------------------------------------------------------------------------------
+template <class T>
+struct obj_types_deduce_id_and_types<T, raw_object_w_flag> :
+  public attach_type_id<malc_type_obj_flag>
+{
+  template <bool value>
+  using external_type = raw_object_w_flag<remove_cvref_t<T>, value>;
+  using serializable_type = wire_raw_object_w_flag<remove_cvref_t<T> >;
+};
+//------------------------------------------------------------------------------
+template <class T>
+struct obj_types_deduce_id_and_types<T, raw_object_w_context> :
+  public attach_type_id<malc_type_obj_ctx>
+{
+  template <bool value>
+  using external_type = raw_object_w_context<remove_cvref_t<T>, value>;
+  using serializable_type = wire_raw_object_w_context<remove_cvref_t<T> >;
+};
+//------------------------------------------------------------------------------
+template <class T, template <class, bool> class external>
+class obj_types_base : public obj_types_deduce_id_and_types<T, external> {
 public:
+  using base              = obj_types_deduce_id_and_types<T, external>;
+  using serializable_type = typename base::serializable_type;
+  template <bool rvalue>
+  using external_type     = typename base::template external_type<rvalue>;
+
+  static constexpr int compressed_count = serializable_type::compressed_count;
   //----------------------------------------------------------------------------
-  template <class T, bool is_rvalue>
-  static inline void run(
-    serializable_obj<T>& s, interface_obj<T, is_rvalue>& v
+  static inline serializable_type to_serializable (external_type<true>&& v)
+  {
+    serializable_type s;
+    fill_serializable (s, v);
+    return s;
+  }
+  //----------------------------------------------------------------------------
+  static inline serializable_type to_serializable (external_type<true>& v)
+  {
+    serializable_type s;
+    fill_serializable (s, v);
+    return s;
+  }
+  //----------------------------------------------------------------------------
+  static inline serializable_type to_serializable (external_type<false>&& v)
+  {
+    serializable_type s;
+    fill_serializable (s, v);
+    return s;
+  }
+  //----------------------------------------------------------------------------
+  static inline serializable_type to_serializable (external_type<false>& v)
+  {
+    serializable_type s;
+    fill_serializable (s, v);
+    return s;
+  }
+  //----------------------------------------------------------------------------
+  static inline std::size_t wire_size (serializable_type const& v)
+  {
+    return size (v);
+  };
+  //----------------------------------------------------------------------------
+  static inline void serialize (malc_serializer& s, serializable_type const& v)
+  {
+    do_serialize (s, v);
+  }
+  //----------------------------------------------------------------------------
+private:
+  //----------------------------------------------------------------------------
+  template <bool is_rvalue>
+  static inline void fill_serializable(
+    wire_raw_object<T>& s, raw_object<T, is_rvalue>& v
     )
   {
     new (&s.storage) T (v.obj.move());
-#if MALC_PTR_COMPRESSION == 0
-    s.table = v.table;
-#else
-    s.table = malc_get_compressed_ptr (v.table);
-#endif
+    s.table = get_logged_type<void*>::to_serializable ((void const*) v.table);
   }
   //----------------------------------------------------------------------------
-  template <class T, bool is_rvalue>
-  static inline void run(
-    serializable_obj_w_context<T>& s, interface_obj_w_context<T, is_rvalue>& v
+  static inline std::size_t size (wire_raw_object<T> const& v)
+  {
+    return get_logged_type<void*>::wire_size (v.table) + sizeof (T);
+  }
+  //----------------------------------------------------------------------------
+  static inline void do_serialize(
+    malc_serializer& s, wire_raw_object<T> const& v
     )
   {
-    run(
-      static_cast<serializable_obj<T>&> (s),
-      static_cast<interface_obj<T, is_rvalue>&> (v)
-      );
-#if MALC_PTR_COMPRESSION == 0
-    s.context = v.context;
-#else
-    s.context = malc_get_compressed_ptr (v.context);
-#endif
+    get_logged_type<void*>::serialize (s, v.table);
+    memcpy (s.field_mem, &v.storage, sizeof (T));
+    s.field_mem += sizeof (T);
   }
   //----------------------------------------------------------------------------
-  template <class T, bool is_rvalue>
-  static inline void run(
-    serializable_obj_w_flag<T>& s, interface_obj_w_flag<T, is_rvalue>& v
+  template <bool is_rvalue>
+  static inline void fill_serializable(
+    wire_raw_object_w_context<T>& s, raw_object_w_context<T, is_rvalue>& v
     )
   {
-    run(
-      static_cast<serializable_obj<T>&> (s),
-      static_cast<interface_obj<T, is_rvalue>&> (v)
+    fill_serializable(
+      static_cast<wire_raw_object<T>&> (s),
+      static_cast<raw_object<T, is_rvalue>&> (v)
       );
-    s.flag = v.flag;
+    s.table = get_logged_type<void*>::to_serializable (v.context);
+  }
+  //----------------------------------------------------------------------------
+  static inline std::size_t size (wire_raw_object_w_context<T> const& v)
+  {
+    return size (static_cast<wire_raw_object<T> const&> (v)) +
+      get_logged_type<void*>::wire_size (v.context);
+  }
+  //----------------------------------------------------------------------------
+  static inline void do_serialize(
+    malc_serializer& s, wire_raw_object_w_context<T> const& v
+    )
+  {
+    get_logged_type<void*>::serialize (s, v.context);
+    do_serialize (s, static_cast<wire_raw_object<T> const&> (v));
+  }
+  //----------------------------------------------------------------------------
+  template <bool is_rvalue>
+  static inline void fill_serializable(
+    wire_raw_object_w_flag<T>& s, raw_object_w_flag<T, is_rvalue>& v
+    )
+  {
+    fill_serializable(
+      static_cast<wire_raw_object<T>&> (s),
+      static_cast<raw_object<T, is_rvalue>&> (v)
+      );
+    s.flag = get_logged_type<bl_u8>::to_serializable (v.flag);
+  }
+  //----------------------------------------------------------------------------
+  static inline std::size_t size (wire_raw_object_w_flag<T> const& v)
+  {
+    return size (static_cast<wire_raw_object<T> const&> (v)) +
+      get_logged_type<bl_u8>::wire_size (v.flag);
+  }
+  //----------------------------------------------------------------------------
+  static inline void do_serialize(
+    malc_serializer& s, wire_raw_object_w_flag<T> const& v
+    )
+  {
+    get_logged_type<bl_u8>::serialize (s, v.flag);
+    do_serialize (s, static_cast<wire_raw_object<T> const&> (v));
   }
   //----------------------------------------------------------------------------
 };
-/*----------------------------------------------------------------------------*/
-/* OBJECT TYPES:
-This class is the base implementation for the "sertype<interface_obj*>"
-specialization family.
-
-This class gets passed objects of the "interface_type" "type", which use to
-contain all the required data to be able to serialize and print. Unfortunately
-at this point we don't know if the contained object (to copy) was passed as
-an rvalue or an lvalue.
-
-As of now, to simplify things, if the value is a full object copy we assume it
-was moved (rvalue) and we can move it again. If it doesn't we assumed the object
-was passed by an lvalue. This is a HIDDEN CONVENTION to fix.*/
-template <
-  class T,
-  char malc_id,
-  template <class, bool> class interface_type,
-  template <class> class serializable_type
-  >
-struct sertype_base {
-public:
-  using serializable   = serializable_type<T>;
-
-  static constexpr char id = malc_id;
-
-  template <bool is_rvalue>
-  static inline serializable
-    to_serialization_type (interface_type<T, is_rvalue>&& v)
-  {
-    serializable s;
-    to_serialization_type_helper::run (s, v);
-    return s;
-  }
-
-  template <bool is_rvalue>
-  static inline serializable
-    to_serialization_type (interface_type<T, is_rvalue>& v)
-  {
-    serializable s;
-    to_serialization_type_helper::run (s, v);
-    return s;
-  }
-};
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 template <class T, bool is_rvalue>
-struct sertype<interface_obj<T, is_rvalue> > :
-  public sertype_base<T, malc_type_obj, interface_obj, serializable_obj>
+struct logged_type<raw_object<T, is_rvalue> > :
+  public obj_types_base<T, raw_object>,
+  public default_format_validation
 {};
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 template <class T, bool is_rvalue>
-struct sertype<interface_obj_w_context<T, is_rvalue> > :
-  public sertype_base<
-    T, malc_type_obj_ctx, interface_obj_w_context, serializable_obj_w_context
-    >
+struct logged_type<raw_object_w_context<T, is_rvalue> > :
+  public obj_types_base<T, raw_object_w_context>,
+  public default_format_validation
 {};
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 template <class T, bool is_rvalue>
-struct sertype<interface_obj_w_flag<T, is_rvalue> > :
-  public sertype_base<
-    T, malc_type_obj_flag, interface_obj_w_flag, serializable_obj_w_flag
-    >
+struct logged_type<raw_object_w_flag<T, is_rvalue> > :
+  public obj_types_base<T, raw_object_w_flag>,
+  public default_format_validation
 {};
-/*----------------------------------------------------------------------------*/
-}} // namespace detail { namespace serialization {
-/*----------------------------------------------------------------------------*/
-/* OBJECT TYPES: user-facing functions to serialize object types */
-/*----------------------------------------------------------------------------*/
-template <class T>
-static detail::serialization::interface_obj<T, false>
-  object (T const& v, malc_obj_table const* table)
-{
-  return detail::serialization::interface_obj<T, false> (v, table);
-}
-
-template <class T>
-static detail::serialization::interface_obj<T, true>
-  object (T&& v, malc_obj_table const* table)
-{
-  return detail::serialization::interface_obj<T, true>(
-    std::forward<T> (v), table
-    );
-}
-
-template <class T>
-static detail::serialization::interface_obj_w_context<T, false>
-  object (T const& v, malc_obj_table const* table, void* context)
-{
-  return detail::serialization::interface_obj_w_context<T, false>(
-    v, table, context
-    );
-}
-
-template <class T>
-static detail::serialization::interface_obj_w_context<T, true>
-  object (T&& v, malc_obj_table const* table, void* context)
-{
-  return detail::serialization::interface_obj_w_context<T, true>(
-    std::forward<T> (v), table, context
-    );
-}
-
-template <class T>
-static detail::serialization::interface_obj_w_flag<T, false>
-  object (T const& v, malc_obj_table const* table, bl_u8 flag)
-{
-  return detail::serialization::interface_obj_w_flag<T, false>(
-    v, table, flag
-    );
-}
-
-template <class T>
-static detail::serialization::interface_obj_w_flag<T, true>
-  object (T&& v, malc_obj_table const* table, bl_u8 flag)
-{
-  return detail::serialization::interface_obj_w_flag<T, true>(
-    std::forward<T> (v), table, flag
-    );
-}
-/*----------------------------------------------------------------------------*/
-namespace detail { namespace serialization {
-/*----------------------------------------------------------------------------*/
-//OBJECT TYPES: providing some C++ types on the standard library.
-/*----------------------------------------------------------------------------*/
-template <class T>
-struct sertype<serializable_obj<T> >{
-  using serializable = serializable_obj<T>;
-
-  static inline bl_uword size (serializable_obj<T> const& v)
-  {
-    assert (sizeof (T) == v.table->obj_sizeof);
-    return
-#if MALC_PTR_COMPRESSION == 0
-      bl_sizeof_member (serializable, table)
-#else
-      malc_compressed_get_size (v.table.format_nibble)
-#endif
-      + sizeof (T);
-  }
-};
-/*----------------------------------------------------------------------------*/
-template <class T>
-struct sertype<serializable_obj_w_context<T> > {
-  using serializable = serializable_obj_w_context<T>;
-
-  static inline bl_uword size (serializable const& v)
-  {
-    return sertype<serializable_obj<T> >::size (v)
-#if MALC_PTR_COMPRESSION == 0
-      + bl_sizeof_member (serializable, context);
-#else
-      + malc_compressed_get_size (v.context.format_nibble);
-#endif
-  }
-};
-/*----------------------------------------------------------------------------*/
-template <class T>
-struct sertype<serializable_obj_w_flag<T> > {
-  using serializable = serializable_obj_w_flag<T>;
-
-  static inline bl_uword size (serializable const& v)
-  {
-    return sertype<serializable_obj<T> >::size (v)
-      + bl_sizeof_member (serializable, flag);
-  }
-};
-/*----------------------------------------------------------------------------*/
-/* //OBJECT TYPES: serializations */
-/*----------------------------------------------------------------------------*/
-template <class T>
-static inline void serialize_type (malc_serializer& s, T& v)
-{
-  memcpy (s.field_mem, &v, sizeof v);
-  s.field_mem += sizeof v;
-};
-/*----------------------------------------------------------------------------*/
-#if MALC_PTR_COMPRESSION == 1
-static inline void serialize_type (malc_serializer& s, malc_compressed_ptr& v)
-{
-  malc_serialize_compressed_ptr (&s, v);
-};
-#endif
-/*----------------------------------------------------------------------------*/
-template <class T>
-static inline void malc_serialize(
-  malc_serializer* s, serializable_obj<T> const& v
-  )
-{
-  assert (sizeof (T) == v.table->obj_sizeof);
-  serialize_type (*s, v.table);
-  memcpy (s->field_mem, &v.storage, sizeof (T));
-  s->field_mem += sizeof (T);
-}
-/*----------------------------------------------------------------------------*/
-template <class T>
-static inline void malc_serialize(
-  malc_serializer* s, serializable_obj_w_context<T> const& v
-  )
-{
-  serialize_type (*s, v.context);
-  malc_serialize (s, static_cast<serializable_obj<T> const&> (v));
-}
-/*----------------------------------------------------------------------------*/
-template <class T>
-static inline void malc_serialize(
-  malc_serializer* s, serializable_obj_w_flag<T> const& v
-  )
-{
-  serialize_type (*s, v.flag);
-  malc_serialize (s, static_cast<serializable_obj<T> const&> (v));
-}
-/*----------------------------------------------------------------------------*/
-/* OBJECT TYPES: validation helpers */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// OBJECT TYPES: validation helpers
+//------------------------------------------------------------------------------
 template <template <class, class...> class smartptr>
 struct is_valid_smartptr : public std::integral_constant<
   bool,
@@ -463,16 +379,9 @@ struct is_valid_container : public std::integral_constant<
   std::is_same<container<char>, std::vector<char> >::value
   >
 {};
-
-template <class T>
-struct is_valid_builtin : public std::integral_constant<
-  bool,
-  std::is_arithmetic<T>::value && ! std::is_same<T, bool>::value
-  >
-{};
-/*----------------------------------------------------------------------------*/
-/* OBJECT TYPES: smartpr get_data functions */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// OBJECT TYPES: smartpr get_data functions
+//------------------------------------------------------------------------------
 template <class T, class enable = void>
 struct smartpr_get_data_function;
 
@@ -494,7 +403,7 @@ struct smartpr_get_data_function<
   static constexpr malc_obj_get_data_fn value = vector_smartptr_get_data;
 };
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 template <class T>
 struct dereference_smarptr;
 
@@ -524,100 +433,112 @@ struct dereference_smarptr<std::unique_ptr<T, D> > {
     return static_cast<std::unique_ptr<T, D>*> (ptr)->get();
   }
 };
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 struct smartptr_table  {
   malc_obj_table table;
   void* (*dereference) (void* ptr);
 };
-/*----------------------------------------------------------------------------*/
-/* OBJECT TYPES: Transformations for smart pointers. These create a
-serialization-friendly type directly from C++ types.
-*/
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// OBJECT TYPES: Transformations for smart pointers.
+//------------------------------------------------------------------------------
 template<class ptrtype>
-struct smartptr_type  {
-public:
-  static constexpr char id = malc_type_obj;
+struct smartptr_obj : private obj_types_base<ptrtype, raw_object>
+{
+  //----------------------------------------------------------------------------
+  using base = obj_types_base<ptrtype, raw_object>;
+  //----------------------------------------------------------------------------
+  using base::type_id;
+  using typename base::serializable_type;
+  using base::external_type;
+  using base::serialize;
+  using base::wire_size;
 
-  static inline serializable_obj<ptrtype>
-    to_serialization_type (ptrtype const& v)
+  using interface_type = ptrtype;
+  //----------------------------------------------------------------------------
+  static inline serializable_type to_serializable (interface_type const& v)
   {
-    return to_serialization_type_base (object (v, &table.table));
-  }
-
-  static inline serializable_obj<ptrtype> to_serialization_type (ptrtype&& v)
-  {
-    return to_serialization_type_base(
-      object (std::forward<ptrtype> (v), &table.table)
+    return base::to_serializable(
+      raw_object<interface_type, false> (v, &table.table)
       );
   }
-
-  static const smartptr_table table;
-
-private:
-  template <class T>
-  static serializable_obj<ptrtype> to_serialization_type_base (T&& v)
+  //----------------------------------------------------------------------------
+  static inline serializable_type to_serializable (interface_type&& v)
   {
-    return sertype<T>::to_serialization_type (std::forward<T> (v));
+    return base::to_serializable(
+      raw_object<ptrtype, true> (std::forward<interface_type> (v), &table.table)
+      );
   }
-
+  //----------------------------------------------------------------------------
+  static const smartptr_table table;
+  //----------------------------------------------------------------------------
+private:
+  //----------------------------------------------------------------------------
   static void destroy (malc_obj_ref* obj, void const*)
   {
     static_cast<ptrtype*> (obj->obj)->~ptrtype();
   }
 };
-
+//------------------------------------------------------------------------------
 template <class ptrtype>
-const smartptr_table smartptr_type<ptrtype>::table{
+const smartptr_table smartptr_obj<ptrtype>::table{
   .table = {
     smartpr_get_data_function<ptrtype>::value, destroy, sizeof (ptrtype)
   },
   .dereference = dereference_smarptr<ptrtype>::run,
 };
-/*----------------------------------------------------------------------------*/
-template< class ptrtype, unsigned char flag_default>
-struct smartptr_type_w_flag {
-public:
-  static constexpr char id = malc_type_obj_flag;
+//------------------------------------------------------------------------------
+template<class ptrtype, bl_u8 flag_default>
+struct smartptr_obj_w_flag : private obj_types_base<ptrtype, raw_object_w_flag>
+{
+  //----------------------------------------------------------------------------
+  using base = obj_types_base<ptrtype, raw_object_w_flag>;
+  //----------------------------------------------------------------------------
+  using base::type_id;
+  using typename base::serializable_type;
+  using base::external_type;
+  using base::serialize;
+  using base::wire_size;
 
-  static smartptr_table const* const table;
-
-  static inline serializable_obj_w_flag<ptrtype>
-    to_serialization_type (ptrtype const & v, unsigned char flag = flag_default)
+  using interface_type = ptrtype;
+  //----------------------------------------------------------------------------
+  static inline serializable_type
+    to_serializable (interface_type const& v, bl_u8 flag = flag_default)
   {
-    return to_serialization_type_base (object (v, &table->table, flag));
-  }
-
-  static inline serializable_obj_w_flag<ptrtype>
-    to_serialization_type (ptrtype&& v, unsigned char flag = flag_default)
-  {
-    return to_serialization_type_base(
-      object (std::forward<ptrtype> (v), &table->table, flag)
+    return base::to_serializable(
+      raw_object_w_flag<interface_type, false> (v, &table->table, flag)
       );
   }
-private:
-  template <class T>
-  static serializable_obj_w_flag<ptrtype> to_serialization_type_base (T&& v)
+  //----------------------------------------------------------------------------
+  static inline serializable_type
+    to_serializable (interface_type&& v, bl_u8 flag = flag_default)
   {
-    return sertype<T>::to_serialization_type (std::forward<T> (v));
+    return base::to_serializable(
+      raw_object_w_flag<ptrtype, true>(
+        std::forward<interface_type> (v), &table->table, flag
+        )
+      );
   }
+  //----------------------------------------------------------------------------
+private:
+  static smartptr_table const * const table;
 };
-
+//------------------------------------------------------------------------------
 template <class ptrtype, unsigned char flag>
-smartptr_table const* const smartptr_type_w_flag<ptrtype, flag>::table =
-  &smartptr_type<ptrtype>::table;
-/*----------------------------------------------------------------------------*/
-/* OBJECT TYPES: type instantiations of smart pointer types*/
-/*----------------------------------------------------------------------------*/
-// "sertype" for smart pointers of std::string.
+smartptr_table const* const smartptr_obj_w_flag<ptrtype, flag>::table =
+  &smartptr_obj<ptrtype>::table;
+//------------------------------------------------------------------------------
+// OBJECT TYPES: type instantiations of smart pointer types
+//------------------------------------------------------------------------------
+// "logged_type" for smart pointers of std::string.
 template<template <class, class...> class smartptr, class... types>
-struct sertype<
+struct logged_type<
   smartptr<std::string, types...>,
   typename std::enable_if<is_valid_smartptr<smartptr>::value>::type
   > :
-  public smartptr_type<smartptr<std::string, types...> >
+  public smartptr_obj<smartptr<std::string, types...> >,
+  public default_format_validation
 {};
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 template <class T>
 struct arithmetic_type_flag {
   static constexpr bl_u8 get()
@@ -636,7 +557,7 @@ template <>
 struct arithmetic_type_flag<double> {
   static constexpr bl_u8 get() { return malc_obj_double; }
 };
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static_assert (arithmetic_type_flag<bl_u8>::get()  == malc_obj_u8, "");
 static_assert (arithmetic_type_flag<bl_u16>::get() == malc_obj_u16, "");
 static_assert (arithmetic_type_flag<bl_u32>::get() == malc_obj_u32, "");
@@ -645,8 +566,8 @@ static_assert (arithmetic_type_flag<bl_i8>::get()  == malc_obj_i8, "");
 static_assert (arithmetic_type_flag<bl_i16>::get() == malc_obj_i16, "");
 static_assert (arithmetic_type_flag<bl_i32>::get() == malc_obj_i32, "");
 static_assert (arithmetic_type_flag<bl_i64>::get() == malc_obj_i64, "");
-/*----------------------------------------------------------------------------*/
-// "sertype" for all classes of vectors, builtins and smart pointers.
+//------------------------------------------------------------------------------
+// "logged_type" for smart pointers containing std::vectors of arithmetic types
 template <
   template <class, class...> class smartptr,
   template <class, class...> class container,
@@ -654,7 +575,7 @@ template <
   class...                         vectypes,
   class...                         smartptrtypes
   >
-struct sertype<
+struct logged_type<
   smartptr<container<T, vectypes...>, smartptrtypes...> ,
   typename std::enable_if<
     is_valid_builtin<T>::value &&
@@ -662,14 +583,21 @@ struct sertype<
     is_valid_container<container>::value
     >::type
   > :
-  public smartptr_type_w_flag<
+  public smartptr_obj_w_flag<
     smartptr<container<T, vectypes...>, smartptrtypes...>,
     arithmetic_type_flag<T>::get()
-    >
+    >,
+  public std::conditional<
+    std::is_floating_point<T>::value,
+    floating_point_format_validation,
+    integral_format_validation
+    >::type
 {};
-/*----------------------------------------------------------------------------*/
-/* OBJECT TYPES: type instantiations for streamable types */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// OBJECT TYPES: type instantiations for streamable types. Streamable types
+// don't have its own logged_type, as they are logged by using the "ostr"
+// function.
+//------------------------------------------------------------------------------
 template <class T, bool is_rvalue>
 struct ostreamable {
   using tref = typename std::conditional<is_rvalue, T&&, T const&>::type;
@@ -678,7 +606,7 @@ struct ostreamable {
 
   value_pass<T, is_rvalue> obj;
 };
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 template <class T, class enable = void>
 struct ostreamable_printer {
   static bool run (void* ptr, std::ostringstream& o)
@@ -703,41 +631,17 @@ struct ostreamable_printer<
     return false;
   }
 };
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 struct ostreamable_table  {
   malc_obj_table table;
   bool (*print) (void* ptr, std::ostringstream& o);
 };
-/*----------------------------------------------------------------------------*/
-template <class T, bool is_rvalue>
-struct ostreamable_impl {
+//------------------------------------------------------------------------------
+template <class T>
+class ostreamable_table_get {
 public:
-  static constexpr char id = malc_type_obj;
-  //----------------------------------------------------------------------------
-  static inline serializable_obj<T>
-    to_serialization_type (ostreamable<T, is_rvalue>& v)
-  {
-    return to_serialization_type_base(
-      detail::serialization::interface_obj<T, is_rvalue>(
-        v.obj.move(), &table.table
-        ));
-  }
-  //----------------------------------------------------------------------------
-  static inline serializable_obj<T>
-    to_serialization_type (ostreamable<T, is_rvalue>&& v)
-  {
-    return to_serialization_type_base(
-      detail::serialization::interface_obj<T, is_rvalue>(
-        v.obj.move(), &table.table
-        ));
-  }
-  //----------------------------------------------------------------------------
+  static const ostreamable_table value;
 private:
-  template <class U>
-  static serializable_obj<T> to_serialization_type_base (U&& v)
-  {
-    return sertype<U>::to_serialization_type (std::forward<U> (v));
-  }
   //----------------------------------------------------------------------------
   static void destroy (malc_obj_ref* obj, void const*)
   {
@@ -749,59 +653,16 @@ private:
     o << *static_cast<T*> (ptr);
   }
   //----------------------------------------------------------------------------
-  static const ostreamable_table table;
 };
-template <class T, bool is_rvalue>
-const ostreamable_table ostreamable_impl<T, is_rvalue>::table{
+template <class T>
+const ostreamable_table ostreamable_table_get<T>::value{
   .table = {
     ostringstream_get_data, destroy, sizeof (T)
   },
-  .print = ostreamable_printer<remove_cvref_t<T> >::run,
+  .print = ostreamable_printer<T>::run,
 };
-/*----------------------------------------------------------------------------*/
-template <class T, bool is_rvalue>
-struct builtin_use_no_ostream {
-  using builtin = remove_cvref_t<T>;
-  static constexpr char id = sertype<builtin>::id;
-  //----------------------------------------------------------------------------
-  static inline builtin to_serialization_type (ostreamable<T, is_rvalue>& v)
-  {
-    return v.obj.move();
-  }
-  //----------------------------------------------------------------------------
-  static inline builtin to_serialization_type (ostreamable<T, is_rvalue>&& v)
-  {
-    return v.obj.move();
-  }
-  //----------------------------------------------------------------------------
-};
-/*----------------------------------------------------------------------------*/
-template <class T, bool is_rvalue>
-struct sertype<ostreamable<T, is_rvalue> > :
-  public std::conditional<
-    !is_valid_builtin<remove_cvref_t<T> >::value,
-    ostreamable_impl<T, is_rvalue>,
-    builtin_use_no_ostream<T, is_rvalue>
-    >::type
-{};
-/*----------------------------------------------------------------------------*/
-}} // namespace detail { namespace serialization {
-/*----------------------------------------------------------------------------*/
-// OBJECT TYPES: user-facing functions to log stream objects.
-/*----------------------------------------------------------------------------*/
-template <class T>
-detail::serialization::ostreamable<T, false> ostr (T& v)
-{
-  return detail::serialization::ostreamable<T, false> (v);
-}
-/*----------------------------------------------------------------------------*/
-template <class T>
-detail::serialization::ostreamable<T, true> ostr (T&& v)
-{
-  return detail::serialization::ostreamable<T, true> (std::forward<T> (v));
-}
-/*----------------------------------------------------------------------------*/
-
-} // namespace malcpp {
+//------------------------------------------------------------------------------
+}}} // namespace malcpp { namespace detail { namespace serialization {
+//------------------------------------------------------------------------------
 
 #endif // __MALC_CPP_STD_TYPES_HPP__

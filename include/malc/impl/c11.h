@@ -23,31 +23,8 @@
   typeof (malc_type_transform (expression)) name = \
     malc_type_transform (expression);
 /*----------------------------------------------------------------------------*/
-#if MALC_PTR_COMPRESSION == 0
-  #define malc_ptr_compress_count(x) 0
-#else
-  #define malc_ptr_compress_count(x)\
-    (((int) malc_get_type_code ((x)) == malc_type_ptr) + \
-     ((int) malc_get_type_code ((x)) == malc_type_lit) + \
-     ((int) malc_get_type_code ((x)) == malc_type_strref) + \
-     ((int) malc_get_type_code ((x)) == malc_type_memref) + \
-     (((int) malc_get_type_code ((x)) == malc_type_refdtor) * 2) \
-    )
-#endif
-
-#if MALC_BUILTIN_COMPRESSION == 0
-  #define malc_builtin_compress_count(x) 0
-#else
-  #define malc_builtin_compress_count(x)\
-    (((int) malc_get_type_code ((x)) == malc_type_i32) + \
-     ((int) malc_get_type_code ((x)) == malc_type_u32) + \
-     ((int) malc_get_type_code ((x)) == malc_type_i64) + \
-     ((int) malc_get_type_code ((x)) == malc_type_u64) \
-    )
-#endif
-/*----------------------------------------------------------------------------*/
-#define malc_compress_count(x)\
-  (malc_builtin_compress_count (x) + malc_ptr_compress_count (x))
+#define malc_compress_count(x) \
+  malc_total_compress_count (malc_get_type_code ((x)))
 /*----------------------------------------------------------------------------*/
 /* used for testing, ignore */
 #ifndef MALC_GET_MIN_SEVERITY_FNAME
@@ -163,7 +140,7 @@ static inline void malc_do_add_to_refarray_compressed(
   )
 {
   malc_ref r;
-  r.ref  = (void const*) v->ref.v;
+  r.ref  = (void*) v->ref.v;
   r.size = v->size;
   malc_do_add_to_refarray (a, idx, &r);
 }

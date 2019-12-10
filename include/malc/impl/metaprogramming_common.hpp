@@ -5,6 +5,59 @@
 
 namespace malcpp { namespace detail {
 //------------------------------------------------------------------------------
+class literal {
+public:
+  //----------------------------------------------------------------------------
+  constexpr literal (const char *const lit, const int size) :
+    m_lit  (lit),
+    m_size (size)
+  {}
+  //----------------------------------------------------------------------------
+  template <int N>
+  constexpr literal (const char(&arr)[N]) : literal (arr, N - 1)
+  {
+      static_assert (N >= 1, "not a string literal");
+  }
+  //----------------------------------------------------------------------------
+  constexpr operator const char*() const  { return m_lit; }
+  constexpr int size() const              { return m_size; }
+  constexpr char operator[] (int i) const { return m_lit[i]; }
+  //----------------------------------------------------------------------------
+  constexpr int find (char c, int beg, int end, int notfoundval = -1) const
+  {
+    return
+      (beg < end)
+      ? (m_lit[beg] == c) ? beg : find (c, beg + 1, end, notfoundval)
+      : notfoundval;
+  }
+  //----------------------------------------------------------------------------
+  constexpr bool has_repeated_chars (int beg, int end) const
+  {
+    return
+      ((end - beg) > 1)
+      ? find (m_lit[beg], beg + 1, end, -1) == -1
+        ? has_repeated_chars (beg + 1, end)
+        : true
+      : false;
+  }
+  //----------------------------------------------------------------------------
+  constexpr literal substr (int beg, int end)
+  {
+    return literal (m_lit + beg, end - beg);
+  }
+  //----------------------------------------------------------------------------
+  constexpr literal substr (int beg)
+  {
+    return substr (beg, m_size);
+  }
+  //----------------------------------------------------------------------------
+private:
+  //--------------------------------------------------------------------------
+  const char *const m_lit;
+  const int         m_size;
+    //--------------------------------------------------------------------------
+};
+//------------------------------------------------------------------------------
 template <int...>
 struct intlist {};
 //------------------------------------------------------------------------------

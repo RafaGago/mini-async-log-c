@@ -4,66 +4,26 @@
 #include <malc/impl/metaprogramming_common.hpp>
 #include <malc/impl/serialization.hpp>
 
-#ifdef MALCPP_CPP11_TYPES
-#include <vector>
-#include <memory>
-#endif
+//------------------------------------------------------------------------------
+namespace malcpp { namespace detail { namespace fmt {
 
-//------------------------------------------------------------------------------
-namespace malcpp { namespace detail { namespace fmt { // string format validation
-//------------------------------------------------------------------------------
-class literal {
-public:
-  //----------------------------------------------------------------------------
-  constexpr literal (const char *const lit, const int size) :
-    m_lit  (lit),
-    m_size (size)
-  {}
-  //----------------------------------------------------------------------------
-  template <int N>
-  constexpr literal (const char(&arr)[N]) : literal (arr, N - 1)
+struct remainder_type_tag {};
+
+}// namespace fmt {
+namespace serialization {
+
+// A dummy type to check from the last argument placeholder on the format string
+// to the end of the format string.
+template <>
+struct logged_type<::malcpp::detail::fmt::remainder_type_tag> {
+  static constexpr bool validate_format_modifiers (literal const& l)
   {
-      static_assert (N >= 1, "not a string literal");
+    return l.size() == 0; //whatever we return will give excess placeholders.
   }
-  //----------------------------------------------------------------------------
-  constexpr operator const char*() const  { return m_lit; }
-  constexpr int size() const              { return m_size; }
-  constexpr char operator[] (int i) const { return m_lit[i]; }
-  //----------------------------------------------------------------------------
-  constexpr int find (char c, int beg, int end, int notfoundval = -1) const
-  {
-    return
-      (beg < end)
-      ? (m_lit[beg] == c) ? beg : find (c, beg + 1, end, notfoundval)
-      : notfoundval;
-  }
-  //----------------------------------------------------------------------------
-  constexpr bool has_repeated_chars (int beg, int end) const
-  {
-    return
-      ((end - beg) > 1)
-      ? find (m_lit[beg], beg + 1, end, -1) == -1
-        ? has_repeated_chars (beg + 1, end)
-        : true
-      : false;
-  }
-  //----------------------------------------------------------------------------
-  constexpr literal substr (int beg, int end)
-  {
-    return literal (m_lit + beg, end - beg);
-  }
-  //----------------------------------------------------------------------------
-  constexpr literal substr (int beg)
-  {
-    return substr (beg, m_size);
-  }
-  //----------------------------------------------------------------------------
-private:
-  //--------------------------------------------------------------------------
-  const char *const m_lit;
-  const int         m_size;
-    //--------------------------------------------------------------------------
 };
+
+} // namespace serialization
+namespace fmt { // string format validation
 //------------------------------------------------------------------------------
 enum fmterr : int {
   fmterr_success_with_refs   = 1,
@@ -101,184 +61,6 @@ struct fmtret {
   static constexpr unsigned get_arg (unsigned fmtretval)
   {
     return fmtretval & valmask;
-  }
-  //----------------------------------------------------------------------------
-};
-//------------------------------------------------------------------------------
-struct remainder_type_tag {};
-//------------------------------------------------------------------------------
-class modifiers {
-public:
-  //----------------------------------------------------------------------------
-  template<class T>
-  static constexpr typename std::enable_if<
-    std::is_integral<T>::value, int
-    >::type
-    validate (const literal& l, T*)
-  {
-    return (l.size() == 0)
-      ? fmterr_success
-      : validate_int (l, 0, l.size(), literal (" #+-0"), 0);
-  }
-  //----------------------------------------------------------------------------
-  template<class T>
-  static constexpr typename std::enable_if<
-    std::is_floating_point<T>::value, int
-    >::type
-    validate (const literal& l, T*)
-  {
-    return (l.size() == 0)
-      ? fmterr_success
-      : validate_float (l, 0, l.size(), literal (" #+-0"), 0);
-  }
-  //----------------------------------------------------------------------------
-#ifdef MALCPP_CPP11_TYPES
-  template<
-    class T,
-    template <class, class...> class smartptr,
-    template <class, class...> class container,
-    class ...containertypes,
-    class ...ptrtypes>
-  static constexpr typename std::enable_if<
-      serialization::is_valid_builtin<T>::value &&
-      serialization::is_valid_smartptr<smartptr>::value &&
-      serialization::is_valid_container<container>::value,
-      int
-    >::type
-    validate(
-      const literal& l, smartptr<container<T, containertypes...>, ptrtypes...>*
-      )
-  {
-    return validate (l, (T*) nullptr);
-  }
-#endif
-  //----------------------------------------------------------------------------
-  template<class T>
-  static constexpr typename std::enable_if<
-    std::is_same<T, remainder_type_tag>::value, int
-    >::type
-    validate (const literal& l, T*)
-  {
-    /* This is called when all function parameters are processed to check if
-    there are still placeholders on the string. At this point anything we return
-    other than "fmterr_notfound" will be an error.
-
-    If there is a consecutive open and close bracket we consider it as a found
-    placeholder, it will be reported  as "fmt_excess_placeholders". If they are
-    non-consecutive we consider that the user forgot to escape the left bracket.
-    Both return will generate an error on the parser. */
-    return (l.size() == 0) ?  fmterr_success : fmterr_unclosed_lbracket;
-  }
-  //----------------------------------------------------------------------------
-  static constexpr int validate (const literal& l, ...)
-  {
-    /* unknown types have no modifiers, type validation happens later.
-    "..." the elipsis operator gives this overload the lowest priority when
-    searching for resolution candidates. */
-    return (l.size() == 0) ? fmterr_success : fmterr_invalid_modifiers;
-  }
-private:
-  //----------------------------------------------------------------------------
-  static constexpr int validate_specifiers(
-    const literal& l, int beg, int end, const literal& modf
-    )
-  {
-    return
-      (beg < end)
-      ? (end - beg == 1)
-        ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
-          //keep validating
-          ? validate_specifiers (l, beg + 1, end, modf)
-          //unknown modifier
-          : fmterr_invalid_modifiers
-        //only one specifier allowed
-        : fmterr_invalid_modifiers
-      : fmterr_success;
-  }
-  //----------------------------------------------------------------------------
-  static constexpr int validate_int_width(
-    const literal& l,
-    int beg,
-    int end,
-    const literal& modf,
-    int own = 0,
-    int num = 0
-    )
-  {
-    return
-      (beg < end)
-      ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
-        //keep validating the same stage
-        ? (l[beg] == 'W' || l[beg] == 'N')
-          ? (own == 0 && num == 0)
-            ? validate_int_width (l, beg + 1, end, modf, own + 1, num)
-            : fmterr_invalid_modifiers
-          : (own == 0)
-            ? validate_int_width (l, beg + 1, end, modf, own, num + 1 )
-            : fmterr_invalid_modifiers
-        //next stage
-        : validate_specifiers (l, beg, end, literal ("xXo"))
-      : fmterr_success;
-  }
-  //----------------------------------------------------------------------------
-  static constexpr int validate_int(
-    const literal& l, int beg, int end, const literal& modf, int stgbeg
-    )
-  {
-    // this function validates the flags or jumps to the width modifiers
-    return
-      (beg < end)
-      ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
-        //keep validating the same stage
-        ? validate_int (l, beg + 1, end, modf, stgbeg)
-        //next stage
-        : l.has_repeated_chars (stgbeg, beg)
-          ? fmterr_invalid_modifiers
-          : validate_int_width (l, beg, end, literal ("WN0123456789"))
-      : l.has_repeated_chars (stgbeg, beg)
-        ? fmterr_invalid_modifiers
-        : fmterr_success;
-  }
-  //----------------------------------------------------------------------------
-  static constexpr int validate_float_width_precision(
-    const literal& l, int beg, int end, const literal& modf, int has_dot = 0
-    )
-  {
-    return
-      (beg < end)
-      ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
-        //keep validating the same stage
-        ? (has_dot == 0 || l[beg] != '.')
-          ? validate_float_width_precision(
-            l, beg + 1, end, modf, has_dot + (l[beg] == '.')
-            )
-          // duplicated dot
-          : fmterr_invalid_modifiers
-        //next stage
-        : validate_specifiers (l, beg, end, literal ("fFeEgGaA"))
-      : fmterr_success;
-  }
-  //----------------------------------------------------------------------------
-  static constexpr int validate_float(
-    const literal& l, int beg, int end, const literal& modf, int stgbeg
-    )
-  {
-    // this function validates the flags or jumps to the width/precision
-    // modifiers
-    return
-      (beg < end)
-      ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
-        //keep validating the same stage
-        ? validate_float (l, beg + 1, end, modf, stgbeg)
-        //next stage
-        : l.has_repeated_chars (stgbeg, beg)
-          ? fmterr_invalid_modifiers
-          : validate_float_width_precision(
-            l, beg, end, literal (".0123456789")
-            )
-      : l.has_repeated_chars (stgbeg, beg)
-        ? fmterr_invalid_modifiers
-        : fmterr_success;
   }
   //----------------------------------------------------------------------------
 };
@@ -340,16 +122,19 @@ private:
     many times*/
     return (end != fmterr_notfound)
       ? validate_next_step3_validation(
-          end, modifiers::validate (l.substr (beg, end), (T*) nullptr)
+          end,
+          serialization::get_logged_type<T>::validate_format_modifiers(
+            l.substr (beg, end)
+            )
           )
       : fmterr_unclosed_lbracket;
   }
   //----------------------------------------------------------------------------
   static constexpr int validate_next_step3_validation(
-    int end, int validation_ret
+    int end, bool validation_ret
     )
   {
-    return (validation_ret == fmterr_success) ? end + 1 : validation_ret;
+    return (validation_ret) ? end + 1 : fmterr_invalid_modifiers;
   }
   //----------------------------------------------------------------------------
 };
@@ -387,7 +172,8 @@ private:
     many times.. */
     return
       (std::is_same<T, serialization::malc_refdtor>::value == false)
-      ? (serialization::sertype<T>::id != serialization::malc_type_error)
+      ? (serialization::get_logged_type<T>::type_id !=
+          serialization::malc_type_error)
         ? verify_next<N, tail>(
           l, litpos, placeholder::validate_next<T> (l.substr (litpos))
           )

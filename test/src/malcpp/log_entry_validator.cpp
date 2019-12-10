@@ -1,7 +1,8 @@
-#include <bl/cmocka_pre.h>
-
 #include <malc/malc_lean.hpp>
 
+#include <bl/cmocka_pre.h>
+/* cmocka is so braindead to define a fail() macro!!!, which clashes with e.g.
+ostream's fail(), we include this header the last and hope it never breaks.*/
 using namespace malcpp::detail::fmt;
 /*----------------------------------------------------------------------------*/
 template <int N, class... types>

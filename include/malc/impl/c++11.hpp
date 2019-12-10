@@ -9,16 +9,59 @@
 #include <utility>
 
 #include <bl/base/preprocessor_basic.h>
-// #include <bl/base/integer.h>
 
-//#include <malc/impl/metaprogramming_common.hpp>
 #include <malc/impl/serialization.hpp>
 #include <malc/impl/compile_time_validation.hpp>
+#include <malc/impl/c++11_basic_types.hpp>
+#if MALC_LEAN == 0
+  #include <malc/impl/c++11_std_types.hpp>
+#endif
 
 #include <malc/impl/logging.h>
 
 namespace malcpp { namespace detail {
 
+#if MALC_COMPRESSION == 0
+/*----------------------------------------------------------------------------*/
+template <class T>
+struct count_compressed {
+  static constexpr bl_u16 run (int current = 0)
+  {
+    return 0;
+  }
+};
+#else // #if MALC_COMPRESSION == 0
+/*----------------------------------------------------------------------------*/
+template <class T>
+struct compressed_type_fields {
+  using C = typename serialization::get_logged_type<T>;
+  static constexpr bl_u16 value =
+    serialization::basic_types_compress_count (C::type_id) +
+    serialization::cpp_std_types_compressed_count (C::type_id);
+};
+/*----------------------------------------------------------------------------*/
+template <class... types>
+struct count_compressed;
+/*----------------------------------------------------------------------------*/
+template <template <class...> class L, class T, class... types>
+struct count_compressed<L<T, types...> >{
+  static constexpr bl_u16 run (bl_u16 current = 0)
+  {
+    return count_compressed<L<types...> >::run(
+      current + compressed_type_fields<T>::value
+      );
+  }
+};
+/*----------------------------------------------------------------------------*/
+template <template <class...> class L>
+struct count_compressed<L<> > {
+  static constexpr bl_u16 run (bl_u16 current = 0)
+  {
+    return current;
+  }
+};
+/*----------------------------------------------------------------------------*/
+#endif //#else // #if MALC_COMPRESSION == 0
 /*----------------------------------------------------------------------------*/
 template <int sev, class T>
 struct info {};
@@ -28,9 +71,10 @@ struct info<sev, T<Args...> >
 {
   static inline const char* generate()
   {
+    using ::malcpp::detail::serialization::get_logged_type;
     static const char info[] = {
       (char) sev,
-      (::malcpp::detail::serialization::sertype<remove_cvref_t<Args> >::id) ...,
+      (get_logged_type<Args>::type_id) ...,
       0
     };
     return info;
@@ -41,20 +85,19 @@ template <int END, int N = 0>
 class arg_ops {
 public:
   //----------------------------------------------------------------------------
-  template <class T>
-  static inline bl_uword get_payload_size (const T& tup)
+  template <class T, class U, class... types>
+  static inline std::size_t get_payload_size (const T& tup)
   {
-    bl_uword v = serialization::sertype<
-      remove_cvref_t<decltype (std::get<N>(tup))>
-        >::size (std::get<N>(tup));
-    return v + arg_ops<END, N + 1>::get_payload_size (tup);
+    return
+      serialization::get_logged_type<U>::wire_size (std::get<N> (tup)) +
+      arg_ops<END, N + 1>::template get_payload_size<T, types...> (tup);
   }
   //----------------------------------------------------------------------------
-  template <class T>
+  template <class T, class U, class... types>
   static inline void serialize (malc_serializer& ser, const T& tup)
   {
-    serialization::malc_serialize (&ser, std::get<N>(tup));
-    arg_ops<END, N + 1>::serialize (ser, tup);
+    serialization::get_logged_type<U>::serialize (ser, std::get<N> (tup));
+    arg_ops<END, N + 1>::template serialize<T, types...> (ser, tup);
   }
   //----------------------------------------------------------------------------
   template <class T, int... refs>
@@ -96,7 +139,7 @@ class arg_ops<END, END> {
 public:
   //----------------------------------------------------------------------------
   template <class T>
-  static inline bl_uword get_payload_size (const T& tup)
+  static inline std::size_t get_payload_size (const T& tup)
   {
     return 0;
   }
@@ -173,26 +216,27 @@ static inline bl_err log(
 {
   using argops = arg_ops<sizeof...(types)>;
   auto values = std::make_tuple(
-    serialization::sertype<
-      remove_cvref_t<types>
-        >::to_serialization_type(
+    serialization::get_logged_type<types>::to_serializable(
           std::forward<types> (args)
         )...
     );
   malc_serializer s;
   bl_err err = malc_log_entry_prepare(
-    malc.handle(), &s, &en, argops::get_payload_size (values)
+    malc.handle(),
+    &s,
+    &en,
+    argops::template get_payload_size<decltype (values), types...> (values)
     );
   if (err.own) {
 #if MALC_PTR_COMPRESSION == 0
     deallocate_refs_tuple (has_refs(), values);
 #else
     deallocate_refs(
-      has_refs(), (const char*) nullptr, std::forward (args)...);
+      has_refs(), (const char*) nullptr, (std::forward<types> (args))...);
 #endif
     return err;
   }
-  argops::serialize (s, values);
+  argops::template serialize<decltype (values), types...>  (s, values);
   malc_log_entry_commit (malc.handle(), &s);
   return err;
 }
@@ -225,7 +269,7 @@ static inline bl_err log(
     static const malc_const_entry msgdata =  {\
       bl_pp_vargs_first (__VA_ARGS__), /*1st arg = format str*/\
       ::malcpp::detail::info<sev, argtypelist>::generate(), \
-      0 \
+      ::malcpp::detail::count_compressed<argtypelist>::run() \
     }; \
     err = ::malcpp::detail::log( \
       std::integral_constant<bool, has_references>(), \

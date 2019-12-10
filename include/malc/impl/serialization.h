@@ -13,6 +13,18 @@
 
 #include <malc/impl/common.h>
 /*----------------------------------------------------------------------------*/
+/* A group of function families to do the producer-side serialization:
+
+- malc_transform* = If required, they convert from an external type to log to
+ another one  to be stored on the stack and suitable for serialization. The
+ transformed type can contain processing on the value and additional attached
+ data not present on the external data type itself.
+
+- malc_size * = Get the wire-size of data type suitable for serialization.
+
+- malc_serialize* = Serializes a data type.
+*/
+/*----------------------------------------------------------------------------*/
 typedef struct malc_serializer {
     bl_u8*   node_mem;
 #if MALC_COMPRESSION == 1
@@ -715,6 +727,38 @@ static inline void unknown_type_on_malc_type_transform(
     )\
   (expression)
 #endif
+  #define malc_make_var_from_expression(expression, name)\
+  typeof (malc_type_transform (expression)) name = \
+    malc_type_transform (expression);
+/*----------------------------------------------------------------------------*/
+#if MALC_PTR_COMPRESSION == 0
+  #define malc_ptr_compress_count(x) 0
+#else
+  #define malc_ptr_compress_count(x)\
+    ( \
+    ((int) ((x) == malc_type_ptr)) + \
+    ((int) ((x) == malc_type_lit)) + \
+    ((int) ((x) == malc_type_strref)) + \
+    ((int) ((x) == malc_type_memref)) + \
+    (((int) ((x) == malc_type_refdtor)) * 2) \
+    )
+#endif
+
+#if MALC_BUILTIN_COMPRESSION == 0
+  #define malc_builtin_compress_count(x) 0
+#else
+  #define malc_builtin_compress_count(x)\
+    ( \
+    ((int) ((x) == malc_type_i32)) + \
+    ((int) ((x) == malc_type_u32)) + \
+    ((int) ((x) == malc_type_i64)) + \
+    ((int) ((x) == malc_type_u64))  \
+    )
+#endif
+
+#define malc_total_compress_count(type_id) \
+  malc_ptr_compress_count (type_id) + malc_builtin_compress_count (type_id)
+
 /*----------------------------------------------------------------------------*/
 #ifdef MALC_COMMON_NAMESPACED
 }}} // namespace malcpp { namespace detail { namespace serialization {

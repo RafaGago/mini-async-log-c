@@ -646,7 +646,8 @@ MALC_EXPORT bl_err malc_log_entry_prepare(
   }
   serializer se;
   serializer_init (&se, entry, l->producer.timestamp);
-  bl_uword size  = sizeof (qnode) + serializer_log_entry_size (&se, payload_size);
+  bl_uword size  =
+    sizeof (qnode) + serializer_log_entry_size (&se, payload_size);
   bl_uword slots = bl_div_ceil (size, l->mem.cfg.slot_size);
   if (bl_unlikely (slots) > (1 << (bl_sizeof_member (qnode, slots) * 8))) {
     /*entries are limited at 8KB*/
