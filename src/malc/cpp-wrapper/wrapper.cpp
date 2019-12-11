@@ -56,39 +56,39 @@ bl_err wrapper::terminate (bool dontblock) noexcept
   return malc_terminate (handle(), dontblock);
 }
 /*----------------------------------------------------------------------------*/
-bl_err wrapper::producer_thread_local_init (bl_u32 bytes) noexcept
+bl_err wrapper::producer_thread_local_init (size_t bytes) noexcept
 {
   assert (m_ptr);
   return malc_producer_thread_local_init (handle(), bytes);
 }
 /*----------------------------------------------------------------------------*/
-bl_err wrapper::run_consume_task (bl_uword timeout_us) noexcept
+bl_err wrapper::run_consume_task (unsigned timeout_us) noexcept
 {
   assert (m_ptr);
   return malc_run_consume_task (handle(), timeout_us);
 }
 /*----------------------------------------------------------------------------*/
-bl_err wrapper::add_destination (bl_u32& dest_id, malc_dst const& dst) noexcept
+bl_err wrapper::add_destination (size_t& dest_id, malc_dst const& dst) noexcept
 {
   assert (m_ptr);
   return malc_add_destination (handle(), &dest_id, (::malc_dst*) &dst);
 }
 /*----------------------------------------------------------------------------*/
 bl_err wrapper::get_destination_instance(
-  void** instance, bl_u32 dest_id
+  void** instance, size_t dest_id
   ) const noexcept
 {
   assert (m_ptr);
   return malc_get_destination_instance (handle(), instance, dest_id);
 }
 /*----------------------------------------------------------------------------*/
-bl_err wrapper::get_destination_cfg (dst_cfg& c, bl_u32 dest_id) const noexcept
+bl_err wrapper::get_destination_cfg (dst_cfg& c, size_t dest_id) const noexcept
 {
   assert (m_ptr);
   return malc_get_destination_cfg (handle(), (::malc_dst_cfg*) &c, dest_id);
 }
 /*----------------------------------------------------------------------------*/
-bl_err wrapper::set_destination_cfg (dst_cfg const& c, bl_u32 dest_id) noexcept
+bl_err wrapper::set_destination_cfg (dst_cfg const& c, size_t dest_id) noexcept
 {
   assert (m_ptr);
   return malc_set_destination_cfg (handle(), (::malc_dst_cfg*) &c, dest_id);
@@ -99,7 +99,7 @@ void wrapper::set_handle (malc* h)
   m_ptr = h;
 }
 /*----------------------------------------------------------------------------*/
-bl_err wrapper::add_destination_impl(bl_u32& id, malc_dst const& tbl)
+bl_err wrapper::add_destination_impl(size_t& id, malc_dst const& tbl)
 {
   return malc_add_destination (handle(), &id, (::malc_dst*) &tbl);
 }

@@ -6,6 +6,8 @@
 #include <type_traits>
 #include <string>
 #include <cassert>
+#include <cstdint>
+#include <cstddef>
 #include <utility>
 
 #ifndef MALC_LIBRARY_COMPILATION
@@ -71,7 +73,7 @@ public:
   /*----------------------------------------------------------------------------*/
   malc* owner() const noexcept;
   /*----------------------------------------------------------------------------*/
-  bl_u32 id() const noexcept;
+  size_t id() const noexcept;
   /*--------------------------------------------------------------------------*/
 protected:
   friend class malcpp::wrapper;
@@ -79,7 +81,7 @@ protected:
   bl_err untyped_try_get (void*& instance) const noexcept;
   /*--------------------------------------------------------------------------*/
   malc*  m_owner;
-  bl_u32 m_id;
+  size_t m_id;
 };
 
 static void throw_if_error (bl_err err)
@@ -176,18 +178,18 @@ public:
   /*--------------------------------------------------------------------------*/
   bl_err terminate (bool dontblock = false) noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err producer_thread_local_init (bl_u32 bytes) noexcept;
+  bl_err producer_thread_local_init (size_t bytes) noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err run_consume_task (bl_uword timeout_us) noexcept;
+  bl_err run_consume_task (unsigned timeout_us) noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err add_destination (bl_u32& dest_id, malc_dst const& dst) noexcept;
+  bl_err add_destination (size_t& dest_id, malc_dst const& dst) noexcept;
   /*--------------------------------------------------------------------------*/
   bl_err
-    get_destination_instance (void** instance, bl_u32 dest_id) const noexcept;
+    get_destination_instance (void** instance, size_t dest_id) const noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err get_destination_cfg (dst_cfg& c, bl_u32 dest_id) const noexcept;
+  bl_err get_destination_cfg (dst_cfg& c, size_t dest_id) const noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err set_destination_cfg (dst_cfg const& c, bl_u32 dest_id) noexcept;
+  bl_err set_destination_cfg (dst_cfg const& c, size_t dest_id) noexcept;
   /*----------------------------------------------------------------------------
   This function accepts either one of the provided destinations as a template
   parameter:
@@ -202,7 +204,7 @@ public:
     custom_dst_interface (const bl_alloc_tbl& alloc);
     bool flush();
     bool idle_task();
-    bool write (bl_u64 nsec, bl_uword severity, malc_log_strings const& strs);
+    bool write (uint64_t nsec, unsigned severity, malc_log_strings const& strs);
 
   This method has to be explicitly given the template paramter, as it is
   malc who will own the instance.
@@ -215,7 +217,7 @@ public:
   template <class T>
   dst_access<T> add_destination() noexcept
   {
-    bl_u32 id;
+    size_t id;
     dst_access<T> ret;
     malc_dst tbl = detail::destination_adapt<T>::type::get_dst_tbl();
     bl_err err   = add_destination_impl (id, tbl);
@@ -234,7 +236,7 @@ public:
 protected:
   void set_handle (malc* h);
 private:
-  bl_err add_destination_impl(bl_u32& id, malc_dst const& tbl);
+  bl_err add_destination_impl (size_t& id, malc_dst const& tbl);
   malc* m_ptr;
 };
 /*------------------------------------------------------------------------------
@@ -273,12 +275,12 @@ public:
     detail::throw_if_error (wrapper::terminate (dontblock));
   }
   /*--------------------------------------------------------------------------*/
-  void producer_thread_local_init (bl_u32 bytes)
+  void producer_thread_local_init (size_t bytes)
   {
     detail::throw_if_error (wrapper::producer_thread_local_init (bytes));
   }
   /*--------------------------------------------------------------------------*/
-  bool run_consume_task (bl_uword timeout_us)
+  bool run_consume_task (unsigned timeout_us)
   {
     bl_err err = wrapper::run_consume_task (timeout_us);
     if (!err.own || err.own == bl_nothing_to_do) {
@@ -291,28 +293,28 @@ public:
     return false; /* unreachable */
   }
   /*--------------------------------------------------------------------------*/
-  bl_u32 add_destination (malc_dst const& dst)
+  size_t add_destination (malc_dst const& dst)
   {
-    bl_u32 r;;
+    size_t r;;
     detail::throw_if_error (wrapper::add_destination (r, dst));
     return r;
   }
   /*--------------------------------------------------------------------------*/
-  void* get_destination_instance (bl_u32 dest_id) const
+  void* get_destination_instance (size_t dest_id) const
   {
     void* r;
     detail::throw_if_error (wrapper::get_destination_instance (&r, dest_id));
     return r;
   }
   /*--------------------------------------------------------------------------*/
-  dst_cfg get_destination_cfg (bl_u32 dest_id) const
+  dst_cfg get_destination_cfg (size_t dest_id) const
   {
     dst_cfg r;
     detail::throw_if_error (wrapper::get_destination_cfg (r, dest_id));
     return r;
   }
   /*--------------------------------------------------------------------------*/
-  void set_destination_cfg (dst_cfg const& c, bl_u32 dest_id)
+  void set_destination_cfg (dst_cfg const& c, size_t dest_id)
   {
     detail::throw_if_error (wrapper::set_destination_cfg (c, dest_id));
   }
@@ -541,7 +543,7 @@ static inline detail::serialization::malc_lit lit (char const* literal)
 Passes a string by value (deep copy) to malc.
 ------------------------------------------------------------------------------*/
 static inline detail::serialization::malc_strcp
-  strcp (char const* str, bl_u16 len)
+  strcp (char const* str, uint16_t len)
 {
   bl_assert ((str && len) || len == 0);
   detail::serialization::malc_strcp s = { str, len };
@@ -550,14 +552,14 @@ static inline detail::serialization::malc_strcp
 /*----------------------------------------------------------------------------*/
 static inline detail::serialization::malc_strcp strcp (char const* str)
 {
-  bl_uword len = strlen (str);
-  return strcp (str, (bl_u16) (len < 65536 ? len : 65535));
+  size_t len = strlen (str);
+  return strcp (str, (uint16_t) (len < 65536 ? len : 65535));
 }
 /*----------------------------------------------------------------------------*/
 static inline detail::serialization::malc_strcp strcp (std::string const& s)
 {
   auto len = s.size();
-  return strcp (s.c_str(), (bl_u16) (len < 65536 ? len : 65535));
+  return strcp (s.c_str(), (uint16_t) (len < 65536 ? len : 65535));
 }
 /*----------------------------------------------------------------------------*/
 static inline detail::serialization::std_string_rvalue strcp (std::string&& s)
@@ -568,10 +570,10 @@ static inline detail::serialization::std_string_rvalue strcp (std::string&& s)
 Passes a memory area by value (deep copy) to malc. It will be printed as hex.
 ------------------------------------------------------------------------------*/
 static inline detail::serialization::malc_memcp
-  memcp (void const* mem, bl_u16 size)
+  memcp (void const* mem, uint16_t size)
 {
   bl_assert ((mem && size) || size == 0);
-  detail::serialization::malc_memcp b = { (bl_u8 const*) mem, size };
+  detail::serialization::malc_memcp b = { (uint8_t const*) mem, size };
   return b;
 }
 /*------------------------------------------------------------------------------
@@ -583,7 +585,7 @@ The string has to be thread-safe (not further modified). The results of
 modifying the string after malc has taken ownership are undefined.
 ------------------------------------------------------------------------------*/
 static inline detail::serialization::malc_strref
-  strref (char* str, bl_u16 len)
+  strref (char* str, uint16_t len)
 {
   bl_assert ((str && len) || len == 0);
   detail::serialization::malc_strref s = { str, len };
@@ -592,8 +594,8 @@ static inline detail::serialization::malc_strref
 /*----------------------------------------------------------------------------*/
 static inline detail::serialization::malc_strref strrefl (char* str)
 {
-  bl_uword len = strlen (str);
-  return strref (str, (bl_u16) (len < 65536 ? len : 65535));
+  size_t len = strlen (str);
+  return strref (str, (uint16_t) (len < 65536 ? len : 65535));
 }
 /*------------------------------------------------------------------------------
 Passes a memory area by reference to malc. Malc takes its ownership.  It needs
@@ -603,15 +605,16 @@ call (see "logrefdtor"), To be used to avoid copying big chunks of data.
 The memory area has to be thread-safe (not further modified). The results of
 modifying the memory area after malc has taken ownership are undefined.
 ------------------------------------------------------------------------------*/
-static inline detail::serialization::malc_memref memref (void* mem, bl_u16 size)
+static inline detail::serialization::malc_memref
+  memref (void* mem, uint16_t size)
 {
   bl_assert ((mem && size) || size == 0);
-  detail::serialization::malc_memref b = { (bl_u8*) mem, size };
+  detail::serialization::malc_memref b = { (uint8_t*) mem, size };
   return b;
 }
 /*------------------------------------------------------------------------------
 typedef void (*malc_refdtor_fn)(
-  void* context, malc_ref const* refs, bl_uword refs_count
+  void* context, malc_ref const* refs, size_t refs_count
   );
 
 Passed by reference parameter destructor.
@@ -684,7 +687,7 @@ static raw_object_w_context<detail::remove_cvref_t<T>, true>
 
 template <class T>
 static raw_object_w_flag<detail::remove_cvref_t<T>, false>
-  object (T& v, malc_obj_table const* table, bl_u8 flag)
+  object (T& v, malc_obj_table const* table, uint8_t flag)
 {
   return raw_object_w_flag<detail::remove_cvref_t<T>, false>(
     v, table, flag
@@ -693,7 +696,7 @@ static raw_object_w_flag<detail::remove_cvref_t<T>, false>
 
 template <class T>
 static raw_object_w_flag<detail::remove_cvref_t<T>, true>
-  object (T&& v, malc_obj_table const* table, bl_u8 flag)
+  object (T&& v, malc_obj_table const* table, uint8_t flag)
 {
   return raw_object_w_flag<detail::remove_cvref_t<T>, true>(
     std::forward<T> (v), table, flag

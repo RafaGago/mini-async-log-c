@@ -8,7 +8,7 @@
 #endif
 /* non user-facing macros and data types */
 
-#include <bl/base/integer.h>
+#include <stdint.h>
 
 #include <malc/common.h>
 #include <malc/libexport.h>
@@ -25,7 +25,7 @@
   typedef struct malc_const_entry {
     char const* format;
     char const* info; /* first char is the severity */
-    bl_u16      compressed_count;
+    uint16_t    compressed_count;
   }
   malc_const_entry;
 #endif
@@ -66,26 +66,26 @@ typedef struct malc_lit {
 malc_lit;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_memcp {
-  bl_u8 const* mem;
-  bl_u16       size;
+  uint8_t const* mem;
+  uint16_t       size;
 }
 malc_memcp;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_memref {
-  bl_u8* mem;
-  bl_u16 size;
+  uint8_t* mem;
+  uint16_t size;
 }
 malc_memref;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_strcp {
   char const* str;
-  bl_u16      len;
+  uint16_t    len;
 }
 malc_strcp;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_strref {
-  char*  str;
-  bl_u16 len;
+  char*    str;
+  uint16_t len;
 }
 malc_strref;
 /*----------------------------------------------------------------------------*/
@@ -103,7 +103,7 @@ malc_obj;
 /*----------------------------------------------------------------------------*/
 typedef struct malc_obj_flag {
   malc_obj base;
-  bl_u8    flag;
+  uint8_t  flag;
 }
 malc_obj_flag;
 /*----------------------------------------------------------------------------*/

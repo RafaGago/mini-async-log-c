@@ -4,7 +4,7 @@
 #include <stdarg.h>
 
 #include <bl/base/platform.h>
-#include <bl/base/integer.h>
+#include <bl/base/integer_short.h>
 #include <bl/base/autoarray.h>
 
 #include <malc/malc.h>

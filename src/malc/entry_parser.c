@@ -3,7 +3,7 @@
 #include <malc/entry_parser.h>
 
 #include <bl/base/preprocessor.h>
-#include <bl/base/integer.h>
+#include <bl/base/integer_short.h>
 #include <bl/base/static_assert.h>
 #include <bl/base/hex_string.h>
 #include <bl/base/utility.h>
@@ -178,7 +178,7 @@ static bl_err append_float(
   char order        = 'a' - 1;
   bl_err err        = bl_mkok();
   char printf_type  = 'f';
-  bl_uword dotcount = 0;
+  uword dotcount    = 0;
   /*this is just intended as a quick filter for the most egregious things that
   could be passed to printf, e.g. added "%", ".*", etc. and to add the extra
   length modifiers. A good printf implementation on any major platform should
@@ -231,11 +231,11 @@ done:
   }
 }
 /*----------------------------------------------------------------------------*/
-static bl_err append_mem (entry_parser* ep, bl_u8 const* mem, bl_uword size)
+static bl_err append_mem (entry_parser* ep, u8 const* mem, uword size)
 {
   char buff[129];
-  bl_uword runs = size / ((sizeof buff - 1) / 2);
-  bl_uword last = size % ((sizeof buff - 1) / 2);
+  uword runs = size / ((sizeof buff - 1) / 2);
+  uword last = size % ((sizeof buff - 1) / 2);
 
   bl_err err = bl_dstr_set_capacity(
     &ep->str, bl_dstr_len (&ep->str) + (size * 2)
@@ -243,7 +243,7 @@ static bl_err append_mem (entry_parser* ep, bl_u8 const* mem, bl_uword size)
   if (bl_unlikely (err.own)) {
       return err;
   }
-  for (bl_uword i = 0; i < runs; ++i) {
+  for (uword i = 0; i < runs; ++i) {
     bl_assert_side_effect(
       bl_bytes_to_hex_string (buff, sizeof buff, mem, (sizeof buff - 1) / 2) > 0
       );
@@ -320,10 +320,10 @@ static int push_obj_data(
     return 0;
   }
   log_argument arg;
-  bl_uword prev_len = bl_dstr_len (&ep->str);
+  uword prev_len = bl_dstr_len (&ep->str);
   err.own = 0;
-  for (bl_uword i = 0; i < ld->data.builtin.count && !err.own; ++i) {
-    bl_uword len = bl_dstr_len (&ep->str);
+  for (uword i = 0; i < ld->data.builtin.count && !err.own; ++i) {
+    uword len = bl_dstr_len (&ep->str);
     if (prev_len < len) {
       /* space separation between values */
       err = bl_dstr_append_lit (&ep->str, " ");
@@ -334,19 +334,19 @@ static int push_obj_data(
     }
     switch (ld->data.builtin.type) {
     case malc_obj_u8:
-      arg.vu8 = ((bl_u8 const*) ld->data.builtin.ptr)[i];
+      arg.vu8 = ((u8 const*) ld->data.builtin.ptr)[i];
       err = append_arg (ep, &arg, malc_type_u8, fmt_beg, fmt_end);
       break;
     case malc_obj_u16:
-      arg.vu16 = ((bl_u16 const*) ld->data.builtin.ptr)[i];
+      arg.vu16 = ((u16 const*) ld->data.builtin.ptr)[i];
       err = append_arg (ep, &arg, malc_type_u16, fmt_beg, fmt_end);
       break;
     case malc_obj_u32:
-      arg.vu32 = ((bl_u32 const*) ld->data.builtin.ptr)[i];
+      arg.vu32 = ((u32 const*) ld->data.builtin.ptr)[i];
       err = append_arg (ep, &arg, malc_type_u32, fmt_beg, fmt_end);
       break;
     case malc_obj_u64:
-      arg.vu64 = ((bl_u64 const*) ld->data.builtin.ptr)[i];
+      arg.vu64 = ((u64 const*) ld->data.builtin.ptr)[i];
       err = append_arg (ep, &arg, malc_type_u64, fmt_beg, fmt_end);
       break;
     case malc_obj_i8:
@@ -474,10 +474,10 @@ static bl_err parse_text(
   char const*         fmt,
   char const*         types,
   log_argument const* args,
-  bl_uword            args_count
+  uword            args_count
   )
 {
-  bl_uword       arg_idx  = 0;
+  uword       arg_idx  = 0;
   char const* it       = fmt;
   char const* text_beg = fmt;
   char const* fmt_beg  = nullptr;
@@ -574,10 +574,10 @@ static inline void destroy_objects(
   entry_parser*       ep,
   char const*         types,
   log_argument const* args,
-  bl_uword            args_count
+  uword            args_count
   )
 {
-  for (bl_uword i = 0; i < args_count; ++i) {
+  for (uword i = 0; i < args_count; ++i) {
     log_argument const* arg = &args[i];
     switch (types[i]) {
     case malc_type_obj:
@@ -614,7 +614,7 @@ BL_EXPORT bl_err entry_parser_get_log_strings(
     return bl_mkerr (bl_invalid);
   }
   /* meson old versions ignored base library flags */
-  bl_static_assert_ns_funcscope (sizeof e->timestamp == sizeof (bl_u64));
+  bl_static_assert_ns_funcscope (sizeof e->timestamp == sizeof (u64));
   snprintf(
     ep->timestamp,
     TSTAMP_INTEGER + 2,

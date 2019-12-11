@@ -22,13 +22,13 @@ bl_define_ringb_funcs (past_entries, past_entry)
   for ((dest) = (destination*) (mem);\
        (dest);\
        (dest) = (dest)->next_offset != 0 ?\
-        (destination*) ((bl_u8*) (dest) + (dest)->next_offset) :\
+        (destination*) ((u8*) (dest) + (dest)->next_offset) :\
         nullptr\
        )
 /*----------------------------------------------------------------------------*/
 static inline void* destination_get_instance (destination* d)
 {
-  return (void*) ((bl_u8*) d + SIZEOF_DEST_MAX_ALIGN);
+  return (void*) ((u8*) d + SIZEOF_DEST_MAX_ALIGN);
 }
 /*----------------------------------------------------------------------------*/
 static inline void update_severity_from_file (malc_dst_cfg* c)
@@ -79,13 +79,13 @@ void destinations_destroy (destinations* d)
   d->alloc = nullptr;
 }
 /*----------------------------------------------------------------------------*/
-bl_err destinations_add (destinations* d, bl_u32* dest_id, malc_dst const* dst)
+bl_err destinations_add (destinations* d, size_t* dest_id, malc_dst const* dst)
 {
   bl_assert (dest_id && dst);
   if (bl_unlikely (!dst || !dst->write)) {
     return bl_mkerr (bl_invalid);
   }
-  bl_uword size = SIZEOF_DEST_MAX_ALIGN +
+  uword size = SIZEOF_DEST_MAX_ALIGN +
     bl_round_to_next_multiple (dst->size_of, MAX_ALIGN);
   /* stored contiguosly because "write" is going to be called at data-rate */
   void* mem  = bl_realloc (d->alloc, d->mem, d->size + size);
@@ -93,7 +93,7 @@ bl_err destinations_add (destinations* d, bl_u32* dest_id, malc_dst const* dst)
     return bl_mkerr (bl_alloc);
   }
   d->mem = mem;
-  destination* dest = (destination*) (((bl_u8*) d->mem) + d->size);
+  destination* dest = (destination*) (((u8*) d->mem) + d->size);
   dest->next_offset = 0;
   dest->dst         = *dst;
 
@@ -116,7 +116,7 @@ bl_err destinations_add (destinations* d, bl_u32* dest_id, malc_dst const* dst)
       last = dest;
     }
     bl_assert (last);
-    last->next_offset = (bl_u8*) d->mem + d->size - (bl_u8*) last;
+    last->next_offset = (u8*) d->mem + d->size - (u8*) last;
   }
   *dest_id = d->count;
   ++d->count;
@@ -139,7 +139,7 @@ static bl_err destinations_set_rate_limit_settings_impl(
       }
     }
   }
-  bl_uword wc = 0;
+  uword wc = 0;
   if (enabled) {
     wc = bl_round_next_pow2_u32 (sec->log_rate_filter_watch_count);
     if (wc > bl_arr_elems_member (destinations, pe_buffer)) {
@@ -208,11 +208,11 @@ void destinations_terminate (destinations* d)
   d->count = 0;
 }
 /*----------------------------------------------------------------------------*/
-static void entry_filter_idle (destinations* d, bl_u64 now_ns)
+static void entry_filter_idle (destinations* d, u64 now_ns)
 {
-  for (bl_uword i = 0; i < past_entries_size (&d->pe); ++i) {
+  for (uword i = 0; i < past_entries_size (&d->pe); ++i) {
     past_entry* pe = past_entries_at (&d->pe, i);
-    bl_u64 t_allowed = pe->tprev + d->filter_max_time;
+    u64 t_allowed = pe->tprev + d->filter_max_time;
     if (bl_unlikely (bl_timept64_get_diff (now_ns, t_allowed) >= 0)) {
       past_entries_drop (&d->pe, i);
       --i;
@@ -223,7 +223,7 @@ static void entry_filter_idle (destinations* d, bl_u64 now_ns)
   }
 }
 /*----------------------------------------------------------------------------*/
-void destinations_idle_task (destinations* d, bl_u64 now_ns)
+void destinations_idle_task (destinations* d, u64 now_ns)
 {
   entry_filter_idle (d, now_ns);
   destination* dest;
@@ -265,9 +265,9 @@ static malc_log_strings get_entry_strings(
 /*----------------------------------------------------------------------------*/
 void destinations_write(
   destinations*           d,
-  bl_uword                entry_id,
-  bl_u64                  entry_ns,
-  bl_uword                sev,
+  uword                   entry_id,
+  u64                     entry_ns,
+  unsigned                sev,
   malc_log_strings const* strs
   )
 {
@@ -288,7 +288,7 @@ void destinations_write(
     /*filtering active*/
     past_entry* pe = nullptr;
     /* small contiguous cache-friendly structure: linear search */
-    for (bl_uword i = 0; i < past_entries_size (&d->pe); ++i) {
+    for (uword i = 0; i < past_entries_size (&d->pe); ++i) {
       past_entry* e = past_entries_at (&d->pe, i);
       if (e->entry_id == entry_id) {
         pe = e;
@@ -299,7 +299,7 @@ void destinations_write(
       bl_assert (dest->dst.write);
       if (sev >= dest->cfg.severity) {
         if (pe && dest->cfg.log_rate_filter_time_ns != 0) {
-          bl_u64 allowed = pe->tprev + dest->cfg.log_rate_filter_time_ns;
+          u64 allowed = pe->tprev + dest->cfg.log_rate_filter_time_ns;
           if (bl_unlikely (bl_timept64_get_diff (entry_ns, allowed) < 0)) {
             continue;
           }
@@ -323,11 +323,11 @@ void destinations_write(
 }
 /*----------------------------------------------------------------------------*/
 bl_err destinations_get_instance(
-  destinations const* d, void** instance, bl_u32 dest_id
+  destinations const* d, void** instance, size_t dest_id
   )
 {
   destination* dest;
-  bl_uword        id = 0;
+  size_t       id = 0;
   FOREACH_DESTINATION (d->mem, dest) {
     if (id == dest_id) {
       *instance = destination_get_instance (dest);
@@ -339,11 +339,11 @@ bl_err destinations_get_instance(
 }
 /*----------------------------------------------------------------------------*/
 bl_err destinations_get_cfg(
-  destinations const* d, malc_dst_cfg* cfg, bl_u32 dest_id
+  destinations const* d, malc_dst_cfg* cfg, size_t dest_id
   )
 {
   destination* dest;
-  bl_uword        id = 0;
+  size_t       id = 0;
   FOREACH_DESTINATION (d->mem, dest) {
     if (id == dest_id) {
       *cfg = dest->cfg;
@@ -355,11 +355,11 @@ bl_err destinations_get_cfg(
 }
 /*----------------------------------------------------------------------------*/
 bl_err destinations_set_cfg (
-  destinations* d, malc_dst_cfg const* cfg, bl_u32 dest_id
+  destinations* d, malc_dst_cfg const* cfg, size_t dest_id
   )
 {
   destination* dest;
-  bl_uword        id = 0;
+  size_t       id = 0;
   FOREACH_DESTINATION (d->mem, dest) {
     if (id == dest_id) {
       dest->cfg = *cfg;
@@ -370,7 +370,7 @@ bl_err destinations_set_cfg (
   if (bl_unlikely (!dest)) {
     return bl_mkerr (bl_invalid);
   }
-  d->min_severity    = (bl_uword) -1;
+  d->min_severity    = (unsigned) -1;
   d->filter_max_time = 0;
   FOREACH_DESTINATION (d->mem, dest) {
     d->min_severity = bl_min (d->min_severity, dest->cfg.severity);

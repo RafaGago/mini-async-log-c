@@ -1,9 +1,9 @@
 #ifndef __MALC_ARRAY_DESTINATION_H__
 #define __MALC_ARRAY_DESTINATION_H__
 
+#include <stddef.h>
 #include <malc/libexport.h>
 #include <malc/common.h>
-#include <bl/base/integer.h>
 
 #ifdef __cplusplus
   extern "C" {
@@ -27,15 +27,15 @@ typedef struct malc_array_dst malc_array_dst;
 extern MALC_EXPORT const struct malc_dst malc_array_dst_tbl;
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT void malc_array_dst_set_array(
-  malc_array_dst* d, char* mem, bl_uword mem_entries, bl_uword entry_chars
+  malc_array_dst* d, char* mem, size_t mem_entries, size_t entry_chars
   );
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_uword malc_array_dst_size (malc_array_dst const* d);
+extern MALC_EXPORT size_t malc_array_dst_size (malc_array_dst const* d);
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_uword malc_array_dst_capacity (malc_array_dst const* d);
+extern MALC_EXPORT size_t malc_array_dst_capacity (malc_array_dst const* d);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT char const* malc_array_dst_get_entry(
-  malc_array_dst const* d, bl_uword idx
+  malc_array_dst const* d, size_t idx
   );
 /*----------------------------------------------------------------------------*/
 

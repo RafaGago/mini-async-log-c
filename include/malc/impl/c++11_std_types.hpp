@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <vector>
 #include <cstddef>
+#include <cstdint>
 #include <cassert>
 
 #ifndef MALC_COMMON_NAMESPACED
@@ -19,7 +20,7 @@
 
 // A header including C++ types. To avoid header bloat and to make a clear
 // separation about what is C++ only.
-#if 1
+#if 0
 #warning "TODO: is passing volatile types broken: add tests"
 #warning "TODO: assert bug"
 #warning "TODO: explain tradeoffs, e.g. call site overhead"
@@ -123,7 +124,7 @@ template <class T, bool is_rvalue>
 struct raw_object_w_flag : public raw_object<T, is_rvalue> {
   using tref = typename raw_object<T, is_rvalue>::tref;
 
-  raw_object_w_flag (tref v, malc_obj_table const* t, bl_u8 f) :
+  raw_object_w_flag (tref v, malc_obj_table const* t, uint8_t f) :
     raw_object<T, is_rvalue> (std::forward<tref> (v), t)
   {
     flag = f;
@@ -132,7 +133,7 @@ struct raw_object_w_flag : public raw_object<T, is_rvalue> {
     raw_object_w_flag (std::move (rv.obj), rv.table, rv.flag)
   {}
 
-  bl_u8 flag;
+  uint8_t flag;
 };
 //------------------------------------------------------------------------------
 namespace detail { namespace serialization {
@@ -168,18 +169,18 @@ struct wire_raw_object_w_context : public wire_raw_object<T> {
 
 template <class T>
 struct wire_raw_object_w_flag : public wire_raw_object<T> {
-  bl_u8 flag;
+  uint8_t flag;
 };
 
-static constexpr bl_u16 cpp_std_types_compressed_count (bl_u8 type_id)
+static constexpr uint16_t cpp_std_types_compressed_count (uint8_t type_id)
 {
 #if MALC_PTR_COMPRESSION == 0
   return 0;
 #else
   return
-    ((bl_u16) (type_id == malc_type_obj)) +
-    ((bl_u16) (type_id == malc_type_obj_flag)) +
-    (((bl_u16) (type_id == malc_type_obj_ctx)) * 2);
+    ((uint16_t) (type_id == malc_type_obj)) +
+    ((uint16_t) (type_id == malc_type_obj_flag)) +
+    (((uint16_t) (type_id == malc_type_obj_ctx)) * 2);
 #endif
 }
 //------------------------------------------------------------------------------
@@ -325,20 +326,20 @@ private:
       static_cast<wire_raw_object<T>&> (s),
       static_cast<raw_object<T, is_rvalue>&> (v)
       );
-    s.flag = get_logged_type<bl_u8>::to_serializable (v.flag);
+    s.flag = get_logged_type<uint8_t>::to_serializable (v.flag);
   }
   //----------------------------------------------------------------------------
   static inline std::size_t size (wire_raw_object_w_flag<T> const& v)
   {
     return size (static_cast<wire_raw_object<T> const&> (v)) +
-      get_logged_type<bl_u8>::wire_size (v.flag);
+      get_logged_type<uint8_t>::wire_size (v.flag);
   }
   //----------------------------------------------------------------------------
   static inline void do_serialize(
     malc_serializer& s, wire_raw_object_w_flag<T> const& v
     )
   {
-    get_logged_type<bl_u8>::serialize (s, v.flag);
+    get_logged_type<uint8_t>::serialize (s, v.flag);
     do_serialize (s, static_cast<wire_raw_object<T> const&> (v));
   }
   //----------------------------------------------------------------------------
@@ -487,7 +488,7 @@ const smartptr_table smartptr_obj<ptrtype>::table{
   .dereference = dereference_smarptr<ptrtype>::run,
 };
 //------------------------------------------------------------------------------
-template<class ptrtype, bl_u8 flag_default>
+template<class ptrtype, uint8_t flag_default>
 struct smartptr_obj_w_flag : private obj_types_base<ptrtype, raw_object_w_flag>
 {
   //----------------------------------------------------------------------------
@@ -502,7 +503,7 @@ struct smartptr_obj_w_flag : private obj_types_base<ptrtype, raw_object_w_flag>
   using interface_type = ptrtype;
   //----------------------------------------------------------------------------
   static inline serializable_type
-    to_serializable (interface_type const& v, bl_u8 flag = flag_default)
+    to_serializable (interface_type const& v, uint8_t flag = flag_default)
   {
     return base::to_serializable(
       raw_object_w_flag<interface_type, false> (v, &table->table, flag)
@@ -510,7 +511,7 @@ struct smartptr_obj_w_flag : private obj_types_base<ptrtype, raw_object_w_flag>
   }
   //----------------------------------------------------------------------------
   static inline serializable_type
-    to_serializable (interface_type&& v, bl_u8 flag = flag_default)
+    to_serializable (interface_type&& v, uint8_t flag = flag_default)
   {
     return base::to_serializable(
       raw_object_w_flag<ptrtype, true>(
@@ -541,7 +542,7 @@ struct logged_type<
 //------------------------------------------------------------------------------
 template <class T>
 struct arithmetic_type_flag {
-  static constexpr bl_u8 get()
+  static constexpr uint8_t get()
   {
     return (bl_static_log2_ceil_u8 (sizeof (T))) |
       (std::is_signed<T>::value ? (1 << 2) : 0);
@@ -550,22 +551,22 @@ struct arithmetic_type_flag {
 
 template <>
 struct arithmetic_type_flag<float> {
-  static constexpr bl_u8 get() { return malc_obj_float; }
+  static constexpr uint8_t get() { return malc_obj_float; }
 };
 
 template <>
 struct arithmetic_type_flag<double> {
-  static constexpr bl_u8 get() { return malc_obj_double; }
+  static constexpr uint8_t get() { return malc_obj_double; }
 };
 //------------------------------------------------------------------------------
-static_assert (arithmetic_type_flag<bl_u8>::get()  == malc_obj_u8, "");
-static_assert (arithmetic_type_flag<bl_u16>::get() == malc_obj_u16, "");
-static_assert (arithmetic_type_flag<bl_u32>::get() == malc_obj_u32, "");
-static_assert (arithmetic_type_flag<bl_u64>::get() == malc_obj_u64, "");
-static_assert (arithmetic_type_flag<bl_i8>::get()  == malc_obj_i8, "");
-static_assert (arithmetic_type_flag<bl_i16>::get() == malc_obj_i16, "");
-static_assert (arithmetic_type_flag<bl_i32>::get() == malc_obj_i32, "");
-static_assert (arithmetic_type_flag<bl_i64>::get() == malc_obj_i64, "");
+static_assert (arithmetic_type_flag<uint8_t>::get()  == malc_obj_u8, "");
+static_assert (arithmetic_type_flag<uint16_t>::get() == malc_obj_u16, "");
+static_assert (arithmetic_type_flag<uint32_t>::get() == malc_obj_u32, "");
+static_assert (arithmetic_type_flag<uint64_t>::get() == malc_obj_u64, "");
+static_assert (arithmetic_type_flag<int8_t>::get()   == malc_obj_i8, "");
+static_assert (arithmetic_type_flag<int16_t>::get()  == malc_obj_i16, "");
+static_assert (arithmetic_type_flag<int32_t>::get()  == malc_obj_i32, "");
+static_assert (arithmetic_type_flag<int64_t>::get()  == malc_obj_i64, "");
 //------------------------------------------------------------------------------
 // "logged_type" for smart pointers containing std::vectors of arithmetic types
 template <

@@ -47,7 +47,7 @@ static bl_err mock_dest_idle_task (void* instance)
 }
 /*----------------------------------------------------------------------------*/
 static bl_err mock_dest_write(
-  void* instance, bl_timept64 now, bl_uword sev, malc_log_strings const* s
+  void* instance, bl_timept64 now, unsigned sev, malc_log_strings const* s
   )
 {
   mock_dest* d = (mock_dest*) instance;
@@ -91,7 +91,7 @@ static int dsts_test_teardown (void **state)
 }
 /*----------------------------------------------------------------------------*/
 static void destinations_do_add(
-  destinations_context* c, bl_u32* ids, mock_dest** mock
+  destinations_context* c, size_t* ids, mock_dest** mock
   )
 {
   bl_err err;
@@ -109,7 +109,7 @@ static void destinations_do_add(
 static void destinations_cfg_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  bl_u32 id[2];
+  size_t id[2];
   mock_dest* mock[2];
   bl_err err;
   destinations_do_add (c, id, mock);
@@ -143,7 +143,7 @@ static void destinations_cfg_test (void **state)
 static void destinations_idle_task_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  bl_u32 id[2];
+  size_t id[2];
   mock_dest* mock[2];
 
   c->tbls[0].idle_task = nullptr;
@@ -157,7 +157,7 @@ static void destinations_idle_task_test (void **state)
 static void destinations_flush_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  bl_u32 id[2];
+  size_t id[2];
   mock_dest* mock[2];
   c->tbls[0].flush = nullptr;
   destinations_do_add (c, id, mock);
@@ -170,7 +170,7 @@ static void destinations_flush_test (void **state)
 static void destinations_write_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  bl_u32 id[2];
+  size_t id[2];
   mock_dest* mock[2];
 
   destinations_do_add (c, id, mock);
@@ -185,7 +185,7 @@ static void destinations_write_test (void **state)
 static void destinations_write_sev_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  bl_u32           id[2];
+  size_t           id[2];
   mock_dest*       mock[2];
   malc_dst_cfg     cfg;
   bl_err           err;
@@ -223,7 +223,7 @@ static void write_sev_file (char const* text)
 static void destinations_write_rate_filter_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  bl_u32           id[2];
+  size_t           id[2];
   mock_dest*       mock[2];
   malc_dst_cfg     cfg;
   bl_err           err;
@@ -279,7 +279,7 @@ static void destinations_write_rate_filter_test (void **state)
 static void destinations_write_rate_filter_severity_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  bl_u32              id[2];
+  size_t           id[2];
   mock_dest*       mock[2];
   malc_dst_cfg     cfg;
   bl_err           err;
@@ -330,7 +330,7 @@ static void destinations_write_rate_filter_severity_test (void **state)
 static void destinations_sev_file_test (void **state)
 {
   destinations_context* c = (destinations_context*) *state;
-  bl_u32           id[2];
+  size_t           id[2];
   mock_dest*       mock[2];
   malc_dst_cfg     cfg;
   bl_err           err;

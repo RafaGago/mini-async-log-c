@@ -54,8 +54,8 @@ int main (int argc, char const* argv[])
   }
 
   /* destination register */
-  bl_u32 stdouterr_id;
-  bl_u32 file_id;
+  size_t stdouterr_id;
+  size_t file_id;
   err = malc_add_destination (ilog, &stdouterr_id, &malc_stdouterr_dst_tbl);
   if (err.own) {
     fprintf (stderr, "Error creating the stdout/stderr destination\n");

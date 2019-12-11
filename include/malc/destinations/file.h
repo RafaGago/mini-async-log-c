@@ -3,7 +3,6 @@
 
 #include <malc/libexport.h>
 #include <malc/common.h>
-#include <bl/base/integer.h>
 
 #ifdef __cplusplus
   extern "C" {

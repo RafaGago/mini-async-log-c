@@ -1,7 +1,7 @@
 #ifndef __MALC_TLS_BUFFER_H__
 #define __MALC_TLS_BUFFER_H__
 
-#include <bl/base/integer.h>
+#include <bl/base/integer_short.h>
 #include <bl/base/allocator.h>
 #include <bl/base/error.h>
 #include <bl/base/thread.h>
@@ -20,25 +20,25 @@
    node too to be able to deallocate) and the slot count is stored elsewhere.
    */
 
-#define TLS_BUFFER_FREE_UWORD ((bl_uword) 1)
+#define TLS_BUFFER_FREE_UWORD ((uword) 1)
 /*----------------------------------------------------------------------------*/
 typedef void (*tls_destructor) (void* mem, void* context);
 /*----------------------------------------------------------------------------*/
 typedef struct tls_buffer {
-  tls_destructor   destructor_fn;
-  void*            destructor_context;
-  bl_u8*           mem;
-  bl_u8*           mem_end;
-  bl_u8*           slot;
-  bl_uword         slot_count;
-  bl_uword         slot_size;
+  tls_destructor destructor_fn;
+  void*          destructor_context;
+  u8*            mem;
+  u8*            mem_end;
+  u8*            slot;
+  uword          slot_count;
+  uword          slot_size;
 }
 tls_buffer;
 /*----------------------------------------------------------------------------*/
 extern bl_err tls_buffer_init(
   tls_buffer**        t,
-  bl_u32              slot_size_and_align,
-  bl_u32              slot_count,
+  u32                 slot_size_and_align,
+  u32                 slot_count,
   bl_alloc_tbl const* alloc,
   tls_destructor      destructor_fn, /* executed when out of scope */
   void*               destructor_context /* will be passed to "destructor_fn" */
@@ -50,9 +50,9 @@ extern void* tls_buffer_thread_local_get (void);
 /*----------------------------------------------------------------------------*/
 extern void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque);
 /*----------------------------------------------------------------------------*/
-extern bl_err tls_buffer_alloc (bl_u8** mem, bl_u32 slots);
+extern bl_err tls_buffer_alloc (u8** mem, u32 slots);
 /*----------------------------------------------------------------------------*/
-extern void tls_buffer_dealloc (void* mem, bl_u32 slots, bl_u32 slot_size);
+extern void tls_buffer_dealloc (void* mem, u32 slots, u32 slot_size);
 /*----------------------------------------------------------------------------*/
 
 #endif

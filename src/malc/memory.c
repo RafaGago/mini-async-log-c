@@ -40,7 +40,7 @@ void memory_destroy (memory* m, bl_alloc_tbl const* alloc)
 /*----------------------------------------------------------------------------*/
 bl_err memory_tls_init_unregistered(
   memory*             m,
-  bl_u32              bytes,
+  size_t              bytes,
   bl_alloc_tbl const* alloc,
   tls_destructor      destructor_fn,
   void*               destructor_context,
@@ -51,9 +51,12 @@ bl_err memory_tls_init_unregistered(
     return bl_mkerr (bl_locked);
   }
   tls_buffer* t;
-  bl_u32 slots  = bl_div_ceil (bytes, (bl_u32) m->cfg.slot_size);
+  size_t slots = bl_div_ceil (bytes, (u32) m->cfg.slot_size);
+  if (slots != ((u32) slots)) {
+    return bl_mkerr (bl_would_overflow);
+  }
   bl_err err = tls_buffer_init(
-    &t, m->cfg.slot_size, slots, alloc, destructor_fn, destructor_context
+    &t, m->cfg.slot_size, (u32) slots, alloc, destructor_fn, destructor_context
     );
   if (err.own) {
     return err;
@@ -124,7 +127,7 @@ extern bl_err memory_tls_try_run_destructor (memory* m)
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
-bl_err memory_alloc (memory* m, bl_u8** mem, alloc_tag* tag, bl_u32 slots)
+bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
 {
   bl_assert (m && mem && tag && slots);
   bl_err err = tls_buffer_alloc (mem, slots);
@@ -147,7 +150,7 @@ bl_err memory_alloc (memory* m, bl_u8** mem, alloc_tag* tag, bl_u32 slots)
   return err;
 }
 /*----------------------------------------------------------------------------*/
-void memory_dealloc (memory* m, bl_u8* mem, alloc_tag tag, bl_u32 slots)
+void memory_dealloc (memory* m, u8* mem, alloc_tag tag, u32 slots)
 {
   switch (tag) {
   case alloc_tag_tls:

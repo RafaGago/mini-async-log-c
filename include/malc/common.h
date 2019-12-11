@@ -11,7 +11,6 @@
 
 /* user-facing macros and data types */
 
-#include <bl/base/integer.h>
 #include <bl/base/error.h>
 #include <bl/base/allocator.h>
 
@@ -44,7 +43,7 @@ enum malc_severities {
   malc_sev_off      = '9',
 };
 /*----------------------------------------------------------------------------*/
-static inline bool malc_is_valid_severity (bl_uword sev)
+static inline bool malc_is_valid_severity (unsigned sev)
 {
   return (sev >= malc_sev_debug) && (sev <= malc_sev_critical);
 }
@@ -69,9 +68,9 @@ start_own_thread:
   user thread by using "malc_run_consume_task".
 ------------------------------------------------------------------------------*/
 typedef struct malc_consumer_cfg {
-  bl_u32 idle_task_period_us;
-  bl_u32 backoff_max_us;
-  bool   start_own_thread;
+  uint32_t idle_task_period_us;
+  uint32_t backoff_max_us;
+  bool     start_own_thread;
 }
 malc_consumer_cfg;
 
@@ -127,9 +126,9 @@ fixed_allocator_per_cpu:
 ------------------------------------------------------------------------------*/
 typedef struct malc_alloc_cfg {
   bl_alloc_tbl const* msg_allocator;
-  bl_u32              slot_size;
-  bl_u32              fixed_allocator_bytes;
-  bl_u32              fixed_allocator_max_slots;
+  uint32_t            slot_size;
+  uint32_t            fixed_allocator_bytes;
+  uint32_t            fixed_allocator_max_slots;
   bool                fixed_allocator_per_cpu;
 }
 malc_alloc_cfg;
@@ -158,9 +157,9 @@ log_rate_filter_min_severity:
 
 ------------------------------------------------------------------------------*/
 typedef struct malc_security {
-  bool   sanitize_log_entries;
-  bl_u32 log_rate_filter_watch_count;
-  bl_u32 log_rate_filter_min_severity;
+  bool     sanitize_log_entries;
+  uint32_t log_rate_filter_watch_count;
+  uint32_t log_rate_filter_min_severity;
 }
 malc_security;
 /*----------------------------------------------------------------------------*/
@@ -183,11 +182,11 @@ text_len   :   log entry "strlen". Can't be zero.
 ------------------------------------------------------------------------------*/
 typedef struct malc_log_strings {
   char const* timestamp; /* from a monotonic clock */
-  bl_uword    timestamp_len;
+  size_t      timestamp_len;
   char const* sev;
-  bl_uword    sev_len;
+  size_t      sev_len;
   char const* text;
-  bl_uword    text_len;
+  size_t      text_len;
 }
 malc_log_strings;
 /*------------------------------------------------------------------------------
@@ -219,10 +218,10 @@ severity_file_path:
 
 ------------------------------------------------------------------------------*/
 typedef struct malc_dst_cfg {
-  bl_u64      log_rate_filter_time_ns;
+  uint64_t    log_rate_filter_time_ns;
   bool        show_timestamp;
   bool        show_severity;
-  bl_u8       severity;
+  uint8_t     severity;
   char const* severity_file_path;
 }
 malc_dst_cfg;
@@ -281,13 +280,16 @@ write:
     strs: log strings.
 ------------------------------------------------------------------------------*/
 typedef struct malc_dst {
-  bl_uword size_of;
+  size_t size_of;
   bl_err (*init)      (void* instance, bl_alloc_tbl const* alloc);
   void   (*terminate) (void* instance);
   bl_err (*flush)     (void* instance);
   bl_err (*idle_task) (void* instance);
   bl_err (*write)(
-    void* instance, bl_u64 nsec, bl_uword sev_val, malc_log_strings const* strs
+    void*                   instance,
+    uint64_t                nsec,
+    unsigned                sev_val,
+    malc_log_strings const* strs
     );
 }
 malc_dst;
@@ -345,8 +347,8 @@ typedef struct malc_file_cfg {
   char const* suffix;
   bool        time_based_name;
   bool        can_remove_old_data_on_full_disk;
-  bl_uword    max_file_size;
-  bl_uword    max_log_files;
+  size_t      max_file_size;
+  size_t      max_log_files;
 }
 malc_file_cfg;
 /*------------------------------------------------------------------------------
@@ -356,8 +358,8 @@ is just a passed pointer of the memory address with the size that was passed.
 "ref" is not const because free migth be called on it.
 ------------------------------------------------------------------------------*/
 typedef struct malc_ref {
-  void*  ref;
-  bl_u16 size; /* !!! for string this is equal to "strlen", not "strlen + 1" */
+  void*    ref;
+  uint16_t size; /* !!! for string this is equal to "strlen", not "strlen + 1" */
 }
 malc_ref;
 /*------------------------------------------------------------------------------
@@ -365,7 +367,7 @@ type returned on "malc_refdtor_fn" when using reference types on the logger. It
 is just a passed pointer of the memory address with the size that was passed.
 ------------------------------------------------------------------------------*/
 typedef void (*malc_refdtor_fn)(
-  void* context, malc_ref const* refs, bl_uword refs_count
+  void* context, malc_ref const* refs, size_t refs_count
   );
 /*------------------------------------------------------------------------------
 This is passed by the log functions. On the log function you select a callback
@@ -374,8 +376,8 @@ and if you log with context.
 typedef struct malc_obj_ref {
   void* obj;
   union {
-    void* context;
-    bl_u8 flag;
+    void*   context;
+    uint8_t flag;
   } extra;
 }
 malc_obj_ref;
@@ -403,18 +405,18 @@ typedef struct malc_obj_log_data {
   union {
     struct {
       char const* ptr;
-      bl_u16      len;
+      uint16_t    len;
     }
     str;
     struct {
       void const* ptr;
-      bl_u8       type;  /* a "malc_obj_type_id" saying the type of "ptr" */
-      bl_u8       count; /* number of elements of "type" contained in "ptr" */
+      uint8_t     type;  /* a "malc_obj_type_id" saying the type of "ptr" */
+      uint8_t     count; /* number of elements of "type" contained in "ptr" */
     }
     builtin;
   }
   data;
-  bl_u8 is_str; /* 0: buitin, nonzero: str*/
+  uint8_t is_str; /* 0: buitin, nonzero: str*/
 }
 malc_obj_log_data;
 /*----------------------------------------------------------------------------*/
@@ -470,7 +472,7 @@ Object table.
 typedef struct malc_obj_table {
   malc_obj_get_data_fn getdata;
   malc_obj_destroy_fn  destroy;
-  bl_u8                obj_sizeof;
+  uint8_t              obj_sizeof;
 }
 malc_obj_table;
 /*------------------------------------------------------------------------------

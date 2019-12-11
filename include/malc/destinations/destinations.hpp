@@ -1,6 +1,8 @@
 #ifndef __MALC_DESTINATION_HPP__
 #define __MALC_DESTINATION_HPP__
 
+#include <cstddef>
+#include <cstdint>
 #include <malc/libexport.h>
 #include <malc/common.h>
 #include <bl/base/error.h>
@@ -29,7 +31,7 @@ private:
 class MALC_EXPORT stdouterr_dst {
 public:
   /*--------------------------------------------------------------------------*/
-  bl_err set_stderr_severity (bl_uword sev) noexcept;
+  bl_err set_stderr_severity (unsigned sev) noexcept;
   /*--------------------------------------------------------------------------*/
 private:
   /*--------------------------------------------------------------------------*/
@@ -42,15 +44,15 @@ class MALC_EXPORT array_dst {
 public:
   /*--------------------------------------------------------------------------*/
   void
-    set_array(char* mem, bl_uword mem_entries, bl_uword entry_chars) noexcept;
+    set_array(char* mem, size_t mem_entries, size_t entry_chars) noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_uword size() const noexcept;
+  size_t size() const noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_uword capacity() const noexcept;
+  size_t capacity() const noexcept;
   /*--------------------------------------------------------------------------*/
-  char const* get_entry (bl_uword idx) const noexcept;
+  char const* get_entry (size_t idx) const noexcept;
   /*--------------------------------------------------------------------------*/
-  char const* operator[] (bl_uword idx) const noexcept
+  char const* operator[] (size_t idx) const noexcept
   {
     return get_entry (idx);
   }
@@ -69,7 +71,7 @@ class required_destination_methods {
   required_destination_methods (const bl_alloc_tbl& alloc);
   bool flush();
   bool idle_task();
-  bool write (bl_u64 nsec, bl_uword severity, malc_log_strings const& strs);
+  bool write (uint64_t nsec, size_t severity, malc_log_strings const& strs);
 }
 ------------------------------------------------------------------------------*/
 template <class uppermost_derivation>
@@ -121,8 +123,8 @@ private:
   /*--------------------------------------------------------------------------*/
   static bl_err fwd_write(
     void*                   instance,
-    bl_u64                  nsec,
-    bl_uword                severity,
+    uint64_t                nsec,
+    unsigned                severity,
     malc_log_strings const* strs
     )
   {
@@ -132,7 +134,7 @@ private:
     });
   }
   /*--------------------------------------------------------------------------*/
-  static inline uppermost_derivation& derived(void* instance)
+  static inline uppermost_derivation& derived (void* instance)
   {
     return *static_cast<uppermost_derivation*> (instance);
   }

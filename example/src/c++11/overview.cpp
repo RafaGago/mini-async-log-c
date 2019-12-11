@@ -242,7 +242,7 @@ static void malc_legacy_string_reference_types()
 
     void* context = (void*) 0x1ee7;
     auto destructorfn =
-      [] (void* context, malcpp::malc_ref const* refs, bl_uword refs_count) {
+      [] (void* context, malcpp::malc_ref const* refs, size_t refs_count) {
         assert (refs_count == 1); // the log entry just has one reference value
         assert (context == (void*) 0x1ee7);
         free (refs[0].ref);
@@ -267,7 +267,7 @@ static void malc_legacy_byte_refence_types()
 
     void* context = (void*) 0x1ee7;
     auto destructorfn =
-      [] (void* context, malcpp::malc_ref const* refs, bl_uword refs_count) {
+      [] (void* context, malcpp::malc_ref const* refs, size_t refs_count) {
         assert (refs_count == 1); // the log entry just has one reference value
         assert (context == (void*) 0x1ee7);
         free (refs[0].ref);

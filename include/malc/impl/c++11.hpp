@@ -5,6 +5,8 @@
   #error "Don't include this file directly"
 #endif
 
+#include <cstdint>
+
 #include <tuple>
 #include <utility>
 
@@ -25,7 +27,7 @@ namespace malcpp { namespace detail {
 /*----------------------------------------------------------------------------*/
 template <class T>
 struct count_compressed {
-  static constexpr bl_u16 run (int current = 0)
+  static constexpr uint16_t run (int current = 0)
   {
     return 0;
   }
@@ -35,7 +37,7 @@ struct count_compressed {
 template <class T>
 struct compressed_type_fields {
   using C = typename serialization::get_logged_type<T>;
-  static constexpr bl_u16 value =
+  static constexpr uint16_t value =
     serialization::basic_types_compress_count (C::type_id) +
     serialization::cpp_std_types_compressed_count (C::type_id);
 };
@@ -45,7 +47,7 @@ struct count_compressed;
 /*----------------------------------------------------------------------------*/
 template <template <class...> class L, class T, class... types>
 struct count_compressed<L<T, types...> >{
-  static constexpr bl_u16 run (bl_u16 current = 0)
+  static constexpr uint16_t run (uint16_t current = 0)
   {
     return count_compressed<L<types...> >::run(
       current + compressed_type_fields<T>::value
@@ -55,7 +57,7 @@ struct count_compressed<L<T, types...> >{
 /*----------------------------------------------------------------------------*/
 template <template <class...> class L>
 struct count_compressed<L<> > {
-  static constexpr bl_u16 run (bl_u16 current = 0)
+  static constexpr uint16_t run (uint16_t current = 0)
   {
     return current;
   }

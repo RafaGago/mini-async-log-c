@@ -22,10 +22,10 @@ bl_declare_autoarray_funcs (log_refs, malc_ref);
 /*----------------------------------------------------------------------------*/
 #if MALC_BUILTIN_COMPRESSION || (MALC_PTR_COMPRESSION && BL_WORDSIZE == 32)
 static bl_err decode_compressed_32(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, bl_u32* v
+  compressed_header* ch, u8** mem, u8* mem_end, u32* v
   )
 {
-  bl_u8 fmt     = (ch->hdr[ch->idx / 2] >> ((ch->idx & 1) * 4)) & 15;
+  u8 fmt     = (ch->hdr[ch->idx / 2] >> ((ch->idx & 1) * 4)) & 15;
   bl_uword size = (fmt & 7) + 1;
   bl_uword inv  = fmt >> 3;
   if (bl_unlikely (*mem + size > mem_end || size > sizeof *v)) {
@@ -33,7 +33,7 @@ static bl_err decode_compressed_32(
   }
   *v = 0;
   for (bl_uword i = 0; i < size; ++i) {
-    *v |= ((bl_u32) **mem) << (i * 8);
+    *v |= ((u32) **mem) << (i * 8);
     ++(*mem);
   }
   *v = inv ? ~*v : *v;
@@ -44,10 +44,10 @@ static bl_err decode_compressed_32(
 /*----------------------------------------------------------------------------*/
 #if MALC_BUILTIN_COMPRESSION || (MALC_PTR_COMPRESSION && BL_WORDSIZE == 64)
 static bl_err decode_compressed_64(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, bl_u64* v
+  compressed_header* ch, u8** mem, u8* mem_end, u64* v
   )
 {
-  bl_u8 fmt     = (ch->hdr[ch->idx / 2] >> ((ch->idx & 1) * 4)) & 15;
+  u8 fmt     = (ch->hdr[ch->idx / 2] >> ((ch->idx & 1) * 4)) & 15;
   bl_uword size = (fmt & 7) + 1;
   bl_uword inv  = fmt >> 3;
   if (bl_unlikely (*mem + size > mem_end)) {
@@ -55,7 +55,7 @@ static bl_err decode_compressed_64(
   }
   *v = 0;
   for (bl_uword i = 0; i < size; ++i) {
-    *v |= ((bl_u64) **mem) << (i * 8);
+    *v |= ((u64) **mem) << (i * 8);
     ++(*mem);
   }
   *v = inv ? ~*v : *v;
@@ -67,25 +67,25 @@ static bl_err decode_compressed_64(
 #if MALC_COMPRESSION && BL_WORDSIZE == 64
 /*----------------------------------------------------------------------------*/
 static bl_err decode_compressed_ptr(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, void** v
+  compressed_header* ch, u8** mem, u8* mem_end, void** v
   )
 {
-  return decode_compressed_64 (ch, mem, mem_end, (bl_u64*) v);
+  return decode_compressed_64 (ch, mem, mem_end, (u64*) v);
 }
 /*----------------------------------------------------------------------------*/
 #elif MALC_COMPRESSION && BL_WORDSIZE == 32
 /*----------------------------------------------------------------------------*/
 static bl_err decode_compressed_ptr(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, void** v
+  compressed_header* ch, u8** mem, u8* mem_end, void** v
   )
 {
-  return decode_compressed_32 (ch, mem, mem_end, (bl_u32*) v);
+  return decode_compressed_32 (ch, mem, mem_end, (u32*) v);
 }
 /*----------------------------------------------------------------------------*/
 #endif
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_8) (
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, bl_u8* v
+  compressed_header* ch, u8** mem, u8* mem_end, u8* v
   )
 {
   if (bl_unlikely (*mem + sizeof *v > mem_end)) {
@@ -97,7 +97,7 @@ static inline bl_err DECODE_NAME_BUILD(_8) (
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_16)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, bl_u16* v
+  compressed_header* ch, u8** mem, u8* mem_end, u16* v
   )
 {
   if (bl_unlikely (*mem + sizeof *v > mem_end)) {
@@ -110,7 +110,7 @@ static inline bl_err DECODE_NAME_BUILD(_16)(
 /*----------------------------------------------------------------------------*/
 #if MALC_BUILTIN_COMPRESSION == 0
 static inline bl_err DECODE_NAME_BUILD(_32)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, bl_u32* v
+  compressed_header* ch, u8** mem, u8* mem_end, u32* v
   )
 {
   if (bl_unlikely (*mem + sizeof *v > mem_end)) {
@@ -122,7 +122,7 @@ static inline bl_err DECODE_NAME_BUILD(_32)(
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_64)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, bl_u64* v
+  compressed_header* ch, u8** mem, u8* mem_end, u64* v
   )
 {
   if (bl_unlikely (*mem + sizeof *v > mem_end)) {
@@ -136,14 +136,14 @@ static inline bl_err DECODE_NAME_BUILD(_64)(
 #else /* MALC_BUILTIN_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_32)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, bl_u32* v
+  compressed_header* ch, u8** mem, u8* mem_end, u32* v
   )
 {
   return decode_compressed_32 (ch, mem, mem_end, v);
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_64)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, bl_u64* v
+  compressed_header* ch, u8** mem, u8* mem_end, u64* v
   )
 {
   return decode_compressed_64 (ch, mem, mem_end, v);
@@ -152,7 +152,7 @@ static inline bl_err DECODE_NAME_BUILD(_64)(
 #endif /* MALC_BUILTIN_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_float)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, float* v
+  compressed_header* ch, u8** mem, u8* mem_end, float* v
   )
 {
   if (bl_unlikely (*mem + sizeof *v > mem_end)) {
@@ -164,7 +164,7 @@ static inline bl_err DECODE_NAME_BUILD(_float)(
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_double)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, double* v
+  compressed_header* ch, u8** mem, u8* mem_end, double* v
   )
 {
   if (bl_unlikely (*mem + sizeof *v > mem_end)) {
@@ -178,7 +178,7 @@ static inline bl_err DECODE_NAME_BUILD(_double)(
 #if MALC_PTR_COMPRESSION == 0
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_ptr)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, void** v
+  compressed_header* ch, u8** mem, u8* mem_end, void** v
   )
 {
   if (bl_unlikely (*mem + sizeof *v > mem_end)) {
@@ -192,7 +192,7 @@ static inline bl_err DECODE_NAME_BUILD(_ptr)(
 #else /* MALC_PTR_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_ptr)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, void** v
+  compressed_header* ch, u8** mem, u8* mem_end, void** v
   )
 {
   return decode_compressed_ptr (ch, mem, mem_end, v);
@@ -201,14 +201,14 @@ static inline bl_err DECODE_NAME_BUILD(_ptr)(
 #endif /* MALC_PTR_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_lit)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_lit* v
+  compressed_header* ch, u8** mem, u8* mem_end, malc_lit* v
   )
 {
   return DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->lit);
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_strcp)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_strcp* v
+  compressed_header* ch, u8** mem, u8* mem_end, malc_strcp* v
   )
 {
   bl_err err = DECODE_NAME_BUILD(_16) (ch, mem, mem_end, &v->len);
@@ -224,7 +224,7 @@ static inline bl_err DECODE_NAME_BUILD(_strcp)(
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_strref)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_strref* v
+  compressed_header* ch, u8** mem, u8* mem_end, malc_strref* v
   )
 {
   bl_err err = DECODE_NAME_BUILD(_16) (ch, mem, mem_end, &v->len);
@@ -235,7 +235,7 @@ static inline bl_err DECODE_NAME_BUILD(_strref)(
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_memcp)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_memcp* v
+  compressed_header* ch, u8** mem, u8* mem_end, malc_memcp* v
   )
 {
   bl_err err = DECODE_NAME_BUILD(_16) (ch, mem, mem_end, &v->size);
@@ -245,13 +245,13 @@ static inline bl_err DECODE_NAME_BUILD(_memcp)(
   if (bl_unlikely (*mem + v->size > mem_end)) {
     return bl_mkerr (bl_invalid);
   }
-  v->mem = (bl_u8 const*) *mem;
+  v->mem = (u8 const*) *mem;
   *mem += v->size;
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_memref)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_memref* v
+  compressed_header* ch, u8** mem, u8* mem_end, malc_memref* v
   )
 {
   bl_err err = DECODE_NAME_BUILD(_16) (ch, mem, mem_end, &v->size);
@@ -262,7 +262,7 @@ static inline bl_err DECODE_NAME_BUILD(_memref)(
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_refdtor)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_refdtor* v
+  compressed_header* ch, u8** mem, u8* mem_end, malc_refdtor* v
   )
 {
   bl_err err = DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->func);
@@ -273,7 +273,7 @@ static inline bl_err DECODE_NAME_BUILD(_refdtor)(
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_obj)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_obj* v
+  compressed_header* ch, u8** mem, u8* mem_end, malc_obj* v
   )
 {
   bl_err err = DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->table);
@@ -289,7 +289,7 @@ static inline bl_err DECODE_NAME_BUILD(_obj)(
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_obj_ctx)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_obj_ctx* v
+  compressed_header* ch, u8** mem, u8* mem_end, malc_obj_ctx* v
   )
 {
   bl_err err = DECODE_NAME_BUILD(_ptr) (ch, mem, mem_end, (void**) &v->context);
@@ -300,7 +300,7 @@ static inline bl_err DECODE_NAME_BUILD(_obj_ctx)(
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_obj_flag)(
-  compressed_header* ch, bl_u8** mem, bl_u8* mem_end, malc_obj_flag* v
+  compressed_header* ch, u8** mem, u8* mem_end, malc_obj_flag* v
   )
 {
   bl_err err = DECODE_NAME_BUILD(_8) (ch, mem, mem_end, &v->flag);
@@ -313,10 +313,10 @@ static inline bl_err DECODE_NAME_BUILD(_obj_flag)(
 #ifndef __cplusplus
 #define decode(ch, mem, mem_end, val)\
   _Generic ((val),\
-    bl_u8*:         decode_8,\
-    bl_u16*:        decode_16,\
-    bl_u32*:        decode_32,\
-    bl_u64*:        decode_64,\
+    u8*:         decode_8,\
+    u16*:        decode_16,\
+    u32*:        decode_32,\
+    u64*:        decode_64,\
     double*:        decode_double,\
     float*:         decode_float,\
     void**:         decode_ptr,\
@@ -394,7 +394,7 @@ void serializer_init(
 /*----------------------------------------------------------------------------*/
 /* write the header and return it ready to serialize write the varargs*/
 malc_serializer serializer_prepare_external_serializer(
-  serializer* ser, bl_u8* node_mem, bl_u8* mem
+  serializer* ser, u8* node_mem, u8* mem
   )
 {
   malc_serializer s;
@@ -463,8 +463,8 @@ void deserializer_reset (deserializer* ds)
 /*----------------------------------------------------------------------------*/
 bl_err deserializer_execute(
   deserializer*       ds,
-  bl_u8*              mem,
-  bl_u8*              mem_end,
+  u8*              mem,
+  u8*              mem_end,
   bool                has_timestamp,
   bl_alloc_tbl const* alloc
   )

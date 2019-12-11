@@ -11,30 +11,30 @@
 
 namespace malcpp {
 //------------------------------------------------------------------------------
-template <bl_u8 type_value>
+template <uint8_t type_value>
 struct builtin_map {
-  static constexpr bl_u8 value = type_value;
+  static constexpr uint8_t value = type_value;
 };
 //------------------------------------------------------------------------------
 template <class T>
 struct builtin_type_map;
 
 template<>
-struct builtin_type_map<bl_u8>  : public builtin_map<malc_obj_u8> {};
+struct builtin_type_map<uint8_t>  : public builtin_map<malc_obj_u8> {};
 template<>
-struct builtin_type_map<bl_i8>  : public builtin_map<malc_obj_i8> {};
+struct builtin_type_map<int8_t>  : public builtin_map<malc_obj_i8> {};
 template<>
-struct builtin_type_map<bl_u16> : public builtin_map<malc_obj_u16> {};
+struct builtin_type_map<uint16_t> : public builtin_map<malc_obj_u16> {};
 template<>
-struct builtin_type_map<bl_i16> : public builtin_map<malc_obj_i16> {};
+struct builtin_type_map<int16_t> : public builtin_map<malc_obj_i16> {};
 template<>
-struct builtin_type_map<bl_u32> : public builtin_map<malc_obj_u32> {};
+struct builtin_type_map<uint32_t> : public builtin_map<malc_obj_u32> {};
 template<>
-struct builtin_type_map<bl_i32> : public builtin_map<malc_obj_i32> {};
+struct builtin_type_map<int32_t> : public builtin_map<malc_obj_i32> {};
 template<>
-struct builtin_type_map<bl_u64> : public builtin_map<malc_obj_u64> {};
+struct builtin_type_map<uint64_t> : public builtin_map<malc_obj_u64> {};
 template<>
-struct builtin_type_map<bl_i64> : public builtin_map<malc_obj_i64> {};
+struct builtin_type_map<int64_t> : public builtin_map<malc_obj_i64> {};
 template<>
 struct builtin_type_map<float> : public builtin_map<malc_obj_float> {};
 template<>
@@ -61,7 +61,7 @@ struct MALC_EXPORT obj_log_data {
   }
   //----------------------------------------------------------------------------
   static malc_obj_log_data get(
-    void const* addr, std::size_t count, bl_u8 builtin_type
+    void const* addr, std::size_t count, uint8_t builtin_type
     );
   //----------------------------------------------------------------------------
   template <class T>

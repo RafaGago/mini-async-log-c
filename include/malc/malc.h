@@ -2,8 +2,9 @@
 #define __MALC_H__
 
 #include <string.h>
+#include <stdint.h>
+#include <stddef.h>
 
-#include <bl/base/integer.h>
 #include <bl/base/error.h>
 #include <bl/base/assert.h>
 #include <bl/base/allocator.h>
@@ -32,7 +33,7 @@ struct malc;
 typedef struct malc malc;
 
 /*----------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_uword malc_get_size (void);
+extern MALC_EXPORT size_t malc_get_size (void);
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_create (malc* l, bl_alloc_tbl const* tbl);
 /*----------------------------------------------------------------------------*/
@@ -115,7 +116,7 @@ two memory instances will corrupt both loggers. This is unfixable as it is a
 limitation of Thread Local Storage.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err
-  malc_producer_thread_local_init (malc* l, bl_u32 bytes);
+  malc_producer_thread_local_init (malc* l, size_t bytes);
 /*------------------------------------------------------------------------------
 Runs some iterations of malc's consumer function. This is to be used if the
 "malc_cfg.producer.start_own_thread" variable is false, so it is possible to
@@ -131,7 +132,7 @@ returns bl_ok:            Consumer not in idle-state.
         bl_nothing_to_do: Consumer in idle-state.
         bl_preconditions: Malc library not ready to run (no init, terminated...)
 ------------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us);
+extern MALC_EXPORT bl_err malc_run_consume_task (malc* l, unsigned timeout_us);
 /*------------------------------------------------------------------------------
 Adds a destination. Can only be added before initializing (calling "malc_init").
 
@@ -140,7 +141,7 @@ safety issues of variables used by the functions pointed by the "malc_dst"
 table.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_add_destination(
-  malc* l, bl_u32* dest_id, malc_dst const* dst
+  malc* l, size_t* dest_id, malc_dst const* dst
   );
 /*------------------------------------------------------------------------------
 Gets the allocated and initialized instance of a logger destination. E.g:
@@ -149,7 +150,7 @@ Gets the allocated and initialized instance of a logger destination. E.g:
   #include <malc/destinations/stdouterr.h>
 
   malc* l = ...;
-  bl_u32   id;
+  uint32_t   id;
   (void) malc_add_destination (l, &id, &malc_stdouterr_dst_tbl);
   malc_stdouterr_dst* dst;
   (void) malc_get_destination_instance (l (void**) &dst, id);
@@ -161,15 +162,15 @@ is safe to separately store the pointer when all the destinations have been
 added.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_get_destination_instance(
-  malc const* l, void** instance, bl_u32 dest_id
+  malc const* l, void** instance, size_t dest_id
   );
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_get_destination_cfg(
-  malc const* l, malc_dst_cfg* cfg, bl_u32 dest_id
+  malc const* l, malc_dst_cfg* cfg, size_t dest_id
   );
 /*----------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_set_destination_cfg(
-  malc* l, malc_dst_cfg const* cfg, bl_u32 dest_id
+  malc* l, malc_dst_cfg const* cfg, size_t dest_id
   );
 /*------------------------------------------------------------------------------
 Passes a literal to malc. By using this function you tell the logger that
@@ -189,7 +190,7 @@ static inline malc_lit loglit (char const* literal)
 /*------------------------------------------------------------------------------
 Passes a string by value (deep copy) to malc.
 ------------------------------------------------------------------------------*/
-static inline malc_strcp logstrcpy (char const* str, bl_u16 len)
+static inline malc_strcp logstrcpy (char const* str, uint16_t len)
 {
   bl_assert ((str && len) || len == 0);
   malc_strcp s = { str, len };
@@ -198,16 +199,16 @@ static inline malc_strcp logstrcpy (char const* str, bl_u16 len)
 /*----------------------------------------------------------------------------*/
 static inline malc_strcp logstrcpyl (char const* str)
 {
-  bl_uword len = strlen (str);
-  return logstrcpy (str, (bl_u16) (len < 65536 ? len : 65535));
+  size_t len = strlen (str);
+  return logstrcpy (str, (uint16_t) (len < 65536 ? len : 65535));
 }
 /*------------------------------------------------------------------------------
 Passes a memory area by value (deep copy) to malc. It will be printed as hex.
 ------------------------------------------------------------------------------*/
-static inline malc_memcp logmemcpy (void const* mem, bl_u16 size)
+static inline malc_memcp logmemcpy (void const* mem, uint16_t size)
 {
   bl_assert ((mem && size) || size == 0);
-  malc_memcp b = { (bl_u8 const*) mem, size };
+  malc_memcp b = { (uint8_t const*) mem, size };
   return b;
 }
 /*------------------------------------------------------------------------------
@@ -215,7 +216,7 @@ Passes a string by reference to malc. Needs that you provide a destructor for
 this dynamic string as the last parameter on the call (see "logrefdtor"). To be
 used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
-static inline malc_strref logstrref (char* str, bl_u16 len)
+static inline malc_strref logstrref (char* str, uint16_t len)
 {
   bl_assert ((str && len) || len == 0);
   malc_strref s = { str, len };
@@ -224,23 +225,23 @@ static inline malc_strref logstrref (char* str, bl_u16 len)
 /*----------------------------------------------------------------------------*/
 static inline malc_strref logstrrefl (char* str)
 {
-  bl_uword len = strlen (str);
-  return logstrref (str, (bl_u16) (len < 65536 ? len : 65535));
+  size_t len = strlen (str);
+  return logstrref (str, (uint16_t) (len < 65536 ? len : 65535));
 }
 /*------------------------------------------------------------------------------
 Passes a memory area by reference to malc. Needs that you provide a destructor
 for this memory area as the last parameter on the call (see "logrefdtor"), To be
 used to avoid copying big chunks of data.
 ------------------------------------------------------------------------------*/
-static inline malc_memref logmemref (void* mem, bl_u16 size)
+static inline malc_memref logmemref (void* mem, uint16_t size)
 {
   bl_assert ((mem && size) || size == 0);
-  malc_memref b = { (bl_u8*) mem, size };
+  malc_memref b = { (uint8_t*) mem, size };
   return b;
 }
 /*------------------------------------------------------------------------------
 typedef void (*malc_refdtor_fn)(
-  void* context, malc_ref const* refs, bl_uword refs_count
+  void* context, malc_ref const* refs, size_t refs_count
   );
 
 Passed by reference parameter destructor.

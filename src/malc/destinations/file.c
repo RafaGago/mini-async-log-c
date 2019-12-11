@@ -17,17 +17,17 @@
 bl_define_ringb_funcs (past_files, char*);
 /*----------------------------------------------------------------------------*/
 struct malc_file_dst {
-  FILE*            f;
+  FILE*               f;
   bl_alloc_tbl const* alloc;
-  bool             time_based_name;
-  bool             can_remove_old_data_on_full_disk;
-  bl_uword         name_seq_num;
-  bl_dstr          prefix;
-  bl_dstr          suffix;
-  bl_uword         file_size;
-  bl_uword         max_file_size;
-  bl_uword         max_log_files;
-  bl_ringb         files;
+  bool                time_based_name;
+  bool                can_remove_old_data_on_full_disk;
+  size_t              name_seq_num;
+  bl_dstr             prefix;
+  bl_dstr             suffix;
+  size_t              file_size;
+  size_t              max_file_size;
+  size_t              max_log_files;
+  bl_ringb            files;
 };
 /*----------------------------------------------------------------------------*/
 static bl_err malc_file_dst_init (void* instance, bl_alloc_tbl const* alloc)
@@ -136,18 +136,18 @@ static void malc_file_dst_drop_last_file (malc_file_dst* d, bool do_remove)
 #define LIT_fwrite(fd, lit) fwrite (lit, 1, bl_lit_len (lit), fd)
 #define ENOSPC_ERRSTR "<corrupted: ENOSPC>\n"
 /*----------------------------------------------------------------------------*/
-static bl_err malc_fwrite (malc_file_dst* d, char const* s, bl_uword slen)
+static bl_err malc_fwrite (malc_file_dst* d, char const* s, size_t slen)
 {
-  static const bl_uword max_retries = 2;
-  bl_uword i;
+  static const size_t max_retries = 2;
+  size_t i;
 
   for (i = 0; i < max_retries; ++i) {
-    bl_uword bytes   = fwrite (s, sizeof (char), slen, d->f);
+    size_t bytes  = fwrite (s, sizeof (char), slen, d->f);
     d->file_size += bytes;
 
     if (bytes != slen) {
       if (errno == ENOSPC && d->can_remove_old_data_on_full_disk) {
-        bl_uword size = past_files_size (&d->files);
+        size_t size = past_files_size (&d->files);
         if (size == 1) {
           /* removing the currently open file */
           fclose (d->f);
@@ -181,12 +181,12 @@ static bl_err malc_fwrite (malc_file_dst* d, char const* s, bl_uword slen)
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_file_dst_write(
-    void* instance, bl_u64 nsec, bl_uword sev_val, malc_log_strings const* strs
+    void* instance, bl_u64 nsec, unsigned sev_val, malc_log_strings const* strs
     )
 {
   malc_file_dst* d = (malc_file_dst*) instance;
 
-  bl_uword bytes = strs->timestamp_len + strs->sev_len + strs->text_len;
+  size_t bytes = strs->timestamp_len + strs->sev_len + strs->text_len;
   bytes         += bl_lit_len ("\n");
 
   if (d->max_file_size != 0 && d->file_size + bytes >= d->max_file_size) {
@@ -281,7 +281,7 @@ MALC_EXPORT bl_err malc_file_set_cfg(
   if (err.own) {
     return err;
   }
-  bl_uword pfcount =
+  size_t pfcount =
     d->max_log_files ? bl_round_next_pow2_u (d->max_log_files) : 1;
   return past_files_init (&d->files, pfcount, d->alloc);
 }

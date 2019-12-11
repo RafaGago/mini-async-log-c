@@ -45,7 +45,7 @@ malc_dst file_dst::get_dst_tbl()
 }
 /*----------------------------------------------------------------------------*/
 void array_dst::set_array(
-  char* mem, bl_uword mem_entries, bl_uword entry_chars
+  char* mem, size_t mem_entries, size_t entry_chars
   ) noexcept
 {
   malc_array_dst_set_array(
@@ -53,17 +53,17 @@ void array_dst::set_array(
     );
 }
 /*----------------------------------------------------------------------------*/
-bl_uword array_dst::size() const noexcept
+size_t array_dst::size() const noexcept
 {
   return malc_array_dst_size ((malc_array_dst const*) this);
 }
 /*----------------------------------------------------------------------------*/
-bl_uword array_dst::capacity() const noexcept
+size_t array_dst::capacity() const noexcept
 {
   return malc_array_dst_capacity ((malc_array_dst const*) this);
 }
 /*----------------------------------------------------------------------------*/
-char const* array_dst::get_entry (bl_uword idx) const noexcept
+char const* array_dst::get_entry (size_t idx) const noexcept
 {
   return malc_array_dst_get_entry ((malc_array_dst const*) this, idx);
 }
@@ -81,7 +81,7 @@ malc_dst array_dst::get_dst_tbl()
   return dst;
 }
 /*----------------------------------------------------------------------------*/
-bl_err stdouterr_dst::set_stderr_severity (bl_uword sev) noexcept
+bl_err stdouterr_dst::set_stderr_severity (unsigned sev) noexcept
 {
   return malc_stdouterr_set_stderr_severity ((malc_stdouterr_dst*) this, sev);
 }
@@ -106,7 +106,7 @@ namespace detail {
 dst_access_untyped::dst_access_untyped() noexcept
 {
   m_owner = nullptr;
-  m_id    = (bl_u32) -1ll;
+  m_id    = (size_t) -1ll;
 }
 /*----------------------------------------------------------------------------*/
 bl_err dst_access_untyped::get_cfg (dst_cfg& c) const noexcept
@@ -144,7 +144,7 @@ malc* dst_access_untyped::owner() const noexcept
   return m_owner;
 }
 /*----------------------------------------------------------------------------*/
-bl_u32 dst_access_untyped::id() const noexcept
+size_t dst_access_untyped::id() const noexcept
 {
   return m_id;
 }

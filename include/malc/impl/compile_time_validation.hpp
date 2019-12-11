@@ -1,6 +1,7 @@
 #ifndef __MALC_COMPILE_TIME_VALIDATION__
 #define __MALC_COMPILE_TIME_VALIDATION__
 
+#include <cstdint>
 #include <malc/impl/metaprogramming_common.hpp>
 #include <malc/impl/serialization.hpp>
 
@@ -48,14 +49,14 @@ struct fmtret {
   //----------------------------------------------------------------------------
   static_assert (sizeof (unsigned) >= valbytes * 2, "");
   //----------------------------------------------------------------------------
-  static constexpr unsigned make (bl_i16 code, unsigned arg)
+  static constexpr unsigned make (int16_t code, unsigned arg)
   {
     return arg | (((unsigned) code) << valbits);
   }
   //----------------------------------------------------------------------------
-  static constexpr bl_i16 get_code (unsigned fmtretval)
+  static constexpr int16_t get_code (unsigned fmtretval)
   {
-    return (bl_i16)(fmtretval >> valbits);
+    return (int16_t)(fmtretval >> valbits);
   }
   //----------------------------------------------------------------------------
   static constexpr unsigned get_arg (unsigned fmtretval)

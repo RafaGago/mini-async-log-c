@@ -88,7 +88,7 @@ static bl_err stress_dst_idle_task (void* dst)
 }
 /*----------------------------------------------------------------------------*/
 static bl_err stress_dst_write(
-  void* dst, bl_timept64 now, bl_uword sev_val, malc_log_strings const* strs
+  void* dst, bl_timept64 now, unsigned sev_val, malc_log_strings const* strs
   )
 {
   stress_dst* d = (stress_dst*) dst;
@@ -252,7 +252,7 @@ int main (int argc, char const* argv[])
         goto dealloc;
       }
       /* destination register */
-      bl_u32 dst_id;
+      size_t dst_id;
       err = malc_add_destination (ilog, &dst_id, &stress_dst_tbl);
       if (err.own) {
         fprintf (stderr, "Error creating the stress destination\n");

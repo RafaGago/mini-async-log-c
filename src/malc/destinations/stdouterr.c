@@ -7,7 +7,7 @@
 
 /*----------------------------------------------------------------------------*/
 struct malc_stdouterr_dst {
-  bl_uword stderr_sev;
+  unsigned stderr_sev;
 };
 /*----------------------------------------------------------------------------*/
 static bl_err malc_stdouterr_dst_init (void* instance, bl_alloc_tbl const* alloc)
@@ -18,7 +18,7 @@ static bl_err malc_stdouterr_dst_init (void* instance, bl_alloc_tbl const* alloc
 }
 /*----------------------------------------------------------------------------*/
 static bl_err malc_stdouterr_dst_write(
-    void* instance, bl_u64 nsec, bl_uword sev_val, malc_log_strings const* strs
+    void* instance, bl_u64 nsec, unsigned sev_val, malc_log_strings const* strs
     )
 {
   malc_stdouterr_dst* d = (malc_stdouterr_dst*) instance;
@@ -52,7 +52,7 @@ MALC_EXPORT const struct malc_dst malc_stdouterr_dst_tbl = {
 };
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_stdouterr_set_stderr_severity(
-  malc_stdouterr_dst* d, bl_uword sev
+  malc_stdouterr_dst* d, unsigned sev
   )
 {
   if (!malc_is_valid_severity (sev) && sev != malc_sev_off) {

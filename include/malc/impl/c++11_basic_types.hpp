@@ -1,6 +1,7 @@
 #ifndef __MALC_CPP11_BASIC_TYPES_HPP__
 #define __MALC_CPP11_BASIC_TYPES_HPP__
 
+#include <cstdint>
 #include <utility>
 #include <string>
 
@@ -176,28 +177,28 @@ template <class T>
 struct builtin_type_id;
 
 template <>
-struct builtin_type_id<bl_u8> : public attach_type_id<malc_type_u8>
+struct builtin_type_id<uint8_t> : public attach_type_id<malc_type_u8>
 {};
 template <>
-struct builtin_type_id<bl_i8> : public attach_type_id<malc_type_i8>
+struct builtin_type_id<int8_t> : public attach_type_id<malc_type_i8>
 {};
 template <>
-struct builtin_type_id<bl_u16> : public attach_type_id<malc_type_u16>
+struct builtin_type_id<uint16_t> : public attach_type_id<malc_type_u16>
 {};
 template <>
-struct builtin_type_id<bl_i16> : public attach_type_id<malc_type_i16>
+struct builtin_type_id<int16_t> : public attach_type_id<malc_type_i16>
 {};
 template <>
-struct builtin_type_id<bl_u32> : public attach_type_id<malc_type_u32>
+struct builtin_type_id<uint32_t> : public attach_type_id<malc_type_u32>
 {};
 template <>
-struct builtin_type_id<bl_i32> : public attach_type_id<malc_type_i32>
+struct builtin_type_id<int32_t> : public attach_type_id<malc_type_i32>
 {};
 template <>
-struct builtin_type_id<bl_u64> : public attach_type_id<malc_type_u64>
+struct builtin_type_id<uint64_t> : public attach_type_id<malc_type_u64>
 {};
 template <>
-struct builtin_type_id<bl_i64> : public attach_type_id<malc_type_i64>
+struct builtin_type_id<int64_t> : public attach_type_id<malc_type_i64>
 {};
 template <>
 struct builtin_type_id<float> : public attach_type_id<malc_type_float>
@@ -221,30 +222,30 @@ struct builtin_type_base :
 #if MALC_BUILTIN_COMPRESSION == 1
 //------------------------------------------------------------------------------
 template <>
-struct builtin_type_base<bl_i32> :
+struct builtin_type_base<int32_t> :
   public reuse_all_possible_from_c_impl<
-    bl_i32, builtin_type_id<bl_i32>::type_id
+    int32_t, builtin_type_id<int32_t>::type_id
     >
 {};
 
 template <>
-struct builtin_type_base<bl_u32> :
+struct builtin_type_base<uint32_t> :
   public reuse_all_possible_from_c_impl<
-    bl_u32, builtin_type_id<bl_u32>::type_id
+    uint32_t, builtin_type_id<uint32_t>::type_id
     >
 {};
 
 template <>
-struct builtin_type_base<bl_i64> :
+struct builtin_type_base<int64_t> :
   public reuse_all_possible_from_c_impl<
-    bl_i64, builtin_type_id<bl_i64>::type_id
+    int64_t, builtin_type_id<int64_t>::type_id
     >
 {};
 
 template <>
-struct builtin_type_base<bl_u64> :
+struct builtin_type_base<uint64_t> :
   public reuse_all_possible_from_c_impl<
-    bl_u64, builtin_type_id<bl_u64>::type_id
+    uint64_t, builtin_type_id<uint64_t>::type_id
     >
 {};
 //------------------------------------------------------------------------------
@@ -423,9 +424,9 @@ struct logged_type<std_string_rvalue> :
   //----------------------------------------------------------------------------
 };
 //------------------------------------------------------------------------------
-static constexpr bl_u16 basic_types_compress_count (bl_u8 type_id)
+static constexpr uint16_t basic_types_compress_count (uint8_t type_id)
 {
-  return static_cast<bl_u16> (malc_total_compress_count (type_id));
+  return static_cast<uint16_t> (malc_total_compress_count (type_id));
 }
 //------------------------------------------------------------------------------
 }}} // namespace malcpp { namespace detail { namespace serialization {

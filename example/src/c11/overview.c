@@ -16,7 +16,7 @@ static inline malc* get_malc_logger_instance()
   return ilog;
 }
 /*----------------------------------------------------------------------------*/
-void dtor_using_free (void* context, malc_ref const* refs, bl_uword refs_count)
+void dtor_using_free (void* context, malc_ref const* refs, size_t refs_count)
 {
   for (bl_uword i = 0; i < refs_count; ++i) {
     free ((void*) refs[i].ref);
@@ -130,8 +130,8 @@ int log_thread (void* ctx)
 /*----------------------------------------------------------------------------*/
 int add_configure_destinations (void)
 {
-  bl_u32    stdouterr_id;
-  bl_u32    file_id;
+  size_t stdouterr_id;
+  size_t file_id;
   bl_err err;
 
   /* destination register */

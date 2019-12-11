@@ -11,7 +11,7 @@ typedef struct context {
   bl_alloc_tbl    alloc;
   malc*           l;
   malc_array_dst* dst;
-  bl_u32          dst_id;
+  size_t          dst_id;
   char            lines[64][1024];
 }
 context;
@@ -339,7 +339,7 @@ static void severity_change (void **state)
 static void severity_two_destinations (void **state)
 {
   char lines[64][80];
-  bl_u32             dst_id2;
+  size_t          dst_id2;
   malc_array_dst* dst2;
 
   context* c = (context*) *state;

@@ -4,6 +4,8 @@
 
 #include <bl/base/assert.h>
 #include <bl/base/allocator.h>
+#include <bl/base/integer.h>
+#include <bl/base/integer_short.h>
 #include <bl/base/static_integer_math.h>
 #include <bl/base/utility.h>
 #include <bl/base/to_type_containing.h>
@@ -53,7 +55,7 @@ struct malc {
   malc_security       sec;
   bl_nonblock_backoff cbackoff;
   bl_timept64         idle_deadline;
-  bl_u32              idle_boundary_us;
+  u32                 idle_boundary_us;
   deserializer        ds;
   entry_parser        ep;
   destinations        dst;
@@ -71,9 +73,9 @@ enum queue_command {
 };
 /*----------------------------------------------------------------------------*/
 typedef struct info_byte {
-  bl_u8 has_timestamp : 1;
-  bl_u8 cmd           : 8 - 1 - alloc_tag_bits;
-  bl_u8 tag           : alloc_tag_bits;
+  u8 has_timestamp : 1;
+  u8 cmd           : 8 - 1 - alloc_tag_bits;
+  u8 tag           : alloc_tag_bits;
 }
 info_byte;
 /*----------------------------------------------------------------------------*/
@@ -82,7 +84,7 @@ bl_static_assert_ns (bl_pow2_u (8 - 1 - alloc_tag_bits) >= q_cmd_max);
 typedef struct qnode {
   bl_mpsc_i_node hook;
   info_byte      info;
-  bl_u8          slots;
+  u8             slots;
   /* would be nice to have flexible arrays in C++ */
 }
 qnode;
@@ -143,7 +145,7 @@ static bool malc_try_run_idle_task (malc* l, bl_timept64 now)
   return true;
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT bl_uword malc_get_size (void)
+MALC_EXPORT size_t malc_get_size (void)
 {
   return sizeof (malc);
 }
@@ -201,7 +203,7 @@ memory_destroy:
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_destroy (malc* l)
 {
-  bl_uword expected = st_stopped;
+  uword expected = st_stopped;
   if (!bl_atomic_uword_strong_cas_rlx (&l->state, &expected, st_destructing)) {
     if (expected != st_terminating && expected != st_running) {
       return bl_mkerr (bl_preconditions);
@@ -244,7 +246,7 @@ MALC_EXPORT bl_err malc_get_cfg (malc const* l, malc_cfg* cfg)
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
-static void malc_producer_thread_env_init(malc* l)
+static void malc_producer_thread_env_init (malc* l)
 {
     bl_timept64 now = bl_fast_timept_get();
     bl_nonblock_backoff_init_default (&l->cbackoff, l->consumer.backoff_max_us);
@@ -288,7 +290,7 @@ MALC_EXPORT bl_err malc_init (malc* l, malc_cfg const* cfg_readonly)
   cfg.sec.sanitize_log_entries  = !!cfg.sec.sanitize_log_entries;
 
   /* initialization */
-  bl_uword expected = st_stopped;
+  uword expected = st_stopped;
   if (!bl_atomic_uword_strong_cas_rlx (&l->state, &expected, st_initializing)) {
     return bl_mkerr (bl_preconditions);
   }
@@ -324,7 +326,7 @@ finish:
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_flush (malc* l)
 {
-  bl_uword current = st_get_updated_state_val;
+  uword current = st_get_updated_state_val;
   (void) bl_atomic_uword_strong_cas_rlx (&l->state, &current, st_invalid);
   if (current != st_running) {
     return bl_mkerr (bl_preconditions);
@@ -346,7 +348,7 @@ MALC_EXPORT bl_err malc_terminate (malc* l, bool dont_block)
     bl_dealloc (l->alloc, n);
     return err;
   }
-  bl_uword expected = st_running;
+  uword expected = st_running;
   if (!bl_atomic_uword_strong_cas(
     &l->state, &expected, st_terminating, bl_mo_release, bl_mo_relaxed
     )) {
@@ -373,7 +375,7 @@ MALC_EXPORT bl_err malc_terminate (malc* l, bool dont_block)
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, bl_u32 bytes)
+MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, size_t bytes)
 {
   qnode_tls_alloc* n;
   n = (qnode_tls_alloc*) bl_alloc (l->alloc, sizeof *n);
@@ -394,11 +396,11 @@ MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, bl_u32 bytes)
   return err;
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
+MALC_EXPORT bl_err malc_run_consume_task (malc* l, unsigned timeout_us)
 {
   bl_timept64 deadline;
   bl_timept64 now = bl_fast_timept_get();
-  bl_uword count  = 0;
+  uword count  = 0;
   bl_err err =
     bl_fast_timept_deadline_init_usec_explicit (&deadline, now, timeout_us);
 
@@ -414,13 +416,13 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
     count = 1; /* to return OK instead of nothing to do */
     goto unlock;
   }
-  bl_uword state = bl_atomic_uword_load (&l->state, bl_mo_acquire);
+  uword state = bl_atomic_uword_load (&l->state, bl_mo_acquire);
   if (bl_unlikely (state != st_running && state != st_terminating)) {
     bl_mutex_unlock (&l->produce_mutex);
     return bl_mkerr (bl_preconditions);
   }
   bl_mpsc_i_node* qn;
-  bl_uword retries;
+  uword retries;
   do {
     retries = 0;
     while (1) {
@@ -444,12 +446,12 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
       switch (n->info.cmd) {
       case q_cmd_entry: {
         alloc_tag tag = n->info.tag;
-        bl_u32 slots     = ((bl_u32) n->slots) + 1;
+        u32 slots     = ((u32) n->slots) + 1;
         deserializer_reset (&l->ds);
         err = deserializer_execute(
           &l->ds,
-          ((bl_u8*) n) + sizeof *n,
-          ((bl_u8*) n) + (slots * l->mem.cfg.slot_size),
+          ((u8*) n) + sizeof *n,
+          ((u8*) n) + (slots * l->mem.cfg.slot_size),
           n->info.has_timestamp,
           l->alloc
           );
@@ -476,7 +478,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
             by this. */
             destinations_write(
               &l->dst,
-              (bl_uword) le.entry->format,
+              (uword) le.entry->format,
               l->ds.t,
               le.entry->info[0],
               &strs
@@ -487,7 +489,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, bl_uword timeout_us)
           assert (false && "bug or something malicious happenning");
           /*in this case */
         }
-        memory_dealloc (&l->mem, (bl_u8*) n, tag, slots);
+        memory_dealloc (&l->mem, (u8*) n, tag, slots);
         break;
         }
       case q_cmd_tls_register:
@@ -578,10 +580,10 @@ unlock:
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_add_destination(
-  malc* l, bl_u32* dest_id, malc_dst const* dst
+  malc* l, size_t* dest_id, malc_dst const* dst
   )
 {
-  bl_uword state = bl_atomic_uword_fetch_add_rlx (&l->state, 0);
+  uword state = bl_atomic_uword_fetch_add_rlx (&l->state, 0);
   if (state > st_initializing) {
     return bl_mkerr (bl_preconditions);
   }
@@ -589,27 +591,27 @@ MALC_EXPORT bl_err malc_add_destination(
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_get_destination_instance(
-  malc const* l, void** instance, bl_u32 dest_id
+  malc const* l, void** instance, size_t dest_id
   )
 {
   return destinations_get_instance (&l->dst, instance, dest_id);
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_get_destination_cfg(
-  malc const* l, malc_dst_cfg* cfg, bl_u32 dest_id
+  malc const* l, malc_dst_cfg* cfg, size_t dest_id
   )
 {
   return destinations_get_cfg (&l->dst, cfg, dest_id);
 }
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_set_destination_cfg(
-  malc* l, malc_dst_cfg const* cfg, bl_u32 dest_id
+  malc* l, malc_dst_cfg const* cfg, size_t dest_id
   )
 {
   return destinations_set_cfg (&l->dst, cfg, dest_id);
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT bl_uword malc_get_min_severity (malc const* l)
+MALC_EXPORT unsigned malc_get_min_severity (malc const* l)
 {
   return destinations_min_severity (&l->dst);
 }
@@ -618,7 +620,7 @@ MALC_EXPORT bl_err malc_log_entry_prepare(
   malc*                   l,
   malc_serializer*        ext_ser,
   malc_const_entry const* entry,
-  bl_uword                payload_size
+  size_t                  payload_size
   )
 {
 #ifdef MALC_SAFETY_CHECK
@@ -640,21 +642,21 @@ MALC_EXPORT bl_err malc_log_entry_prepare(
     entry->info
     );
 #endif
-  bl_uword state = bl_atomic_uword_load_rlx (&l->state);
+  uword state = bl_atomic_uword_load_rlx (&l->state);
   if (bl_unlikely (state != st_running)) {
     return bl_mkerr (bl_preconditions);
   }
   serializer se;
   serializer_init (&se, entry, l->producer.timestamp);
-  bl_uword size  =
+  size_t size  =
     sizeof (qnode) + serializer_log_entry_size (&se, payload_size);
-  bl_uword slots = bl_div_ceil (size, l->mem.cfg.slot_size);
+  size_t slots = bl_div_ceil (size, l->mem.cfg.slot_size);
   if (bl_unlikely (slots) > (1 << (bl_sizeof_member (qnode, slots) * 8))) {
     /*entries are limited at 8KB*/
     return bl_mkerr (bl_range);
   }
   alloc_tag tag;
-  bl_u8* mem    = nullptr;
+  u8* mem    = nullptr;
   bl_err err = memory_alloc (&l->mem, &mem, &tag, slots);
   if (bl_unlikely (err.own)) {
     return err;
