@@ -594,6 +594,39 @@ static void lazy_argument_logging (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void volatile_variable_logging (void **state)
+{
+  context* c = (context*) *state;
+
+  malc_dst_cfg dcfg;
+  dcfg.log_rate_filter_time_ns = 0;
+  dcfg.show_timestamp     = false;
+  dcfg.show_severity      = false;
+  dcfg.severity           = malc_sev_error;
+  dcfg.severity_file_path = nullptr;
+
+  bl_err err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  assert_int_equal (err.own, bl_ok);
+
+  malc_cfg cfg;
+  err = malc_get_cfg (c->l, &cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = malc_init (c->l, &cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  volatile int vol = 0;
+  err = log_error ("volatile: {}", vol);
+  assert_int_equal (err.own, bl_ok);
+
+  err = malc_run_consume_task (c->l, 10000);
+  assert_int_equal (err.own, bl_ok);
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -614,6 +647,7 @@ static const struct CMUnitTest tests[] = {
     dynargs_are_deallocated_for_filtered_out_severities, setup, teardown
     ),
   cmocka_unit_test_setup_teardown (lazy_argument_logging, setup, teardown),
+  cmocka_unit_test_setup_teardown (volatile_variable_logging, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)

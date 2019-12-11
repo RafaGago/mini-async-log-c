@@ -997,6 +997,28 @@ static void filtered_out_no_side_effects (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void volatile_variable_logging (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  volatile int vol = 0;
+  err = log_warning ("{}", vol);
+  assert_int_equal (err.own, bl_ok);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -1039,6 +1061,7 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown(
     filtered_out_no_side_effects, setup, teardown
     ),
+  cmocka_unit_test_setup_teardown (volatile_variable_logging, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)
