@@ -19,10 +19,10 @@
   #define malc_fileline
 #endif
 /*----------------------------------------------------------------------------*/
-#if !defined (MALC_GET_LOGGER_INSTANCE_FUNCNAME)
-    #define MALC_GET_LOGGER_INSTANCE_FUNC get_malc_logger_instance()
+#if !defined (MALC_CUSTOM_LOGGER_INSTANCE_EXPRESSION)
+    #define MALC_GET_LOGGER_INSTANCE_CALL get_malc_instance()
 #else
-    #define MALC_GET_LOGGER_INSTANCE_FUNC MALC_GET_LOGGER_INSTANCE_FUNCNAME()
+    #define MALC_GET_LOGGER_INSTANCE_CALL MALC_CUSTOM_LOGGER_INSTANCE_EXPRESSION
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef MALC_STRIP_LOG_DEBUG
@@ -118,19 +118,19 @@ static inline bl_err malc_stripped_entry()
 
 #define malc_debug(...)\
   MALC_LOG_PRIVATE( \
-    MALC_GET_LOGGER_INSTANCE_FUNC, MALC_SEV_WRAP (debug), __VA_ARGS__ \
+    MALC_GET_LOGGER_INSTANCE_CALL, MALC_SEV_WRAP (debug), __VA_ARGS__ \
     )
 
 #define malc_debug_if(condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     (condition), \
-    MALC_GET_LOGGER_INSTANCE_FUNC, \
+    MALC_GET_LOGGER_INSTANCE_CALL, \
     MALC_SEV_WRAP (debug), \
     __VA_ARGS__\
     )
 
 /* _i = instance, where the instance is provided manually instead of by calling
-MALC_GET_LOGGER_INSTANCE_FUNC */
+MALC_GET_LOGGER_INSTANCE_CALL */
 #define malc_debug_i(malcref, ...)\
   MALC_LOG_PRIVATE ((malcref), MALC_SEV_WRAP (debug), __VA_ARGS__)
 
@@ -153,19 +153,19 @@ MALC_GET_LOGGER_INSTANCE_FUNC */
 
 #define malc_trace(...)\
   MALC_LOG_PRIVATE( \
-    MALC_GET_LOGGER_INSTANCE_FUNC, MALC_SEV_WRAP (trace), __VA_ARGS__ \
+    MALC_GET_LOGGER_INSTANCE_CALL, MALC_SEV_WRAP (trace), __VA_ARGS__ \
     )
 
 #define malc_trace_if(condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     (condition), \
-    MALC_GET_LOGGER_INSTANCE_FUNC, \
+    MALC_GET_LOGGER_INSTANCE_CALL, \
     MALC_SEV_WRAP (trace), \
     __VA_ARGS__\
     )
 
 /* _i = instance, where the instance is provided manually instead of by calling
-MALC_GET_LOGGER_INSTANCE_FUNC */
+MALC_GET_LOGGER_INSTANCE_CALL */
 #define malc_trace_i(malcref, ...)\
   MALC_LOG_PRIVATE ((malcref), MALC_SEV_WRAP (trace), __VA_ARGS__)
 
@@ -188,19 +188,19 @@ MALC_GET_LOGGER_INSTANCE_FUNC */
 
 #define malc_notice(...)\
   MALC_LOG_PRIVATE( \
-    MALC_GET_LOGGER_INSTANCE_FUNC, MALC_SEV_WRAP (note), __VA_ARGS__ \
+    MALC_GET_LOGGER_INSTANCE_CALL, MALC_SEV_WRAP (note), __VA_ARGS__ \
     )
 
 #define malc_notice_if(condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     (condition), \
-    MALC_GET_LOGGER_INSTANCE_FUNC, \
+    MALC_GET_LOGGER_INSTANCE_CALL, \
     MALC_SEV_WRAP (note), \
     __VA_ARGS__\
     )
 
 /* _i = instance, where the instance is provided manually instead of by calling
-MALC_GET_LOGGER_INSTANCE_FUNC */
+MALC_GET_LOGGER_INSTANCE_CALL */
 #define malc_notice_i(malcref, ...)\
   MALC_LOG_PRIVATE ((malcref), MALC_SEV_WRAP (note), __VA_ARGS__)
 
@@ -223,19 +223,19 @@ MALC_GET_LOGGER_INSTANCE_FUNC */
 
 #define malc_warning(...)\
   MALC_LOG_PRIVATE( \
-    MALC_GET_LOGGER_INSTANCE_FUNC, MALC_SEV_WRAP (warning), __VA_ARGS__ \
+    MALC_GET_LOGGER_INSTANCE_CALL, MALC_SEV_WRAP (warning), __VA_ARGS__ \
     )
 
 #define malc_warning_if(condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     (condition), \
-    MALC_GET_LOGGER_INSTANCE_FUNC, \
+    MALC_GET_LOGGER_INSTANCE_CALL, \
     MALC_SEV_WRAP (warning), \
     __VA_ARGS__\
     )
 
 /* _i = instance, where the instance is provided manually instead of by calling
-MALC_GET_LOGGER_INSTANCE_FUNC */
+MALC_GET_LOGGER_INSTANCE_CALL */
 #define malc_warning_i(malcref, ...)\
   MALC_LOG_PRIVATE ((malcref), MALC_SEV_WRAP (warning), __VA_ARGS__)
 
@@ -258,19 +258,19 @@ MALC_GET_LOGGER_INSTANCE_FUNC */
 
 #define malc_error(...)\
   MALC_LOG_PRIVATE( \
-    MALC_GET_LOGGER_INSTANCE_FUNC, MALC_SEV_WRAP (error), __VA_ARGS__ \
+    MALC_GET_LOGGER_INSTANCE_CALL, MALC_SEV_WRAP (error), __VA_ARGS__ \
     )
 
 #define malc_error_if(condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     (condition), \
-    MALC_GET_LOGGER_INSTANCE_FUNC, \
+    MALC_GET_LOGGER_INSTANCE_CALL, \
     MALC_SEV_WRAP (error), \
     __VA_ARGS__\
     )
 
 /* _i = instance, where the instance is provided manually instead of by calling
-MALC_GET_LOGGER_INSTANCE_FUNC */
+MALC_GET_LOGGER_INSTANCE_CALL */
 
 #define malc_error_i(malcref, ...)\
   MALC_LOG_PRIVATE ((malcref), MALC_SEV_WRAP (error), __VA_ARGS__)
@@ -294,19 +294,19 @@ MALC_GET_LOGGER_INSTANCE_FUNC */
 
 #define malc_critical(...)\
   MALC_LOG_PRIVATE( \
-    MALC_GET_LOGGER_INSTANCE_FUNC, MALC_SEV_WRAP (critical), __VA_ARGS__ \
+    MALC_GET_LOGGER_INSTANCE_CALL, MALC_SEV_WRAP (critical), __VA_ARGS__ \
     )
 
 #define malc_critical_if(condition, ...)\
   MALC_LOG_IF_PRIVATE(\
     (condition), \
-    MALC_GET_LOGGER_INSTANCE_FUNC, \
+    MALC_GET_LOGGER_INSTANCE_CALL, \
     MALC_SEV_WRAP (critical), \
     __VA_ARGS__\
     )
 
 /* _i = instance, where the instance is provided manually instead of by calling
-MALC_GET_LOGGER_INSTANCE_FUNC */
+MALC_GET_LOGGER_INSTANCE_CALL */
 #define malc_critical_i(malcref, ...)\
   MALC_LOG_PRIVATE ((malcref), MALC_SEV_WRAP (critical), __VA_ARGS__)
 

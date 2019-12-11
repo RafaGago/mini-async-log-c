@@ -207,11 +207,11 @@ static inline void deallocate_refs (std::false_type, types...)
   // just to avoid unneeded compiler iterations.
 }
 /*----------------------------------------------------------------------------*/
-template <class has_refs, class malctype, class... types>
+template <class has_refs, class... types>
 static inline bl_err log(
   has_refs,
   malc_const_entry const& en,
-  malctype&               malc,
+  malc*                   malc,
   const char*,
   types&&...              args
   ) noexcept
@@ -224,7 +224,7 @@ static inline bl_err log(
     );
   malc_serializer s;
   bl_err err = malc_log_entry_prepare(
-    malc.handle(),
+    malc,
     &s,
     &en,
     argops::template get_payload_size<decltype (values), types...> (values)
@@ -239,7 +239,7 @@ static inline bl_err log(
     return err;
   }
   argops::template serialize<decltype (values), types...>  (s, values);
-  malc_log_entry_commit (malc.handle(), &s);
+  malc_log_entry_commit (malc, &s);
   return err;
 }
 //------------------------------------------------------------------------------
@@ -254,7 +254,7 @@ static inline bl_err log(
 -On C++11 the literal can't be passed on template parameters. It decays early.
  */
 #define MALC_LOG_IF_PRIVATE(cond, malcref, sev, ...) \
-[&]() { \
+[&](malc* malcptr) { \
   bl_err err = bl_mkok(); \
   using argtypelist = decltype (malcpp::detail::make_typelist( \
         bl_pp_vargs_ignore_first (__VA_ARGS__) /*1st arg = format str*/ \
@@ -267,7 +267,7 @@ static inline bl_err log(
           bl_pp_vargs_first (__VA_ARGS__) /*1st arg = format str*/\
           ) \
     >() == ::malcpp::detail::fmt::fmterr_success_with_refs; \
-  if ((cond) && (sev) >= malc_get_min_severity (malcref.handle())) { \
+  if ((cond) && (sev) >= malc_get_min_severity (malcptr)) { \
     static const malc_const_entry msgdata =  {\
       bl_pp_vargs_first (__VA_ARGS__), /*1st arg = format str*/\
       ::malcpp::detail::info<sev, argtypelist>::generate(), \
@@ -276,7 +276,7 @@ static inline bl_err log(
     err = ::malcpp::detail::log( \
       std::integral_constant<bool, has_references>(), \
       msgdata, \
-      malcref, \
+      malcptr, \
       __VA_ARGS__ \
       ); \
   } \
@@ -286,7 +286,7 @@ static inline bl_err log(
       ); \
   } \
   return err; \
-}()
+}(malcref.handle())
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_PRIVATE(malcref, sev, ...) \
     MALC_LOG_IF_PRIVATE (1, (malcref), (sev), __VA_ARGS__)

@@ -11,7 +11,7 @@
 
 malc* ilog = nullptr;
 /*----------------------------------------------------------------------------*/
-static inline malc* get_malc_logger_instance()
+static inline malc* get_malc_instance()
 {
   return ilog;
 }

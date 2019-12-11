@@ -309,13 +309,19 @@ Compile time macros
  Malc defines both logging macros called e.g. "malc_error" and "log_error", when
  "MALC_NO_SHORT_LOG_MACROS" is defined "log_" prefixed macros aren't defined.
 
--MALC_GET_LOGGER_INSTANCE_FUNCNAME
+-MALC_CUSTOM_LOGGER_INSTANCE_EXPRESSION
  
  On the macros that doesn't take a malc instance explictly (those that don't 
- have the "_i" suffix) malc makes a call to an expression to be defined by the 
- user called "get_malc_logger_instance()" to provide the malc instance (this 
- library is not a singleton). The MALC_GET_LOGGER_INSTANCE_FUNCNAME allows to 
- change the name of the call done to retrieve the instance.
+ have the "_i" suffix) malc invokes an macro containing an expression to get the
+ logger instance. By default this macro contains "get_malc_instance()", so it 
+ retrieves the logger instance by a call to a function called 
+ "get_malc_instance() that has to be provided by the user"
+  
+ To use an expression other than "get_malc_instance()" define the
+ MALC_CUSTOM_LOGGER_INSTANCE_EXPRESSION.
+
+ Notice that on C this expression has to return a pointer, on C++ it has to 
+ return a reference.
 
 Gotchas
 =======

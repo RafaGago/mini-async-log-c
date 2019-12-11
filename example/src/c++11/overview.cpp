@@ -5,17 +5,17 @@
 #include <thread>
 #include <malc/malc.hpp>
 
-malcpp::malcpp<> log;
 //------------------------------------------------------------------------------
 /* koenig-lookup on this function is used on the log macros to get the relevant
 malc instance. You can override the function name with the macro
-"MALC_GET_LOGGER_INSTANCE_FUNCNAME".
+"MALC_CUSTOM_LOGGER_INSTANCE_EXPRESSION".
 
 If you want to pass the instance explicitly to the macros you can use the "_i"
 suffixed macros.
 */
-static inline decltype(log)& get_malc_logger_instance()
+static inline malcpp::malcpp<>& get_malc_instance()
 {
+  static malcpp::malcpp<> log;
   return log;
 }
 //------------------------------------------------------------------------------
@@ -36,6 +36,7 @@ std::ostream & operator << (std::ostream &out, const ostreamable_type &t)
 //------------------------------------------------------------------------------
 int main (int argc, char const* argv[])
 {
+  auto& log = get_malc_instance();
   /* destination register: adding logging to stdout/stderr */
   auto stdouterr = log.add_destination<malcpp::stdouterr_dst>();
 
@@ -73,6 +74,7 @@ int main (int argc, char const* argv[])
   /* threads can start logging */
   std::thread thr;
   thr = std::thread([](){
+    auto& log = get_malc_instance();
     bl_err err;
     /* integers + printf modifiers */
     err = log_error ("10: {}", 10);
@@ -205,7 +207,7 @@ int main (int argc, char const* argv[])
     err = log_error ("escaping only requires to skip the open bracket: {{}");
 
     /* passing the instance explicitly instead of through
-     "get_malc_log_instance()" */
+     "get_malc_instance()" */
     err = log_error_i (log, "passing the log instance explicitly.");
   });
   thr.join();

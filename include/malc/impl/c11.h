@@ -252,7 +252,7 @@ static inline void malc_do_run_refdtor_pass(
 #define MALC_LOG_IF_PRIVATE(cond, malc_ptr, sev, ...) \
   /* Reminder: The first __VA_ARG__ is the format string */\
   ({\
-  bl_err err; \
+  bl_err err = bl_mkok(); \
   bl_pp_if (bl_pp_has_vargs (bl_pp_vargs_ignore_first (__VA_ARGS__)))(\
     /* Validating that the functions containing refs have a ref destructor*/\
     /* as the last argument*/\
@@ -343,7 +343,6 @@ static inline void malc_do_run_refdtor_pass(
         );\
     } \
     else { \
-      (err) = bl_mkok(); \
       bl_pp_if (bl_pp_has_vargs (bl_pp_vargs_ignore_first (__VA_ARGS__)))(\
         /* enable in-place deallocation of dynamic variables after */\
         /* filtering out an entry*/ \

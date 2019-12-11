@@ -18,7 +18,7 @@ context;
 /*----------------------------------------------------------------------------*/
 static context smoke_context;
 /*----------------------------------------------------------------------------*/
-static inline malc* get_malc_logger_instance()
+static inline malc* get_malc_instance()
 {
   return smoke_context.l;
 }

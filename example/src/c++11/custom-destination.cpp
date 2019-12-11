@@ -57,15 +57,16 @@ private:
 //------------------------------------------------------------------------------
 // false, false, true; non-throwing with explicit construction but scope-based
 // destruction
-malcpp::malcpp<false, false, true> log;
 //------------------------------------------------------------------------------
-static inline decltype(log)& get_malc_logger_instance()
+static inline malcpp::malcpp<false, false, true>& get_malc_instance()
 {
+  static malcpp::malcpp<false, false, true> log;
   return log;
 }
 //------------------------------------------------------------------------------
 int main (int argc, char const* argv[])
 {
+  auto& log = get_malc_instance();
   bl_err err = log.construct();
   if (err.own) {
     fprintf (stderr, "unable to construct malc\n");

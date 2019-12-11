@@ -20,7 +20,7 @@
 
 // A header including C++ types. To avoid header bloat and to make a clear
 // separation about what is C++ only.
-#if 1
+#if 0
 #warning "TODO: is passing volatile types broken? add tests"
 #warning "TODO: explain tradeoffs, e.g. call site overhead"
 #endif

@@ -6,16 +6,14 @@
 #include <bl/base/thread.h>
 #include <bl/base/atomic.h>
 
+/* we set the expression to get the logger instance to match our global 
+variable name*/
+#define MALC_CUSTOM_LOGGER_INSTANCE_EXPRESSION ilog
 #include <malc/malc.h>
 #include <malc/destinations/file.h>
 #include <malc/destinations/stdouterr.h>
 
 malc* ilog = nullptr;
-/*----------------------------------------------------------------------------*/
-static inline malc* get_malc_logger_instance()
-{
-  return ilog;
-}
 /*----------------------------------------------------------------------------*/
 int log_thread (void* ctx)
 {

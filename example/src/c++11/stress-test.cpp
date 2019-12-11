@@ -16,7 +16,7 @@
 //------------------------------------------------------------------------------
 malcpp::malcpp<true, false, false> ilog;
 //------------------------------------------------------------------------------
-static inline decltype (ilog)& get_malc_logger_instance()
+static inline decltype (ilog)& get_malc_instance()
 {
   return ilog;
 }

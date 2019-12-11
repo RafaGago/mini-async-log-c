@@ -110,7 +110,7 @@ static void stress_dst_set_msg_count_ptr (stress_dst* d, bl_uword* ptr)
   d->msgs = ptr;
 }
 /*----------------------------------------------------------------------------*/
-static inline malc* get_malc_logger_instance()
+static inline malc* get_malc_instance()
 {
   return ilog;
 }
@@ -132,7 +132,7 @@ static int througput_thread (void* ctx)
 
   if (c->tls_bytes) {
     c->err = malc_producer_thread_local_init(
-      get_malc_logger_instance(), c->tls_bytes
+      get_malc_instance(), c->tls_bytes
       );
     if (c->err.own) {
       return 1;

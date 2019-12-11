@@ -11,7 +11,7 @@
 
 malc* ilog = nullptr;
 /*----------------------------------------------------------------------------*/
-static inline malc* get_malc_logger_instance()
+static inline malc* get_malc_instance()
 {
   return ilog;
 }
@@ -122,7 +122,7 @@ int log_thread (void* ctx)
   err = log_error ("brace escape only requires to skip the open brace: {{}");
 
 /* passing the instance explicitly instead of through
-   "get_malc_log_instance()" */
+   "get_malc_instance()" */
   err = log_error_i (ilog, "passing the log instance explicitly.");
 
   (void) malc_terminate (ilog, false); /* terminating the logger. Will force the
