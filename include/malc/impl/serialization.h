@@ -726,9 +726,6 @@ static inline void unknown_type_on_malc_type_transform(
     )\
   (expression)
 #endif
-  #define malc_make_var_from_expression(expression, name)\
-  typeof (malc_type_transform (expression)) name = \
-    malc_type_transform (expression);
 /*----------------------------------------------------------------------------*/
 #if MALC_PTR_COMPRESSION == 0
   #define malc_ptr_compress_count(x) 0
