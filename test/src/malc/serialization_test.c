@@ -10,10 +10,14 @@
 #include <malc/alltypes.h>
 #include <malc/serialization.h>
 
+/*----------------------------------------------------------------------------*/
 #define SER_TEST_GET_ENTRY(var, ...)\
   MALC_LOG_CREATE_CONST_ENTRY (malc_sev_warning, "", __VA_ARGS__); \
   var = &bl_pp_tokconcat(malc_const_entry_, __LINE__)
-
+/*----------------------------------------------------------------------------*/
+#define MALC_LOG_TEST_DECLARE_TMP_VARIABLES(...)\
+  MALC_LOG_DECLARE_TMP_VARIABLES_ASSIGN_REFTYPES (__VA_ARGS__)\
+  MALC_LOG_TMP_VARIABLES_ASSIGN_NON_REFTYPES (__VA_ARGS__)
 /*----------------------------------------------------------------------------*/
 typedef struct ser_deser_context {
   bl_u8        buff[2048];
@@ -141,7 +145,7 @@ static void serialization_test_i32 (void **state)
   bl_i32 v = -92 * 255 * 255 * 255;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  MALC_LOG_DECLARE_TMP_VARIABLES (v);
+  MALC_LOG_TEST_DECLARE_TMP_VARIABLES (v);
   malc_serializer ser = get_external_serializer (c, entry);
   malc_serialize (&ser, I);
   deserializer_reset (&c->deser);
@@ -163,7 +167,7 @@ static void serialization_test_i64 (void **state)
   bl_i64 v = -92 * ((bl_u64) 1 << 58);
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  MALC_LOG_DECLARE_TMP_VARIABLES (v);
+  MALC_LOG_TEST_DECLARE_TMP_VARIABLES (v);
   malc_serializer ser = get_external_serializer (c, entry);
   malc_serialize (&ser, I);
   deserializer_reset (&c->deser);
@@ -227,7 +231,7 @@ static void serialization_test_u32 (void **state)
   bl_u32 v = 92 * 255 * 255 * 255;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  MALC_LOG_DECLARE_TMP_VARIABLES (v);
+  MALC_LOG_TEST_DECLARE_TMP_VARIABLES (v);
   malc_serializer ser = get_external_serializer (c, entry);
   malc_serialize (&ser, I);
   deserializer_reset (&c->deser);
@@ -249,7 +253,7 @@ static void serialization_test_u64 (void **state)
   bl_u64 v = 92 * ((bl_u64) 1 << 58);
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  MALC_LOG_DECLARE_TMP_VARIABLES (v);
+  MALC_LOG_TEST_DECLARE_TMP_VARIABLES (v);
   malc_serializer ser = get_external_serializer (c, entry);
   malc_serialize (&ser, I);
   deserializer_reset (&c->deser);
@@ -271,7 +275,7 @@ static void serialization_test_ptr (void **state)
   void* v = (void*) 0xaa00aa00;
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  MALC_LOG_DECLARE_TMP_VARIABLES (v);
+  MALC_LOG_TEST_DECLARE_TMP_VARIABLES (v);
   malc_serializer ser = get_external_serializer (c, entry);
   malc_serialize (&ser, I);
   deserializer_reset (&c->deser);
@@ -293,7 +297,7 @@ static void serialization_test_lit (void **state)
   malc_lit v = {(char const*) 0xaa00aa00 };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v);
-  MALC_LOG_DECLARE_TMP_VARIABLES (v);
+  MALC_LOG_TEST_DECLARE_TMP_VARIABLES (v);
   malc_serializer ser = get_external_serializer (c, entry);
   malc_serialize (&ser, I);
   deserializer_reset (&c->deser);
@@ -339,7 +343,7 @@ static void serialization_test_strref (void **state)
   malc_refdtor d = { (malc_refdtor_fn) 0x145645, (void*) 0x3434 };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v, d);
-  MALC_LOG_DECLARE_TMP_VARIABLES (v, d);
+  MALC_LOG_TEST_DECLARE_TMP_VARIABLES (v, d);
   malc_serializer ser = get_external_serializer (c, entry);
   malc_serialize (&ser, I);
   malc_serialize (&ser, II);
@@ -390,7 +394,7 @@ static void serialization_test_memref (void **state)
   malc_refdtor d = { (malc_refdtor_fn) 0x145645, (void*) 0x3434 };
   malc_const_entry const* entry;
   SER_TEST_GET_ENTRY (entry, v, d);
-  MALC_LOG_DECLARE_TMP_VARIABLES (v, d);
+  MALC_LOG_TEST_DECLARE_TMP_VARIABLES (v, d);
   malc_serializer ser = get_external_serializer (c, entry);
   malc_serialize (&ser, I);
   malc_serialize (&ser, II);
@@ -458,7 +462,7 @@ static void serialization_test_all (void **state)
     all.vmemref,
     d
     );
-  MALC_LOG_DECLARE_TMP_VARIABLES(
+  MALC_LOG_TEST_DECLARE_TMP_VARIABLES(
     all.vu8,
     all.vi8,
     all.vu16,

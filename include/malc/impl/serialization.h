@@ -329,14 +329,14 @@ static inline void MALC_SERIALIZE(_comprefdtor)(
 #if MALC_COMPRESSION == 1
 #define malc_serialize(s, val)\
   _Generic ((val),\
-    uint8_t:                     malc_serialize_u8,\
-    int8_t:                     malc_serialize_i8,\
-    uint16_t:                    malc_serialize_u16,\
-    int16_t:                    malc_serialize_i16,\
-    uint32_t:                    malc_serialize_u32,\
-    int32_t:                    malc_serialize_i32,\
-    uint64_t:                    malc_serialize_u64,\
-    int64_t:                    malc_serialize_i64,\
+    uint8_t:                   malc_serialize_u8,\
+    int8_t:                    malc_serialize_i8,\
+    uint16_t:                  malc_serialize_u16,\
+    int16_t:                   malc_serialize_i16,\
+    uint32_t:                  malc_serialize_u32,\
+    int32_t:                   malc_serialize_i32,\
+    uint64_t:                  malc_serialize_u64,\
+    int64_t:                   malc_serialize_i64,\
     double:                    malc_serialize_double,\
     float:                     malc_serialize_float,\
     malc_tgen_cv_cases (void*, malc_serialize_ptr),\
@@ -356,14 +356,14 @@ static inline void MALC_SERIALIZE(_comprefdtor)(
 #else /* #if MALC_COMPRESSION == 1 */
   #define malc_serialize(s, val)\
   _Generic ((val),\
-    uint8_t:                     malc_serialize_u8,\
-    int8_t:                     malc_serialize_i8,\
-    uint16_t:                    malc_serialize_u16,\
-    int16_t:                    malc_serialize_i16,\
-    uint32_t:                    malc_serialize_u32,\
-    int32_t:                    malc_serialize_i32,\
-    uint64_t:                    malc_serialize_u64,\
-    int64_t:                    malc_serialize_i64,\
+    uint8_t:                   malc_serialize_u8,\
+    int8_t:                    malc_serialize_i8,\
+    uint16_t:                  malc_serialize_u16,\
+    int16_t:                   malc_serialize_i16,\
+    uint32_t:                  malc_serialize_u32,\
+    int32_t:                   malc_serialize_i32,\
+    uint64_t:                  malc_serialize_u64,\
+    int64_t:                   malc_serialize_i64,\
     double:                    malc_serialize_double,\
     float:                     malc_serialize_float,\
     malc_tgen_cv_cases (void*, malc_serialize_ptr),\
@@ -389,14 +389,14 @@ static inline void MALC_SERIALIZE(_comprefdtor)(
   _Generic ((expression),\
     malc_tgen_cv_cases (float,       (char) malc_type_float),\
     malc_tgen_cv_cases (double,      (char) malc_type_double),\
-    malc_tgen_cv_cases (int8_t,       (char) malc_type_i8),\
-    malc_tgen_cv_cases (uint8_t,       (char) malc_type_u8),\
-    malc_tgen_cv_cases (int16_t,      (char) malc_type_i16),\
-    malc_tgen_cv_cases (uint16_t,      (char) malc_type_u16),\
-    malc_tgen_cv_cases (int32_t,      (char) malc_type_i32),\
-    malc_tgen_cv_cases (uint32_t,      (char) malc_type_u32),\
-    malc_tgen_cv_cases (int64_t,      (char) malc_type_i64),\
-    malc_tgen_cv_cases (uint64_t,      (char) malc_type_u64),\
+    malc_tgen_cv_cases (int8_t,      (char) malc_type_i8),\
+    malc_tgen_cv_cases (uint8_t,     (char) malc_type_u8),\
+    malc_tgen_cv_cases (int16_t,     (char) malc_type_i16),\
+    malc_tgen_cv_cases (uint16_t,    (char) malc_type_u16),\
+    malc_tgen_cv_cases (int32_t,     (char) malc_type_i32),\
+    malc_tgen_cv_cases (uint32_t,    (char) malc_type_u32),\
+    malc_tgen_cv_cases (int64_t,     (char) malc_type_i64),\
+    malc_tgen_cv_cases (uint64_t,    (char) malc_type_u64),\
     malc_tgen_cv_cases (void*,       (char) malc_type_ptr),\
     malc_tgen_cv_cases (void* const, (char) malc_type_ptr),\
     malc_lit:                        (char) malc_type_lit,\

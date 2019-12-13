@@ -19,9 +19,6 @@
 #include <malc/impl/common.h>
 #include <malc/impl/serialization.h>
 
-#define malc_make_var_from_expression(expression, name)\
-  typeof (malc_type_transform (expression)) name = \
-    malc_type_transform (expression);
 /*----------------------------------------------------------------------------*/
 #define malc_compress_count(x) \
   malc_total_compress_count (malc_get_type_code ((x)))
@@ -68,8 +65,16 @@
     )/* endif */\
   }
 /*----------------------------------------------------------------------------*/
-#define MALC_LOG_PASS_TMP_VARIABLES(...) \
-  bl_pp_apply_wid (bl_pp_vargs_second, bl_pp_comma, __VA_ARGS__)
+#define malc_make_vars_assign_reftypes(expression, name)\
+  typeof (malc_type_transform (expression)) name; \
+  if (MALC_IS_REF (expression) || MALC_IS_CLEANUP (expression)) { \
+    name =  malc_type_transform (expression); \
+  }
+
+#define malc_vars_assign_non_reftypes(expression, name)\
+  if (!MALC_IS_REF (expression) && !MALC_IS_CLEANUP (expression)) { \
+    name =  malc_type_transform (expression); \
+  }
 
 #define MALC_GET_TYPE_SIZE_VISITOR(expr, name)  malc_type_size (name)
 
@@ -82,15 +87,18 @@
 #define MALC_SERIALIZE_TMP_VALUES(...) \
   bl_pp_apply_wid (MALC_APPLY_SERIALIZER, bl_pp_semicolon, __VA_ARGS__)
 /*----------------------------------------------------------------------------*/
-#define MALC_LOG_DECLARE_TMP_VARIABLES(...) \
-  bl_pp_apply_wid (malc_make_var_from_expression, bl_pp_empty, __VA_ARGS__)
+#define MALC_LOG_DECLARE_TMP_VARIABLES_ASSIGN_REFTYPES(...) \
+  bl_pp_apply_wid (malc_make_vars_assign_reftypes, bl_pp_empty, __VA_ARGS__)
 /*----------------------------------------------------------------------------*/
+#define MALC_LOG_TMP_VARIABLES_ASSIGN_NON_REFTYPES(...) \
+  bl_pp_apply_wid (malc_vars_assign_non_reftypes, bl_pp_empty, __VA_ARGS__)
+  /*----------------------------------------------------------------------------*/
 #define MALC_IS_CLEANUP(x)\
-  ((int) malc_get_type_code ((x)) == malc_type_refdtor)
+  ((int) (malc_get_type_code ((x)) == malc_type_refdtor))
 
 #define MALC_IS_REF(x)\
-  ((int) malc_get_type_code ((x)) == malc_type_strref ||\
-         malc_get_type_code ((x)) == malc_type_memref)
+  ((int) (malc_get_type_code ((x)) == malc_type_strref ||\
+          malc_get_type_code ((x)) == malc_type_memref))
 
 #define MALC_GET_CLEANUP_COUNT(...) \
   bl_pp_apply (MALC_IS_CLEANUP, bl_pp_plus, __VA_ARGS__)
@@ -106,7 +114,7 @@
      (MALC_GET_REF_COUNT (__VA_ARGS__))) \
     bl_pp_comma() \
     "_logstrref_ and _logmemref_ require one (and only one) " \
-    "_logrefcleanup_ function. _logrefcleanup_ can only be used in log "\
+    "_logrefdtor_ function. _logrefdtor_ can only be used in log "\
     "entries that contain either a _logstrref_ or a _logmemref_."  \
     ); \
   static_assert( \
@@ -114,7 +122,7 @@
     malc_get_type_code(bl_pp_vargs_last (0, __VA_ARGS__)) \
       == malc_type_refdtor \
     bl_pp_comma()\
-    "_logrefcleanup_ must be the last function call parameter."\
+    "_logrefdtor_ must be the last function call parameter."\
     );
 /*----------------------------------------------------------------------------*/
 static inline void malc_do_add_to_refarray(
@@ -244,7 +252,7 @@ static inline void malc_do_run_refdtor_pass(
 #define MALC_LOG_IF_PRIVATE(cond, malc_ptr, sev, ...) \
   /* Reminder: The first __VA_ARG__ is the format string */\
   ({\
-  bl_err err = bl_mkok(); \
+  bl_err err; \
   bl_pp_if (bl_pp_has_vargs (bl_pp_vargs_ignore_first (__VA_ARGS__)))(\
     /* Validating that the functions containing refs have a ref destructor*/\
     /* as the last argument*/\
@@ -252,12 +260,15 @@ static inline void malc_do_run_refdtor_pass(
       bl_pp_vargs_ignore_first (__VA_ARGS__)\
       )\
     /* The passed expressions (args) are stored into variables, this  */\
-    /* is to keep function-like semantics (evaluating every expression */\
-    /* only once) and to do some data compression (if configured to). */\
-    /* A register optimizer will find unnecessary copies trivial to */\
-    /* remove. Variables are called I, II, III, IIII, IIIII, etc... by */\
-    /* the preprocessor library.*/ \
-    MALC_LOG_DECLARE_TMP_VARIABLES (bl_pp_vargs_ignore_first (__VA_ARGS__))\
+    /* is to evaluate every expression only once. Variables are called I, */\
+    /* II, III, IIII, IIIII, etc... by the preprocessor library. */\
+    \
+    /* Lazy argument evaluation is in place for non-reftype logging types, */\
+    /* so only the reftypes are assigned to the variables at this point, */\
+    /* the other types are assigned inside the conditional.*/\
+    MALC_LOG_DECLARE_TMP_VARIABLES_ASSIGN_REFTYPES( \
+      bl_pp_vargs_ignore_first (__VA_ARGS__) \
+      )\
     /* In case we don't log we will have to deallocate in place the*/\
     /* dynamic entries: "malc_strref" and "malc_memref". This is a*/\
     /* boolean to trigger the deallocation.*/\
@@ -270,6 +281,12 @@ static inline void malc_do_run_refdtor_pass(
       /* of each field on each char and the number of compressed fields*/\
       MALC_LOG_CREATE_CONST_ENTRY ((sev), __VA_ARGS__); \
       bl_pp_if_else (bl_pp_has_vargs (bl_pp_vargs_ignore_first (__VA_ARGS__)))(\
+        /* lazy-evaluation, we assing the non-variable types after we */ \
+        /* know that the types are going to be logged*/ \
+        MALC_LOG_TMP_VARIABLES_ASSIGN_NON_REFTYPES( \
+          bl_pp_vargs_ignore_first (__VA_ARGS__) \
+          )\
+        /* declare a serializer variable */\
         malc_serializer bl_pp_tokconcat(malc_serializer_, __LINE__);\
         /* We prepare the serializer, MALC_GET_SERIALIZED_TYPES_SIZE */\
         /* will contain the size of the payload to be written. This */\
@@ -345,7 +362,7 @@ static inline void malc_do_run_refdtor_pass(
     if (bl_pp_tokconcat(malc_do_deallocate_, __LINE__) == 1 && \
       (MALC_GET_REF_COUNT (bl_pp_vargs_ignore_first (__VA_ARGS__))) > 0 \
       ) { \
-      /* We create an array with reoom for all the dynamic entries and a */ \
+      /* We create an array with room for all the dynamic entries and a */ \
       /* counter*/ \
       malc_ref bl_pp_tokconcat(malc_deallocrefs_, __LINE__)[ \
         MALC_GET_REF_COUNT (bl_pp_vargs_ignore_first (__VA_ARGS__)) \

@@ -976,6 +976,27 @@ static void std_string_cp (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void filtered_out_no_side_effects (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  int side_effect = 0;
+  err = log_warning_if (false, "{}", ++side_effect);
+  assert_int_equal (err.own, bl_ok);
+  
+  assert_int_equal (0, side_effect);
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -1015,6 +1036,9 @@ static const struct CMUnitTest tests[] = {
     ostreamable_type_by_weak_ptr, setup, teardown
     ),
   cmocka_unit_test_setup_teardown (std_string_cp, setup, teardown),
+  cmocka_unit_test_setup_teardown(
+    filtered_out_no_side_effects, setup, teardown
+    ),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)

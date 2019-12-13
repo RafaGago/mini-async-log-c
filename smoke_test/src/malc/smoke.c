@@ -562,6 +562,38 @@ static void dynargs_are_deallocated_for_filtered_out_severities (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void lazy_argument_logging (void **state)
+{
+  context* c = (context*) *state;
+
+  malc_dst_cfg dcfg;
+  dcfg.log_rate_filter_time_ns = 0;
+  dcfg.show_timestamp     = false;
+  dcfg.show_severity      = false;
+  dcfg.severity           = malc_sev_error;
+  dcfg.severity_file_path = nullptr;
+
+  bl_err err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  assert_int_equal (err.own, bl_ok);
+
+  malc_cfg cfg;
+  err = malc_get_cfg (c->l, &cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+
+  err = malc_init (c->l, &cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  int side_effect = 0;
+  err = log_debug ("filtered out, no side effects: {}", ++side_effect);
+
+  assert_int_equal (err.own, bl_ok);
+  assert_int_equal (side_effect, 0);
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -581,6 +613,7 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown(
     dynargs_are_deallocated_for_filtered_out_severities, setup, teardown
     ),
+  cmocka_unit_test_setup_teardown (lazy_argument_logging, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)

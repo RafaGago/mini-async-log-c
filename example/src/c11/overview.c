@@ -112,8 +112,10 @@ int log_thread (void* ctx)
   /* if the conditional is false the parameter list is not evaluated. Beware
   of parameter lists with side effects*/
   int side_effect = 0;
-  err = log_debug_if (0, "ommited conditional debug line: {}", ++side_effect );
-  #warning "TODO: fixthis"
+  err = log_debug(
+    "lazy-evaluation for filtered out entries: {}", 
+    ++side_effect
+    );
   assert (side_effect == 0);
 
   /* brace escape */

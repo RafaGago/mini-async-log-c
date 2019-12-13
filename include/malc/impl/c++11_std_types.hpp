@@ -20,14 +20,11 @@
 
 // A header including C++ types. To avoid header bloat and to make a clear
 // separation about what is C++ only.
-#if 0
-#warning "TODO: is passing volatile types broken: add tests"
-#warning "TODO: assert bug"
+#if 1
+#warning "TODO: is passing volatile types broken? add tests"
 #warning "TODO: explain tradeoffs, e.g. call site overhead"
-#warning "TODO: separador para arrays"
-#warning "TODO: impl ostr as \"custom_log_type\""
-
 #endif
+
 #ifndef MALC_CPP_NULL_SMART_PTR_STR
   #define MALC_CPP_NULL_SMART_PTR_STR "nullptr"
 #endif
