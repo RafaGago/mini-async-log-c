@@ -282,3 +282,81 @@ have challenges:
 
 #endif /* __MALC_CONFIG_H__ */
 ```
+Some useful build parameters and compile time macros
+====================================================
+
+Build parameters (meson)
+------------------------
+
+See "meson_options.txt". These parameters end up on "include/malc/config.h".
+
+Compile time macros
+-------------------
+
+-"malc_fileline"
+
+ Prepends the file and the line to the log entry literal.
+ ```C
+ log_error (malc_fileline "Something happended").
+ `--
+-MALC_STRIP_LOG_\[DEBUG|TRACE|NOTICE|WARNING|ERROR|CRITICAL\]
+
+ Removes all the log entries with a serverity less or equal that the one 
+ specified.
+
+-MALC_NO_SHORT_LOG_MACROS
+
+ Malc defines both logging macros called e.g. "malc_error" and "log_error", when
+ "MALC_NO_SHORT_LOG_MACROS" is defined "log_" prefixed macros aren't defined.
+
+-MALC_GET_LOGGER_INSTANCE_FUNCNAME
+ 
+ On the macros that doesn't take a malc instance explictly (those that don't 
+ have the "_i" suffix) malc makes a call to an expression to be defined by the 
+ user called "get_malc_logger_instance()" to provide the malc instance (this 
+ library is not a singleton). The MALC_GET_LOGGER_INSTANCE_FUNCNAME allows to 
+ change the name of the call done to retrieve the instance.
+
+Gotchas
+=======
+
+Lazy-evaluation of parameters
+-----------------------------
+
+Both the C and the C++ log functions doesn't have function-like semantics:
+
+-The passed parameters are only evaluated if the log entry is going to be 
+ logged. Log entries can be filtered out by severity or in case of the 
+ "log_|severity|_if" macro family if the conditional parameter is evaluated to 
+ be "false".
+
+-As with the C "assert" macro, log entries can be stripped at compile time by
+ defining the "MALC_STRIP_LOG_|SEVERITY|" macro family.
+
+This is deliberate, so you can place expensive function calls as log arguments.
+
+Asynchronous logging
+--------------------
+
+When timestamping at the producer thread is enabled, there is the theoretical 
+possibility that some entries show timestamps that go backwards in time some
+fractions of a second. This is expected. Consider this case:
+
+-Thread 1: gets timestamp.
+-Thread 1: gets preempted by the OS scheduler.
+-Thread 2: gets timestamp.
+-Thread 2: posts the log entry into the queue.
+-Thread 1: is schedulead again 
+-Thread 1: posts the log entry into the queue.
+
+A big mutex on the queue wouldn't theoretically show this behavior, but then:
+
+-The timestamp would get more jitter, as it will account the time waiting for 
+ the mutex.
+-This logger wouldn't perform as it does.
+
+Thread safety of values passed by reference to the logger
+---------------------------------------------------------
+
+All values passed by pointer to malc are assumed to never be modified again by
+any other thread. The results of doing so are undefined.

@@ -129,6 +129,8 @@ static inline bl_err malc_stripped_entry()
     __VA_ARGS__\
     )
 
+/* _i = instance, where the instance is provided manually instead of by calling
+MALC_GET_LOGGER_INSTANCE_FUNC */
 #define malc_debug_i(malcref, ...)\
   MALC_LOG_PRIVATE ((malcref), MALC_SEV_WRAP (debug), __VA_ARGS__)
 
@@ -162,6 +164,8 @@ static inline bl_err malc_stripped_entry()
     __VA_ARGS__\
     )
 
+/* _i = instance, where the instance is provided manually instead of by calling
+MALC_GET_LOGGER_INSTANCE_FUNC */
 #define malc_trace_i(malcref, ...)\
   MALC_LOG_PRIVATE ((malcref), MALC_SEV_WRAP (trace), __VA_ARGS__)
 
@@ -195,6 +199,8 @@ static inline bl_err malc_stripped_entry()
     __VA_ARGS__\
     )
 
+/* _i = instance, where the instance is provided manually instead of by calling
+MALC_GET_LOGGER_INSTANCE_FUNC */
 #define malc_notice_i(malcref, ...)\
   MALC_LOG_PRIVATE ((malcref), MALC_SEV_WRAP (note), __VA_ARGS__)
 
@@ -228,6 +234,8 @@ static inline bl_err malc_stripped_entry()
     __VA_ARGS__\
     )
 
+/* _i = instance, where the instance is provided manually instead of by calling
+MALC_GET_LOGGER_INSTANCE_FUNC */
 #define malc_warning_i(malcref, ...)\
   MALC_LOG_PRIVATE ((malcref), MALC_SEV_WRAP (warning), __VA_ARGS__)
 
@@ -260,6 +268,9 @@ static inline bl_err malc_stripped_entry()
     MALC_SEV_WRAP (error), \
     __VA_ARGS__\
     )
+
+/* _i = instance, where the instance is provided manually instead of by calling
+MALC_GET_LOGGER_INSTANCE_FUNC */
 
 #define malc_error_i(malcref, ...)\
   MALC_LOG_PRIVATE ((malcref), MALC_SEV_WRAP (error), __VA_ARGS__)
@@ -294,6 +305,8 @@ static inline bl_err malc_stripped_entry()
     __VA_ARGS__\
     )
 
+/* _i = instance, where the instance is provided manually instead of by calling
+MALC_GET_LOGGER_INSTANCE_FUNC */
 #define malc_critical_i(malcref, ...)\
   MALC_LOG_PRIVATE ((malcref), MALC_SEV_WRAP (critical), __VA_ARGS__)
 
