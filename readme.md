@@ -61,7 +61,7 @@ C++ only:
   are error-code based only (noexcept), as they are free functions on the
   fast-path.
 
-- Can log std::ostream-able types by value or wrapped in a shared pointer.
+- Can log std::ostream-able types by value or wrapped in a smart pointer.
 
 - Can log std::string, smart pointers to std::string and smart pointers to
   std::vector containing arithmetic types.
@@ -69,7 +69,7 @@ C++ only:
 - It allows adding custom logging for additional data types.
 
 - It almost doesn't leak any C function or data type to the global namespace,
-  and the few they do are prefixed.
+  and the few they do are prefixed with "malc_".
 
 Design
 ======
