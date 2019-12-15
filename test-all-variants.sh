@@ -7,6 +7,8 @@ errcho() {
 }
 
 DSTDIR="$1"
+EXTRAOPT=$2
+
 if [ -z "$DSTDIR" ]; then
     errcho "DSTDIR is needed as the first positional argument."
     exit 1
@@ -21,15 +23,11 @@ fi
 
 rm -rf "$DSTDIR" && mkdir -p "$DSTDIR" || exit 1
 
-VARIANTS=$(cat << 'END'
-dbg                  --buildtype=debug -Db_sanitize=address -Dcompressed_ptrs=false -Dcompressed_builtins=false
-dbg-cbuiltins        --buildtype=debug -Db_sanitize=address -Dcompressed_ptrs=false -Dcompressed_builtins=true
-dbg-cptrs            --buildtype=debug -Db_sanitize=address -Dcompressed_ptrs=true  -Dcompressed_builtins=false
-dbg-cbuiltins-cptrs  --buildtype=debug -Db_sanitize=address -Dcompressed_ptrs=true  -Dcompressed_builtins=true
-rel                  --buildtype=release -Dcompressed_ptrs=false -Dcompressed_builtins=false
-rel-cbuiltins        --buildtype=release -Dcompressed_ptrs=false -Dcompressed_builtins=true
-rel-cptrs            --buildtype=release -Dcompressed_ptrs=true  -Dcompressed_builtins=false
-rel-cbuiltins-cptrs  --buildtype=release -Dcompressed_ptrs=true  -Dcompressed_builtins=true
+VARIANTS=$(cat << END
+dbg           -Db_sanitize=address --buildtype=debug   -Dcompressed_builtins=false "$EXTRAOPT"
+dbg-cbuiltins -Db_sanitize=address --buildtype=debug   -Dcompressed_builtins=true  "$EXTRAOPT"
+rel           --buildtype=release -Dcompressed_builtins=false "$EXTRAOPT"
+rel-cbuiltins --buildtype=release -Dcompressed_builtins=true  "$EXTRAOPT"
 END
 )
 

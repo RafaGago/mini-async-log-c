@@ -139,33 +139,7 @@ static inline void malc_do_run_refdtor(
 {
   d->func (d->context, refs, refs_count);
 }
-
-#if MALC_PTR_COMPRESSION != 0
 /*----------------------------------------------------------------------------*/
-/* We need to convert back from the structs prepared for compression */
-static inline void malc_do_add_to_refarray_compressed(
-  malc_ref* a, bl_uword* idx, malc_compressed_ref const* v
-  )
-{
-  malc_ref r;
-  r.ref  = (void*) v->ref.v;
-  r.size = v->size;
-  malc_do_add_to_refarray (a, idx, &r);
-}
-
-static inline void malc_do_run_refdtor_compressed(
-  malc_compressed_refdtor* d, malc_ref const* refs, bl_uword refs_count
-  )
-{
-  malc_refdtor rd;
-  rd.func    = (malc_refdtor_fn) d->func.v;
-  rd.context = (void*) d->context.v;
-  malc_do_run_refdtor (&rd, refs, refs_count);
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#if MALC_PTR_COMPRESSION == 0
-
 static inline void malc_do_add_to_refarray_pass(
     malc_ref* a, bl_uword* idx, malc_ref const* v
     )
@@ -196,40 +170,6 @@ static inline void malc_do_run_refdtor_pass(
       bl_pp_tokconcat(malc_deallocrefs_, __LINE__), \
       bl_pp_tokconcat(malc_deallocrefs_idx, __LINE__) \
     );
-/*----------------------------------------------------------------------------*/
-#else /* MALC_PTR_COMPRESSION != 0 */
-
-static inline void malc_do_add_to_refarray_pass(
-    malc_ref* a, bl_uword* idx, malc_compressed_ref const* v
-    )
-{}
-
-#define MALC_LOG_FILL_REF_ARRAY_VAR_IF_REF(expr, name)\
-  _Generic ((name), \
-    malc_compressed_ref: malc_do_add_to_refarray_compressed, \
-    default:             malc_do_add_to_refarray_pass \
-    )( \
-      bl_pp_tokconcat(malc_deallocrefs_, __LINE__), \
-      &bl_pp_tokconcat(malc_deallocrefs_idx, __LINE__), \
-      (malc_compressed_ref const*) &(name) \
-    );
-
-static inline void malc_do_run_refdtor_pass(
-    malc_compressed_refdtor* d, malc_ref const* refs, bl_uword refs_count
-    )
-{}
-
-#define MALC_LOG_REF_ARRAY_DEALLOC_SEARCH_EXEC(expr, name) \
-  _Generic ((name), \
-    malc_compressed_refdtor: malc_do_run_refdtor_compressed, \
-    default:                 malc_do_run_refdtor_pass \
-    )( \
-      (malc_compressed_refdtor*) &name, \
-      bl_pp_tokconcat(malc_deallocrefs_, __LINE__), \
-      bl_pp_tokconcat(malc_deallocrefs_idx, __LINE__) \
-    );
-
-#endif /* MALC_PTR_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 #define MALC_LOG_FILL_REF_ARRAY(...) \
   /* Iterates all the variables (I, II, III, etc) and only adds the reference*/\

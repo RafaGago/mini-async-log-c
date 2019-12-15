@@ -21,7 +21,7 @@ typedef struct compressed_header {
 }
 compressed_header;
 /*----------------------------------------------------------------------------*/
-#if MALC_COMPRESSION == 0
+#if MALC_BUILTIN_COMPRESSION == 0
 /*----------------------------------------------------------------------------*/
 typedef struct serializer {
   malc_const_entry const* entry;
@@ -32,12 +32,7 @@ typedef struct serializer {
 }
 serializer;
 /*----------------------------------------------------------------------------*/
-static inline bl_uword serializer_compressed_header_size (serializer const* se)
-{
-  return 0;
-}
-/*----------------------------------------------------------------------------*/
-#else /* MALC_COMPRESSION == 0 */
+#else /* MALC_BUILTIN_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 typedef struct serializer {
   malc_const_entry const* entry;
@@ -45,18 +40,12 @@ typedef struct serializer {
   malc_compressed_64      t;
   bl_uword                internal_fields_size;
   compressed_header*      ch;
-  malc_compressed_ptr     comp_entry;
   bl_uword                comp_hdr_size;
   compressed_header       chval;
 }
 serializer;
 /*----------------------------------------------------------------------------*/
-static inline bl_uword serializer_compressed_header_size (serializer const* se)
-{
-  return se->comp_hdr_size;
-}
-/*----------------------------------------------------------------------------*/
-#endif /* MALC_COMPRESSION == 0 */
+#endif /* MALC_BUILTIN_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 extern void serializer_init(
   serializer* se, malc_const_entry const* entry, bool has_tstamp
@@ -70,7 +59,11 @@ static inline bl_uword serializer_log_entry_size(
   serializer const* se, bl_uword payload
   )
 {
-  return payload + serializer_compressed_header_size (se) + se->internal_fields_size;
+  return payload +
+#if MALC_BUILTIN_COMPRESSION != 0
+    se->comp_hdr_size +
+#endif
+    se->internal_fields_size;
 }
 /*----------------------------------------------------------------------------*/
 typedef struct deserializer {
@@ -80,7 +73,7 @@ typedef struct deserializer {
   malc_const_entry const* entry;
   bl_timept64             t;
   compressed_header*      ch;
-#if MALC_COMPRESSION
+#if MALC_BUILTIN_COMPRESSION
   compressed_header       chval;
 #endif
 }

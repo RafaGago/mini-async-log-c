@@ -1,30 +1,41 @@
 option(
-    'pic_statlibs',
-     type        : 'boolean',
-     value       : false,
-     description : 'Compile static libraries with -fPIC (pos independent)'
-     )
+  'pic_statlibs',
+  type        : 'boolean',
+  value       : false,
+  description : 'Compile static libraries with -fPIC (pos independent)'
+  )
 option(
-    'sharedlib',
-     type        : 'boolean',
-     value       : false,
-     description : 'compile as shared libraries'
-     )
+  'sharedlib',
+  type        : 'boolean',
+  value       : false,
+  description : 'compile as shared libraries'
+  )
 option(
-    'bare',
-     type        : 'boolean',
-     value       : false,
-     description : 'No extra content compilation (tests, examples, etc...)'
-     )
+  'bare',
+  type        : 'boolean',
+  value       : false,
+  description : 'No extra content compilation (tests, examples, etc...)'
+  )
 option(
-    'compressed_builtins',
-     type        : 'boolean',
-     value       : false,
-     description : 'builtin types (32 and 64 bit) are trailing-zero compressed'
-     )
+  'compressed_builtins',
+  type        : 'boolean',
+  value       : false,
+  description : 'builtin types (32 and 64 bit) are trailing-zero compressed'
+  )
 option(
-    'compressed_ptrs',
-     type        : 'boolean',
-     value       : false,
-     description : 'pointers are trailing zero compressed'
-     )
+  'ptr_bytes_cut_count',
+  type        : 'integer',
+  min         : 0,
+  max         : 8,
+  value       : 0,
+  description : '''
+    on some platforms the pointers don't fill the datatype they have assigned,
+    (e.g. as of 2019 linux-x64 pointers are 48-bit/6-bytes). Define this value
+    with the amount of most significant bytes that you want to cut from the
+    data, so a fixed amount of trailing zeros aren't serialized.
+
+    This value is defaulted to zero because it is as a dangerous optimization
+    that should only be enabled people that has total control of the platform
+    were this logger run.
+    '''
+  )

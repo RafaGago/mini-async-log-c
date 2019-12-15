@@ -627,6 +627,42 @@ static void volatile_variable_logging (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void timestamp_enabled_test (void **state)
+{
+  context* c = (context*) *state;
+
+  malc_dst_cfg dcfg;
+  dcfg.log_rate_filter_time_ns = 0;
+  dcfg.show_timestamp     = false;
+  dcfg.show_severity      = false;
+  dcfg.severity           = malc_sev_error;
+  dcfg.severity_file_path = nullptr;
+
+  bl_err err = malc_set_destination_cfg (c->l, &dcfg, c->dst_id);
+  assert_int_equal (err.own, bl_ok);
+
+  malc_cfg cfg;
+  err = malc_get_cfg (c->l, &cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+  cfg.producer.timestamp = true;
+
+  err = malc_init (c->l, &cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  err = log_error ("{} {}", (bl_i64) -1ll, (bl_u16) 20000);
+  assert_int_equal (err.own, bl_ok);
+
+  err = malc_run_consume_task (c->l, 10000);
+  assert_int_equal (err.own, bl_ok);
+
+  assert_int_equal (malc_array_dst_size (c->dst), 1);
+  assert_string_equal (malc_array_dst_get_entry (c->dst, 0), "-1 20000");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -648,6 +684,7 @@ static const struct CMUnitTest tests[] = {
     ),
   cmocka_unit_test_setup_teardown (lazy_argument_logging, setup, teardown),
   cmocka_unit_test_setup_teardown (volatile_variable_logging, setup, teardown),
+  cmocka_unit_test_setup_teardown (timestamp_enabled_test, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)

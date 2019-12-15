@@ -86,11 +86,11 @@ cdata.set(
     '#define MALC_BUILTIN_COMPRESSION ' + val
      )
 
-val = get_option ('compressed_ptrs') ? '1' : '0'
-cflags += [ '-DMALC_PTR_COMPRESSION=' + val ]
+val = get_option ('ptr_bytes_cut_count')
+cflags += [ '-DMALC_PTR_MSB_BYTES_CUT_COUNT=' + val.to_string() ]
 cdata.set(
     'compressed_ptrs_placeholder',
-    '#define MALC_PTR_COMPRESSION ' + val
+    '#define MALC_PTR_MSB_BYTES_CUT_COUNT ' + val.to_string()
      )
 
 cdata.set ('version', version)

@@ -13,12 +13,6 @@
 #include <malc/common.h>
 #include <malc/libexport.h>
 /*----------------------------------------------------------------------------*/
-#if MALC_BUILTIN_COMPRESSION == 0 && MALC_PTR_COMPRESSION == 0
-  #define MALC_COMPRESSION 0
-#else
-  #define MALC_COMPRESSION 1
-#endif
-/*----------------------------------------------------------------------------*/
 #ifndef MALC_IMPL_COMMON_HAS_MALC_ENTRY
   #define MALC_IMPL_COMMON_HAS_MALC_ENTRY 1
   /* avoid defining twice on the wrapper */

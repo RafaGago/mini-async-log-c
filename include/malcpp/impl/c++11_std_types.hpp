@@ -1,6 +1,8 @@
 #ifndef __MALC_CPP_STD_TYPES_HPP__
 #define __MALC_CPP_STD_TYPES_HPP__
 
+// A header including the implementation of logging C++ types.
+
 #include <sstream>
 #include <memory>
 #include <utility>
@@ -10,19 +12,9 @@
 #include <cstdint>
 #include <cassert>
 
-#ifndef MALC_COMMON_NAMESPACED
-#define MALC_COMMON_NAMESPACED 1
-#endif
-
 #include <bl/base/static_integer_math.h>
 
 #include <malcpp/impl/c++11_basic_types.hpp>
-
-// A header including C++ types. To avoid header bloat and to make a clear
-// separation about what is C++ only.
-#if 1
-#warning "TODO: no pointer compression: fixed-user provided platform bytes"
-#endif
 
 #ifndef MALC_CPP_NULL_SMART_PTR_STR
   #define MALC_CPP_NULL_SMART_PTR_STR "nullptr"
@@ -146,21 +138,13 @@ struct wire_raw_object {
     alignof (T) <= MALC_OBJ_MAX_ALIGN,
     "malc can only serialize objects aligned up to \"MALC_OBJ_MAX_ALIGN\" bytes."
     );
-#if MALC_PTR_COMPRESSION == 0
   void const* table;
-#else
-  malc_compressed_ptr table;
-#endif
   typename std::aligned_storage<sizeof (T), alignof (T)>::type storage;
 };
 
 template <class T>
 struct wire_raw_object_w_context : public wire_raw_object<T> {
-#if MALC_PTR_COMPRESSION == 0
   void* context;
-#else
-  malc_compressed_ptr context;
-#endif
 };
 
 template <class T>
@@ -170,14 +154,7 @@ struct wire_raw_object_w_flag : public wire_raw_object<T> {
 
 static constexpr uint16_t cpp_std_types_compressed_count (uint8_t type_id)
 {
-#if MALC_PTR_COMPRESSION == 0
   return 0;
-#else
-  return
-    ((uint16_t) (type_id == malc_type_obj)) +
-    ((uint16_t) (type_id == malc_type_obj_flag)) +
-    (((uint16_t) (type_id == malc_type_obj_ctx)) * 2);
-#endif
 }
 //------------------------------------------------------------------------------
 /* OBJECT TYPES: type transformations. It is possible to log these

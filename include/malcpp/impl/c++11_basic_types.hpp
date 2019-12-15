@@ -206,9 +206,6 @@ struct builtin_type_id<float> : public attach_type_id<malc_type_float>
 template <>
 struct builtin_type_id<double> : public attach_type_id<malc_type_double>
 {};
-template <>
-struct builtin_type_id<void const*> : public attach_type_id<malc_type_ptr>
-{};
 //------------------------------------------------------------------------------
 template <class T>
 struct builtin_type_base :
@@ -286,56 +283,7 @@ struct logged_type<malc_memcp> :
   public default_format_validation
 {};
 //------------------------------------------------------------------------------
-#if MALC_PTR_COMPRESSION == 0
-//------------------------------------------------------------------------------
-template <>
-struct logged_type<void*> :
-  public builtin_type_base<void const*>,
-  public default_format_validation
-{};
-//------------------------------------------------------------------------------
-template <>
-struct logged_type<malc_lit> :
-  public attach_type_id<malc_type_lit>,
-  public attach_serialization_types<malc_lit>,
-  public no_serializable_conversion<malc_lit>,
-  public sizeof_wire_size<malc_lit>,
-  public serialization_from_c_impl<malc_lit>,
-  public default_format_validation
-{};
-//------------------------------------------------------------------------------
-template <>
-struct logged_type<malc_strref> :
-  public attach_type_id<malc_type_strref>,
-  public attach_serialization_types<malc_strref>,
-  public no_serializable_conversion<malc_strref>,
-  public wire_size_from_c_impl<malc_strref>,
-  public serialization_from_c_impl<malc_strref>,
-  public default_format_validation
-{};
-//------------------------------------------------------------------------------
-template <>
-struct logged_type<malc_memref> :
-  public attach_type_id<malc_type_memref>,
-  public attach_serialization_types<malc_memref>,
-  public no_serializable_conversion<malc_memref>,
-  public wire_size_from_c_impl<malc_memref>,
-  public serialization_from_c_impl<malc_memref>,
-  public default_format_validation
-{};
-//------------------------------------------------------------------------------
-template <>
-struct logged_type<malc_refdtor> :
-  public attach_type_id<malc_type_refdtor>,
-  public attach_serialization_types<malc_refdtor>,
-  public no_serializable_conversion<malc_refdtor>,
-  public wire_size_from_c_impl<malc_refdtor>,
-  public serialization_from_c_impl<malc_refdtor>,
-  public default_format_validation
-{};
-//------------------------------------------------------------------------------
-#else //if MALC_PTR_COMPRESSION == 0
-//------------------------------------------------------------------------------
+// The types below store pointers. Reusing the C implementation.
 template <>
 struct logged_type<void*> :
   public reuse_all_possible_from_c_impl<void const*, malc_type_ptr>,
@@ -365,8 +313,6 @@ struct logged_type<malc_refdtor> :
   public reuse_all_possible_from_c_impl<malc_refdtor, malc_type_refdtor>,
   public default_format_validation
 {};
-//------------------------------------------------------------------------------
-#endif
 //------------------------------------------------------------------------------
 // Special case for logging rvalues to std::string
 //------------------------------------------------------------------------------

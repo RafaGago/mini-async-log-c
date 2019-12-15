@@ -292,7 +292,7 @@ have challenges:
 #define MALC_VERSION_REV   0
 #define MALC_VERSION_STR   "1.0.0"
 #define MALC_BUILTIN_COMPRESSION 0
-#define MALC_PTR_COMPRESSION 0
+#define MALC_PTR_MSB_BYTES_CUT_COUNT 0
 
 #endif /* __MALC_CONFIG_H__ */
 ```
@@ -358,9 +358,10 @@ This is deliberate, so you can place expensive function calls as log arguments.
 Asynchronous logging
 --------------------
 
-When timestamping at the producer thread is enabled, there is the theoretical
-possibility that some entries show timestamps that go backwards in time some
-fractions of a second. This is expected. Consider this case:
+When timestamping at the producer thread is enabled (the default is platform
+dependant), there is the theoretical possibility that some entries show
+timestamps that go backwards in time some fractions of a second. This is
+expected. Consider this case:
 
 - Thread 1: gets timestamp.
 

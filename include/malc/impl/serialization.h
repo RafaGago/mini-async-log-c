@@ -10,6 +10,17 @@
 #include <bl/base/static_assert.h>
 #include <bl/base/utility.h>
 
+#if MALC_PTR_MSB_BYTES_CUT_COUNT != 0
+  #include <bl/base/endian.h>
+  #define MALC_PTR_BYTE_COUNT (sizeof (void*) - MALC_PTR_MSB_BYTES_CUT_COUNT)
+  bl_static_assert(
+    sizeof (void*) > MALC_PTR_MSB_BYTES_CUT_COUNT,
+    "MALC_PTR_MSB_BYTES_CUT_COUNT is bigger than sizeof (void*)"
+    );
+#else
+  #define MALC_PTR_BYTE_COUNT (sizeof (void*))
+#endif
+
 #include <malc/impl/common.h>
 /*----------------------------------------------------------------------------*/
 /* A group of function families to do the producer-side serialization:
@@ -26,7 +37,7 @@
 /*----------------------------------------------------------------------------*/
 typedef struct malc_serializer {
     uint8_t* node_mem;
-#if MALC_COMPRESSION == 1
+#if MALC_BUILTIN_COMPRESSION == 1
     uint8_t* compressed_header;
     unsigned compressed_header_idx;
 #endif
@@ -52,26 +63,6 @@ typedef struct malc_compressed_64 {
   unsigned format_nibble; /*1 bit sign + 3 bit size (0-7)*/
 }
 malc_compressed_64;
-/*----------------------------------------------------------------------------*/
-#if BL_WORDSIZE == 64
-typedef malc_compressed_64 malc_compressed_ptr;
-#elif BL_WORDSIZE == 32
-typedef malc_compressed_32 malc_compressed_ptr;
-#else
-  #error "Unsupported word size or bad compiler detection"
-#endif
-/*----------------------------------------------------------------------------*/
-typedef struct malc_compressed_ref {
-  malc_compressed_ptr ref;
-  uint16_t            size;
-}
-malc_compressed_ref;
-/*----------------------------------------------------------------------------*/
-typedef struct malc_compressed_refdtor {
-  malc_compressed_ptr func;
-  malc_compressed_ptr context;
-}
-malc_compressed_refdtor;
 /*----------------------------------------------------------------------------*/
 static inline MALC_CONSTEXPR unsigned malc_compressed_get_size (unsigned nibble)
 {
@@ -112,24 +103,6 @@ static inline malc_compressed_64 malc_get_compressed_i64 (int64_t v)
   r.format_nibble     |= (v < 0) << 3;
   return r;
 }
-/*----------------------------------------------------------------------------*/
-#if BL_WORDSIZE == 64
-/*----------------------------------------------------------------------------*/
-static inline malc_compressed_ptr malc_get_compressed_ptr (void const* v)
-{
-  return malc_get_compressed_u64 ((uint64_t) v);
-}
-/*----------------------------------------------------------------------------*/
-#elif BL_WORDSIZE == 32
-/*----------------------------------------------------------------------------*/
-static inline malc_compressed_ptr malc_get_compressed_ptr (void const* v)
-{
-  return malc_get_compressed_u32 ((uint32_t) v);
-}
-/*----------------------------------------------------------------------------*/
-#else
-  #error "Unsupported word size or bad compiler detection"
-#endif
 /*----------------------------------------------------------------------------*/
 static inline void wrong (void) {}
 /*----------------------------------------------------------------------------*/
@@ -203,8 +176,26 @@ static inline void MALC_SERIALIZE(_double)(
 /*----------------------------------------------------------------------------*/
 static inline void MALC_SERIALIZE(_ptr)(malc_serializer* s, void const* v)
 {
+#if MALC_PTR_MSB_BYTES_CUT_COUNT == 0
   memcpy (s->field_mem, &v, sizeof v);
-  s->field_mem += sizeof v;
+#elif BL_ARCH_IS_LITTLE_ENDIAN
+  bl_assert(
+    ((uint8_t*) &v)[MALC_PTR_BYTE_COUNT] == 0 &&
+    "misconfigured MALC_PTR_MSB_BYTES_CUT_COUNT."
+    );
+  memcpy (s->field_mem, &v, MALC_PTR_BYTE_COUNT);
+#else
+  bl_assert(
+    ((uint8_t*) &v)[MALC_PTR_MSB_BYTES_CUT_COUNT - 1] == 0 &&
+    "misconfigured MALC_PTR_MSB_BYTES_CUT_COUNT."
+    );
+  memcpy(
+    s->field_mem,
+    ((uint8_t*) &v) + MALC_PTR_MSB_BYTES_CUT_COUNT,
+    MALC_PTR_BYTE_COUNT
+    );
+#endif
+  s->field_mem += MALC_PTR_BYTE_COUNT;
 }
 /*----------------------------------------------------------------------------*/
 /* lit comes as a compressed_ptr when MALC_PTR_COMPRESSION != 0 */
@@ -212,7 +203,7 @@ static inline void MALC_SERIALIZE(_lit)(
   malc_serializer* s, malc_lit v
   )
 {
-  return MALC_SERIALIZE(_ptr) (s, (void*) v.lit);
+  return MALC_SERIALIZE(_ptr) (s, (void const*) v.lit);
 }
 /*----------------------------------------------------------------------------*/
 static inline void MALC_SERIALIZE(_strcp)(
@@ -229,7 +220,7 @@ static inline void MALC_SERIALIZE(_strref)(
   )
 {
   MALC_SERIALIZE(_u16) (s, v.len);
-  MALC_SERIALIZE(_ptr) (s, (void*) v.str);
+  MALC_SERIALIZE(_ptr) (s, (void* const) v.str);
 }
 /*----------------------------------------------------------------------------*/
 static inline void MALC_SERIALIZE(_memcp)(
@@ -246,17 +237,17 @@ static inline void MALC_SERIALIZE(_memref)(
   )
 {
   MALC_SERIALIZE(_u16) (s, v.size);
-  MALC_SERIALIZE(_ptr) (s, (void*) v.mem);
+  MALC_SERIALIZE(_ptr) (s, (void const*) v.mem);
 }
 /*----------------------------------------------------------------------------*/
 static inline void MALC_SERIALIZE(_refdtor)(
   malc_serializer* s, malc_refdtor v
   )
 {
-  MALC_SERIALIZE(_ptr) (s, (void*) v.func);
-  MALC_SERIALIZE(_ptr) (s, (void*) v.context);
+  MALC_SERIALIZE(_ptr) (s, (void const*) v.func);
+  MALC_SERIALIZE(_ptr) (s, (void const*) v.context);
 }
-#if MALC_COMPRESSION == 1 /*  */
+#if MALC_BUILTIN_COMPRESSION == 1 /*  */
 /*----------------------------------------------------------------------------*/
 /* inline ONLY to let the linker optimize without issuing warnings */
 static inline void MALC_SERIALIZE(_comp32)(
@@ -290,43 +281,11 @@ static inline void MALC_SERIALIZE(_comp64)(
     ++s->field_mem;
   }
 }
-/*----------------------------------------------------------------------------*/
-#if BL_WORDSIZE == 64
-  static inline void malc_serialize_compressed_ptr(
-    malc_serializer* s, malc_compressed_ptr v
-    )
-  {
-    MALC_SERIALIZE(_comp64) (s, v);
-  }
-#else
-  static inline void malc_serialize_compressed_ptr(
-    malc_serializer* s, malc_compressed_ptr v
-    )
-  {
-    MALC_SERIALIZE(_comp32) (s, v);
-  }
-#endif
-/*----------------------------------------------------------------------------*/
-static inline void MALC_SERIALIZE(_compref)(
-  malc_serializer* s, malc_compressed_ref v
-  )
-{
-  MALC_SERIALIZE(_u16) (s, v.size);
-  malc_serialize_compressed_ptr (s, v.ref);
-}
-/*----------------------------------------------------------------------------*/
-static inline void MALC_SERIALIZE(_comprefdtor)(
-  malc_serializer* s, malc_compressed_refdtor v
-  )
-{
-  malc_serialize_compressed_ptr (s, v.func);
-  malc_serialize_compressed_ptr (s, v.context);
-}
 #endif /* #if MALC_COMPRESSION == 1*/
 /*----------------------------------------------------------------------------*/
 #ifndef __cplusplus /* C++ uses function overload, not type generic macros */
 
-#if MALC_COMPRESSION == 1
+#if MALC_BUILTIN_COMPRESSION == 1
 #define malc_serialize(s, val)\
   _Generic ((val),\
     uint8_t:                   malc_serialize_u8,\
@@ -342,8 +301,6 @@ static inline void MALC_SERIALIZE(_comprefdtor)(
     malc_tgen_cv_cases (void*, malc_serialize_ptr),\
     malc_compressed_32:        malc_serialize_comp32,\
     malc_compressed_64:        malc_serialize_comp64,\
-    malc_compressed_ref:       malc_serialize_compref,\
-    malc_compressed_refdtor:   malc_serialize_comprefdtor,\
     malc_lit:                  malc_serialize_lit,\
     malc_strcp:                malc_serialize_strcp,\
     malc_strref:               malc_serialize_strref,\
@@ -456,27 +413,25 @@ static inline MALC_CONSTEXPR size_t MALC_SIZE(_u64) (uint64_t v)
 }
 static inline MALC_CONSTEXPR size_t MALC_SIZE(_ptr) (void const* v)
 {
-  return sizeof (v);
+  return MALC_PTR_BYTE_COUNT;
 }
 #ifndef __cplusplus
 static inline MALC_CONSTEXPR size_t MALC_SIZE(_ptrc) (const void* const v)
 {
-  return sizeof (v);
+  return MALC_PTR_BYTE_COUNT;
 }
 #endif
 static inline MALC_CONSTEXPR size_t MALC_SIZE(_lit) (malc_lit v)
 {
-  return sizeof (v);
+  return MALC_SIZE(_ptr) (v.lit);
 }
-
 static inline MALC_CONSTEXPR size_t MALC_SIZE(_strcp) (malc_strcp v)
 {
   return bl_sizeof_member (malc_strcp, len) + v.len;
 }
 static inline MALC_CONSTEXPR size_t MALC_SIZE(_strref) (malc_strref v)
 {
-  return bl_sizeof_member (malc_strref, str) +
-         bl_sizeof_member (malc_strref, len);
+  return MALC_SIZE(_ptr) (v.str) + bl_sizeof_member (malc_strref, len);
 }
 static inline MALC_CONSTEXPR size_t MALC_SIZE(_memcp) (malc_memcp v)
 {
@@ -484,13 +439,17 @@ static inline MALC_CONSTEXPR size_t MALC_SIZE(_memcp) (malc_memcp v)
 }
 static inline MALC_CONSTEXPR size_t MALC_SIZE(_memref) (malc_memref v)
 {
-  return bl_sizeof_member (malc_memref, mem) +
-         bl_sizeof_member (malc_memref, size);
+  return MALC_SIZE(_ptr) (v.mem) + bl_sizeof_member (malc_memref, size);
 }
-static inline MALC_CONSTEXPR size_t MALC_SIZE(_refdtor) (malc_refdtor v)
+static inline size_t MALC_SIZE(_refdtor) (malc_refdtor v)
 {
-  return bl_sizeof_member (malc_refdtor, func) +
-         bl_sizeof_member (malc_refdtor, context);
+  /*function pointer casting to void* is undefined behavior on the standard. But
+  for the relevant platforms it is OK*/
+  bl_assert(
+    (v.func == (malc_refdtor_fn) ((void const*) v.func)) &&
+    "this platform's function pointers can't be stored on void pointers"
+    );
+  return MALC_SIZE(_ptr) ((void const*) v.func) + MALC_SIZE(_ptr) (v.context);
 }
 static inline MALC_CONSTEXPR size_t MALC_SIZE(_comp32) (malc_compressed_32 v)
 {
@@ -500,21 +459,6 @@ static inline MALC_CONSTEXPR size_t MALC_SIZE(_comp64) (malc_compressed_64 v)
 {
   return malc_compressed_get_size (v.format_nibble);
 }
-
-static inline MALC_CONSTEXPR size_t MALC_SIZE(_compressed_ref) (malc_compressed_ref v)
-{
-  return bl_sizeof_member (malc_compressed_ref, size) +
-         malc_compressed_get_size (v.ref.format_nibble);
-}
-
-static inline MALC_CONSTEXPR size_t MALC_SIZE(_compressed_refdtor)(
-  malc_compressed_refdtor v
-  )
-{
-  return malc_compressed_get_size (v.func.format_nibble) +
-         malc_compressed_get_size (v.context.format_nibble);
-}
-
 /* generate errors saying something on "malc_type_size" for unknown types */
 typedef struct malc_unknowntype_priv { char v; } malc_unknowntype_priv;
 static inline size_t unknown_type_on_malc_type_size (malc_unknowntype_priv v)
@@ -545,8 +489,6 @@ static inline size_t unknown_type_on_malc_type_size (malc_unknowntype_priv v)
     malc_refdtor:                    malc_size_refdtor,\
     malc_compressed_32:              malc_size_comp32,\
     malc_compressed_64:              malc_size_comp64,\
-    malc_compressed_ref:             malc_size_compressed_ref,\
-    malc_compressed_refdtor:         malc_size_compressed_refdtor,\
     default:                         unknown_type_on_malc_type_size\
     )\
   (expression)
@@ -627,7 +569,6 @@ static inline MALC_CONSTEXPR malc_memcp MALC_TRANSFORM(_memcp)  (malc_memcp v)
   }
 #endif
 
-#if MALC_PTR_COMPRESSION == 0
   static inline MALC_CONSTEXPR void const* MALC_TRANSFORM(_ptr) (void const* v)
   {
     return v;
@@ -657,44 +598,6 @@ static inline MALC_CONSTEXPR malc_memcp MALC_TRANSFORM(_memcp)  (malc_memcp v)
   {
     return v;
   }
-#else /* #if MALC_PTR_COMPRESSION == 0 */
-  static inline malc_compressed_ptr MALC_TRANSFORM(_ptr) (void const* v)
-  {
-    return malc_get_compressed_ptr (v);
-  }
-#ifndef __cplusplus
-  static inline malc_compressed_ptr MALC_TRANSFORM(_ptrc) (void* const v)
-  {
-    return malc_get_compressed_ptr ((void*) v);
-  }
-#endif
-  static inline malc_compressed_ptr MALC_TRANSFORM(_lit)  (malc_lit v)
-  {
-    return malc_get_compressed_ptr ((void*) v.lit);
-  }
-  static inline malc_compressed_ref MALC_TRANSFORM(_strref) (malc_strref v)
-  {
-    malc_compressed_ref r;
-    r.ref  = malc_get_compressed_ptr ((void*) v.str);
-    r.size = v.len;
-    return r;
-  }
-  static inline malc_compressed_ref MALC_TRANSFORM(_memref) (malc_memref v)
-  {
-    malc_compressed_ref r;
-    r.ref  = malc_get_compressed_ptr ((void*) v.mem);
-    r.size = v.size;
-    return r;
-  }
-  static inline
-    malc_compressed_refdtor MALC_TRANSFORM(_refdtor) (malc_refdtor v)
-  {
-    malc_compressed_refdtor r;
-    r.func    = malc_get_compressed_ptr ((void*) v.func);
-    r.context = malc_get_compressed_ptr ((void*) v.context);
-    return r;
-  }
-#endif /* #else #if MALC_PTR_COMPRESSION == 0 */
 
 /* generate some error on unknown types */
 static inline void unknown_type_on_malc_type_transform(
@@ -727,19 +630,6 @@ static inline void unknown_type_on_malc_type_transform(
   (expression)
 #endif
 /*----------------------------------------------------------------------------*/
-#if MALC_PTR_COMPRESSION == 0
-  #define malc_ptr_compress_count(x) 0
-#else
-  #define malc_ptr_compress_count(x)\
-    ( \
-    ((int) ((x) == malc_type_ptr)) + \
-    ((int) ((x) == malc_type_lit)) + \
-    ((int) ((x) == malc_type_strref)) + \
-    ((int) ((x) == malc_type_memref)) + \
-    (((int) ((x) == malc_type_refdtor)) * 2) \
-    )
-#endif
-
 #if MALC_BUILTIN_COMPRESSION == 0
   #define malc_builtin_compress_count(x) 0
 #else
@@ -753,7 +643,7 @@ static inline void unknown_type_on_malc_type_transform(
 #endif
 
 #define malc_total_compress_count(type_id) \
-  malc_ptr_compress_count (type_id) + malc_builtin_compress_count (type_id)
+  malc_builtin_compress_count (type_id)
 
 /*----------------------------------------------------------------------------*/
 #ifdef MALC_COMMON_NAMESPACED

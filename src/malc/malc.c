@@ -181,7 +181,7 @@ MALC_EXPORT bl_err malc_create (malc* l, bl_alloc_tbl const* alloc)
   l->consumer.idle_task_period_us = 300000;
   l->consumer.backoff_max_us      = 2000;
   l->consumer.start_own_thread    = false;
-#if BL_HAS_CPU_TPOINT == 1
+#if BL_HAS_CPU_TIMEPT == 1
   l->producer.timestamp = true;
 #else
   l->producer.timestamp = false;
@@ -662,8 +662,8 @@ MALC_EXPORT bl_err malc_log_entry_prepare(
     return err;
   }
   qnode* n = (qnode*) mem;
-  n->slots    = slots - 1;
-  n->info.cmd =  q_cmd_entry;
+  n->slots = slots - 1;
+  n->info.cmd = q_cmd_entry;
   n->info.tag = tag;
   n->info.has_timestamp = l->producer.timestamp;
   bl_mpsc_i_node_set (&n->hook, nullptr, 0, 0);

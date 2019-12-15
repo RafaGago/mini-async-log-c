@@ -23,7 +23,7 @@
 
 namespace malcpp { namespace detail {
 
-#if MALC_COMPRESSION == 0
+#if MALC_BUILTIN_COMPRESSION == 0
 /*----------------------------------------------------------------------------*/
 template <class T>
 struct count_compressed {
@@ -32,7 +32,7 @@ struct count_compressed {
     return 0;
   }
 };
-#else // #if MALC_COMPRESSION == 0
+#else // #if MALC_BUILTIN_COMPRESSION == 0
 /*----------------------------------------------------------------------------*/
 template <class T>
 struct compressed_type_fields {
@@ -63,7 +63,7 @@ struct count_compressed<L<> > {
   }
 };
 /*----------------------------------------------------------------------------*/
-#endif //#else // #if MALC_COMPRESSION == 0
+#endif //#else // #if MALC_BUILTIN_COMPRESSION == 0
 /*----------------------------------------------------------------------------*/
 template <int sev, class T>
 struct info {};
@@ -230,12 +230,7 @@ static inline bl_err log(
     argops::template get_payload_size<decltype (values), types...> (values)
     );
   if (err.own) {
-#if MALC_PTR_COMPRESSION == 0
     deallocate_refs_tuple (has_refs(), values);
-#else
-    deallocate_refs(
-      has_refs(), (const char*) nullptr, (std::forward<types> (args))...);
-#endif
     return err;
   }
   argops::template serialize<decltype (values), types...>  (s, values);

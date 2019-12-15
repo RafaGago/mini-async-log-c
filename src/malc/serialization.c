@@ -20,7 +20,7 @@
 bl_declare_autoarray_funcs (log_args, log_argument);
 bl_declare_autoarray_funcs (log_refs, malc_ref);
 /*----------------------------------------------------------------------------*/
-#if MALC_BUILTIN_COMPRESSION || (MALC_PTR_COMPRESSION && BL_WORDSIZE == 32)
+#if MALC_BUILTIN_COMPRESSION
 static bl_err decode_compressed_32(
   compressed_header* ch, u8** mem, u8* mem_end, u32* v
   )
@@ -40,9 +40,7 @@ static bl_err decode_compressed_32(
   ++ch->idx;
   return bl_mkok();
 }
-#endif
 /*----------------------------------------------------------------------------*/
-#if MALC_BUILTIN_COMPRESSION || (MALC_PTR_COMPRESSION && BL_WORDSIZE == 64)
 static bl_err decode_compressed_64(
   compressed_header* ch, u8** mem, u8* mem_end, u64* v
   )
@@ -62,27 +60,7 @@ static bl_err decode_compressed_64(
   ++ch->idx;
   return bl_mkok();
 }
-#endif
-/*----------------------------------------------------------------------------*/
-#if MALC_COMPRESSION && BL_WORDSIZE == 64
-/*----------------------------------------------------------------------------*/
-static bl_err decode_compressed_ptr(
-  compressed_header* ch, u8** mem, u8* mem_end, void** v
-  )
-{
-  return decode_compressed_64 (ch, mem, mem_end, (u64*) v);
-}
-/*----------------------------------------------------------------------------*/
-#elif MALC_COMPRESSION && BL_WORDSIZE == 32
-/*----------------------------------------------------------------------------*/
-static bl_err decode_compressed_ptr(
-  compressed_header* ch, u8** mem, u8* mem_end, void** v
-  )
-{
-  return decode_compressed_32 (ch, mem, mem_end, (u32*) v);
-}
-/*----------------------------------------------------------------------------*/
-#endif
+#endif /* #if MALC_BUILTIN_COMPRESSION */
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_8) (
   compressed_header* ch, u8** mem, u8* mem_end, u8* v
@@ -175,30 +153,29 @@ static inline bl_err DECODE_NAME_BUILD(_double)(
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
-#if MALC_PTR_COMPRESSION == 0
-/*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_ptr)(
   compressed_header* ch, u8** mem, u8* mem_end, void** v
   )
 {
-  if (bl_unlikely (*mem + sizeof *v > mem_end)) {
+  if (bl_unlikely (*mem + MALC_PTR_BYTE_COUNT > mem_end)) {
     return bl_mkerr (bl_invalid);
   }
+#if MALC_PTR_MSB_BYTES_CUT_COUNT == 0
   memcpy (v, *mem, sizeof *v);
-  *mem += sizeof *v;
+#elif BL_ARCH_IS_LITTLE_ENDIAN
+  *v = 0;
+  memcpy (v, *mem, MALC_PTR_BYTE_COUNT);
+#else
+  *v = 0;
+  memcpy(
+    &((uint8_t*) *v)[MALC_PTR_MSB_BYTES_CUT_COUNT],
+    *mem,
+    MALC_PTR_BYTE_COUNT
+    );
+#endif
+  *mem += MALC_PTR_BYTE_COUNT;
   return bl_mkok();
 }
-/*----------------------------------------------------------------------------*/
-#else /* MALC_PTR_COMPRESSION == 0 */
-/*----------------------------------------------------------------------------*/
-static inline bl_err DECODE_NAME_BUILD(_ptr)(
-  compressed_header* ch, u8** mem, u8* mem_end, void** v
-  )
-{
-  return decode_compressed_ptr (ch, mem, mem_end, v);
-}
-/*----------------------------------------------------------------------------*/
-#endif /* MALC_PTR_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 static inline bl_err DECODE_NAME_BUILD(_lit)(
   compressed_header* ch, u8** mem, u8* mem_end, malc_lit* v
@@ -313,10 +290,10 @@ static inline bl_err DECODE_NAME_BUILD(_obj_flag)(
 #ifndef __cplusplus
 #define decode(ch, mem, mem_end, val)\
   _Generic ((val),\
-    u8*:         decode_8,\
-    u16*:        decode_16,\
-    u32*:        decode_32,\
-    u64*:        decode_64,\
+    u8*:            decode_8,\
+    u16*:           decode_16,\
+    u32*:           decode_32,\
+    u64*:           decode_64,\
     double*:        decode_double,\
     float*:         decode_float,\
     void**:         decode_ptr,\
@@ -334,7 +311,7 @@ static inline bl_err DECODE_NAME_BUILD(_obj_flag)(
   ((ch), (mem), (mem_end), (val))
 #endif
 /*----------------------------------------------------------------------------*/
-#if MALC_COMPRESSION == 0
+#if MALC_BUILTIN_COMPRESSION == 0
 /*----------------------------------------------------------------------------*/
 void serializer_init(
   serializer* se, malc_const_entry const* entry, bool has_tstamp
@@ -343,54 +320,34 @@ void serializer_init(
   se->entry      = entry;
   se->has_tstamp = has_tstamp;
   se->ch         = nullptr;
-  se->internal_fields_size = sizeof se->entry + (has_tstamp ? sizeof se->t : 0);
+  se->internal_fields_size =
+    MALC_PTR_BYTE_COUNT + (has_tstamp ? sizeof se->t : 0);
   if (has_tstamp) {
     se->t = bl_fast_timept_get_fast();
   }
 }
 /*----------------------------------------------------------------------------*/
-#else /* MALC_COMPRESSION == 0 */
+#else /* MALC_BUILTIN_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
-/* the serialization layout when compressed is :
-
-  -qnode:  intrusive data structure for the queue.
-
-  -1 byte: nibble with the compression header for "malc_const_entry". and the
-    timestamp.
-  -(1 - 8) bytes: compressed "malc_const_entry".
-  -(1 - 8) bytes: compressed timestamp.
-
-  -n bytes: nibbles for the contained compressed data. If it includes the
-   timestamp it will be in the first nibble.
-  -n bytes: compressed and uncompressed data together. If it includes the
-   timestamp it will be in the first place.
-
-   The timestamp is compressed even if the builtin compression is disabled. This
-   is purely to simplify the implementation. If good reasons are found to define
-   all the variants there is no limitation to do so.
-*/
 void serializer_init(
   serializer* se, malc_const_entry const* entry, bool has_tstamp
   )
 {
   se->entry      = entry;
-  se->has_tstamp = has_tstamp;
-  se->comp_entry = malc_get_compressed_ptr ((void*) entry);
+  se->has_tstamp = has_tstamp ? 1 : 0;
+  se->chval.idx  = 0;
+  se->chval.hdr  = nullptr;
+  se->ch         = &se->chval;
   if (has_tstamp) {
     se->t = malc_get_compressed_u64 (bl_fast_timept_get_fast());
   }
-  se->comp_hdr_size = bl_div_ceil (entry->compressed_count, 2);
-  se->internal_fields_size  =
-    1 + /* compressed header for the entry string and the timestamp (optional)*/
-    malc_compressed_get_size (se->comp_entry.format_nibble) +
+  se->comp_hdr_size = bl_div_ceil (entry->compressed_count + se->has_tstamp, 2);
+  se->internal_fields_size =
+    MALC_PTR_BYTE_COUNT +
     (has_tstamp ? malc_compressed_get_size (se->t.format_nibble) + 1 : 0);
-
-  se->chval.idx = 0;
-  se->chval.hdr = nullptr;
-  se->ch        = &se->chval;
 }
 /*----------------------------------------------------------------------------*/
-#endif /* MALC_COMPRESSION == 0 */
+#endif /* MALC_BUILTIN_COMPRESSION == 0 */
 /*----------------------------------------------------------------------------*/
 /* write the header and return it ready to serialize write the varargs*/
 malc_serializer serializer_prepare_external_serializer(
@@ -399,13 +356,23 @@ malc_serializer serializer_prepare_external_serializer(
 {
   malc_serializer s;
   s.node_mem = node_mem;
-#if MALC_COMPRESSION == 0
+#if MALC_BUILTIN_COMPRESSION == 0
   s.field_mem = mem;
   malc_serialize (&s, (void*) ser->entry);
   if (ser->has_tstamp) {
     malc_serialize (&s, ser->t);
   }
-#else /* #if MALC_COMPRESSION == 0 */
+#else /* #if MALC_BUILTIN_COMPRESSION == 0 */
+  s.field_mem = mem;
+  malc_serialize (&s, (void*) ser->entry);
+  s.compressed_header_idx = 0;
+  s.compressed_header     = s.field_mem;
+  memset (s.compressed_header, 0, ser->comp_hdr_size);
+  s.field_mem += ser->comp_hdr_size;
+  if (ser->has_tstamp) {
+    malc_serialize (&s, ser->t);
+  }
+#if 0 //old
   s.compressed_header     = mem;
   s.field_mem             = mem + 1;
   *s.compressed_header    = 0;
@@ -420,13 +387,15 @@ malc_serializer serializer_prepare_external_serializer(
   memset (s.compressed_header, 0, serializer_compressed_header_size (ser));
   s.field_mem            += serializer_compressed_header_size (ser);
 #endif
+
+#endif
   return s;
 }
 /*----------------------------------------------------------------------------*/
 bl_err deserializer_init (deserializer* ds, bl_alloc_tbl const* alloc)
 {
   memset (ds, 0, sizeof *ds);
-#if MALC_COMPRESSION == 0
+#if MALC_BUILTIN_COMPRESSION == 0
   ds->ch = nullptr;
 #else
   ds->ch = &ds->chval;
@@ -455,21 +424,20 @@ void deserializer_reset (deserializer* ds)
   ds->entry           = nullptr;
   ds->refdtor.func    = nullptr;
   ds->refdtor.context = nullptr;
-#if MALC_COMPRESSION
-  ds->ch->idx = 0;
-  ds->ch->hdr = nullptr;
-#endif
+//#if MALC_BUILTIN_COMPRESSION
+  //ds->ch = nullptr;
+//#endif
 }
 /*----------------------------------------------------------------------------*/
 bl_err deserializer_execute(
   deserializer*       ds,
-  u8*              mem,
-  u8*              mem_end,
+  u8*                 mem,
+  u8*                 mem_end,
   bool                has_timestamp,
   bl_alloc_tbl const* alloc
   )
 {
-#if MALC_COMPRESSION == 0
+#if MALC_BUILTIN_COMPRESSION == 0
   void* entry;
   bl_err err = decode (ds->ch, &mem, mem_end, &entry);
   if (bl_unlikely (err.own)) {
@@ -486,7 +454,29 @@ bl_err deserializer_execute(
   else {
     ds->t = bl_fast_timept_get_fast();
   }
-#else /* MALC_COMPRESSION == 0 */
+#else /* MALC_BUILTIN_COMPRESSION == 0 */
+  void* entry;
+  ds->entry   = nullptr;
+  bl_err err = DECODE_NAME_BUILD(_ptr) (ds->ch, &mem, mem_end, &entry);
+  if (bl_unlikely (err.own)) {
+    return err;
+  }
+  ds->entry   = (malc_const_entry const*) entry;
+  ds->ch->hdr = mem;
+  ds->ch->idx = 0;
+  mem += bl_div_ceil (ds->entry->compressed_count + !!has_timestamp, 2);
+  if (has_timestamp) {
+    ds->t = 0;
+    bl_static_assert_ns_funcscope (sizeof ds->t == (64 / 8));
+    err = DECODE_NAME_BUILD(_64) (ds->ch, &mem, mem_end, &ds->t);
+    if (bl_unlikely (err.own)) {
+      return err;
+    }
+  }
+  else {
+    ds->t = bl_fast_timept_get_fast();
+  }
+#if 0 // OLD
   void* entry;
   ds->entry   = nullptr;
   ds->ch->hdr = mem; /* internal fields compressed header location = mem */
@@ -514,7 +504,9 @@ bl_err deserializer_execute(
   is as many nibbles as compressed fields are. */
   mem        += bl_div_ceil (ds->entry->compressed_count, 2);
   ds->ch->idx = 0;
-#endif /* MALC_COMPRESSION == 0 */
+#endif //OLD
+
+#endif /* MALC_BUILTIN_COMPRESSION == 0 */
   ds->t = bl_fast_timept_to_nsec (ds->t);
   char const* partype = &ds->entry->info[1];
   log_argument larg;

@@ -1019,6 +1019,33 @@ static void volatile_variable_logging (void **state)
   termination_check (c);
 }
 /*----------------------------------------------------------------------------*/
+static void timestamp_enabled_test (void **state)
+{
+  context* c = (context*) *state;
+  malcpp::cfg cfg;
+  bl_err err = c->log.get_cfg (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  cfg.consumer.start_own_thread = false;
+  cfg.producer.timestamp = true;
+
+  err = c->log.init (cfg);
+  assert_int_equal (err.own, bl_ok);
+
+  err = log_error(
+    "{} {} {}", (bl_i64) -1ll, (bl_u16) 20000, malcpp::ostr (ostreamable_type())
+    );
+  assert_int_equal (err.own, bl_ok);
+
+  err = c->log.run_consume_task (10000);
+  assert_int_equal (err.own, bl_ok);
+
+  assert_int_equal (c->dst.try_get()->size(), 1);
+  assert_string_equal ((*c->dst.try_get())[0], "-1 20000 ostreamable: 1, 2");
+
+  termination_check (c);
+}
+/*----------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
   cmocka_unit_test_setup_teardown (init_terminate, setup, teardown),
   cmocka_unit_test_setup_teardown (tls_allocation, setup, teardown),
@@ -1062,6 +1089,7 @@ static const struct CMUnitTest tests[] = {
     filtered_out_no_side_effects, setup, teardown
     ),
   cmocka_unit_test_setup_teardown (volatile_variable_logging, setup, teardown),
+  cmocka_unit_test_setup_teardown (timestamp_enabled_test, setup, teardown),
 };
 /*----------------------------------------------------------------------------*/
 int main (void)
