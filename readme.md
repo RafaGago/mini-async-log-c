@@ -6,6 +6,71 @@ asynchronous textual data logger with type-safe strings.
 
 Based on the lessons learned on its older C++-only counterpart "mini-async-log".
 
+Features
+========
+
+Common:
+
+- Dual C/C++ library. The main implementation is C11.
+
+- Very high performance. I have not found yet a faster data logger from the
+  consumer side. Even when comparing against non-textual ones. The benchmarks
+  live on a separate project:
+
+  https://github.com/RafaGago/logger-bench
+
+- Various memory (log entry) sources: Thread Local Storage buffer, common
+  bounded buffer (configurable to have one for each CPU) and custom log entry
+  allocators (defaults to the heap's malloc/free).
+
+- Can customize each and every allocation made. It's able to receive two
+  allocators, one for allocating log entries and another to allocate the
+  internals. You get a pointer to the allocator on each allocation/deallocation
+  call made, so additional data/state can be attached after the structure.
+
+- Type-safe format strings. On C11 achieved through C11 type-generic expressions
+  and (unfortunately) brutal preprocessor abusing.
+
+- Not a singleton. No hidden threads: the client application can run the
+  logger's consumer loop from an existing (maybe shared for other purposes)
+  thread if desired.
+
+- Basic security features: Log entry rate limiting and newline removal.
+
+- Extensible log destinations (sinks).
+
+- Compile-time removable severities.
+
+- Lazy evaluated parameters. If the log call is filtered out because of a low
+  severity the parameters don't get evaluated (macros).
+
+- Able to log strings/memory ranges by passing ownership, so the serialization
+  overhead becomes a pointer. A destruction callback that frees resources
+  has to be provided in this mode of operation.
+
+- Decent test coverage.
+
+C++ only:
+
+- The instance control functions can be selected to return error codes, matching
+  more or less the C interface, or to throw exceptions.
+
+  This logger can be used in projects with non-throwing coding standards.
+  Projects that are willing to use exceptions can write less error handling
+  boilerplate by enabling the exception based interface. The logging functions
+  are error-code based only (noexcept), as they are free functions on the
+  fast-path.
+
+- Can log std::ostream-able types by value or wrapped in a shared pointer.
+
+- Can log std::string, smart pointers to std::string and smart pointers to
+  std::vector containing arithmetic types.
+
+- It allows adding custom logging for additional data types.
+
+- It almost doesn't leak any C function or data type to the global namespace,
+  and the few they do are prefixed.
+
 Design
 ======
 
@@ -83,71 +148,6 @@ Formatting
 
 This is already hinted, there is no formatting on the producer-side. It happens
 on the consumer side and it's cost is masked by file-io.
-
-Features
-========
-
-Common:
-
-- Dual C/C++ library. The main implementation is C11.
-
-- Very high performance. I have not found yet a faster data logger from the
-  consumer side. Even when comparing against non-textual ones. The benchmarks
-  live on a separate project:
-
-  https://github.com/RafaGago/logger-bench
-
-- Various memory (log entry) sources: Thread Local Storage buffer, common
-  bounded buffer (configurable to have one for each CPU) and custom log entry
-  allocators (defaults to the heap's malloc/free).
-
-- Can customize each and every allocation made. It's able to receive two
-  allocators, one for allocating log entries and another to allocate the
-  internals. You get a pointer to the allocator on each allocation/deallocation
-  call made, so additional data/state can be attached after the structure.
-
-- Type-safe format strings. On C11 achieved through C11 type-generic expressions
-  and (unfortunately) brutal preprocessor abusing.
-
-- Not a singleton. No hidden threads: the client application can run the
-  logger's consumer loop from an existing (maybe shared for other purposes)
-  thread if desired.
-
-- Basic security features: Log entry rate limiting and newline removal.
-
-- Extensible log destinations (sinks).
-
-- Compile-time removable severities.
-
-- Lazy evaluated parameters. If the log call is filtered out because of a low
-  severity the parameters don't get evaluated (macros).
-
-- Able to log strings/memory ranges by passing ownership, so the serialization
-  overhead becomes a pointer. A destruction callback that frees resources
-  has to be provided in this mode of operation.
-
-- Decent test coverage.
-
-C++ only:
-
-- The instance control functions can be selected to return error codes, matching
-  more or less the C interface, or to throw exceptions.
-
-  This logger can be used in projects with non-throwing coding standards.
-  Projects that are willing to use exceptions can write less error handling
-  boilerplate by enabling the exception based interface. The logging functions
-  are error-code based only (noexcept), as they are free functions on the
-  fast-path.
-
-- Can log std::ostream-able types by value or wrapped in a shared pointer.
-
-- Can log std::string, smart pointers to std::string and smart pointers to
-  std::vector containing arithmetic types.
-
-- It allows adding custom logging for additional data types.
-
-- It almost doesn't leak any C function or data type to the global namespace,
-  and the few they do are prefixed.
 
 Usage Quickstart
 ==================
