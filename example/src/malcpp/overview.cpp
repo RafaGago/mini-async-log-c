@@ -3,7 +3,7 @@
 // interface.
 //------------------------------------------------------------------------------
 #include <thread>
-#include <malc/malc.hpp>
+#include <malcpp/malcpp.hpp>
 
 //------------------------------------------------------------------------------
 /* koenig-lookup on this function is used on the log macros to get the relevant

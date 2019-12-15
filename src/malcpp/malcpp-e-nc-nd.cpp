@@ -1,6 +1,6 @@
 #ifdef __cplusplus
 
-#include <malc/cpp-wrapper/malcpp.hpp>
+#include <malcpp/malcpp-template.hpp>
 
 /* adding all template variations one by one, so at least the linker has it
 easy to discard unused versions when static linking */

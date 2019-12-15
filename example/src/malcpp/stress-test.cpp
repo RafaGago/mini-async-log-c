@@ -12,7 +12,7 @@
 #include <string.h>
 
 #include <bl/base/processor_pause.h>
-#include <malc/malc_lean.hpp>
+#include <malcpp/malcpp_lean.hpp>
 //------------------------------------------------------------------------------
 malcpp::malcpp<true, false, false> ilog;
 //------------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 #include <malc/libexport.h>
 #include <malc/malc.h>
-#include <malc/malc.hpp>
+#include <malcpp/malcpp.hpp>
 
 /* Implementation note: there are unorthodox castings because I wanted to remove
 the malc C types from the global namespace when a user includes "malc.hpp".

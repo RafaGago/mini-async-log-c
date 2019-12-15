@@ -1,7 +1,7 @@
 #include <memory>
 #include <vector>
 
-#include <malc/malc.hpp>
+#include <malcpp/malcpp.hpp>
 /* cmocka is so braindead to define a fail() macro!!!, which clashes with e.g.
 ostream's fail(), we include this header the last and hope it never breaks.*/
 #include <bl/cmocka_pre.h>

@@ -1,5 +1,5 @@
 #include <bl/base/error.h>
-#include <malc/malc_lean.hpp>
+#include <malcpp/malcpp_lean.hpp>
 
 template <int v>
 class trigger_compile_errors {};

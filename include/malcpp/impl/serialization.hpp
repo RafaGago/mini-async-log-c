@@ -11,7 +11,7 @@
 #include <malc/impl/common.h>
 #include <malc/impl/serialization.h>
 
-#include <malc/impl/metaprogramming_common.hpp>
+#include <malcpp/impl/metaprogramming_common.hpp>
 
 namespace malcpp { namespace detail { namespace serialization {
 /*------------------------------------------------------------------------------

@@ -41,10 +41,6 @@ if not get_option ('bare')
     test_include_dirs  = include_dirs
     test_include_dirs += [ include_directories ('test/src') ]
     test_include_dirs +=  base_library.get_variable ('test_include_dirs')
-
-    smoke_test_include_dirs  = include_dirs
-    smoke_test_include_dirs += [ include_directories ('smoke_test/src') ]
-    smoke_test_include_dirs +=  base_library.get_variable ('test_include_dirs')
 endif
 
 pkg_mod = import ('pkgconfig')
@@ -124,16 +120,16 @@ malc_srcs = [
     'src/malc/destinations/file.c',
 ]
 malcpp_srcs = [
-    'src/malc/cpp-wrapper/destinations.cpp',
-    'src/malc/cpp-wrapper/wrapper.cpp',
-    'src/malc/cpp-wrapper/c++_std_types.cpp',
-    'src/malc/cpp-wrapper/custom_type.cpp',
-    'src/malc/cpp-wrapper/malcpp-e-c-nd.cpp',
-    'src/malc/cpp-wrapper/malcpp-ne-nc-nd.cpp',
-    'src/malc/cpp-wrapper/malcpp-ne-nc-d.cpp',
-    'src/malc/cpp-wrapper/malcpp-e-nc-d.cpp',
-    'src/malc/cpp-wrapper/malcpp-e-nc-nd.cpp',
-    'src/malc/cpp-wrapper/malcpp-e-c-d.cpp',
+    'src/malcpp/destinations.cpp',
+    'src/malcpp/wrapper.cpp',
+    'src/malcpp/c++_std_types.cpp',
+    'src/malcpp/custom_type.cpp',
+    'src/malcpp/malcpp-e-c-nd.cpp',
+    'src/malcpp/malcpp-ne-nc-nd.cpp',
+    'src/malcpp/malcpp-ne-nc-d.cpp',
+    'src/malcpp/malcpp-e-nc-d.cpp',
+    'src/malcpp/malcpp-e-nc-nd.cpp',
+    'src/malcpp/malcpp-e-c-d.cpp',
 ]
 malc_test_srcs = [
     'test/src/malc/tests_main.c',
@@ -151,10 +147,10 @@ malc_test_cpp_srcs = [
     'test/src/malcpp/log_entry_validator_c++_types.cpp',
 ]
 malc_smoke_test_srcs = [
-    'smoke_test/src/malc/smoke.c',
+    'test/src/malc-smoke/smoke.c',
 ]
 malcpp_smoke_test_srcs = [
-    'smoke_test/src/malcpp/smoke.cpp',
+    'test/src/malcpp-smoke/smoke.cpp',
 ]
 malc_lib = build_target(
     'malc',
@@ -218,7 +214,7 @@ if not get_option ('bare')
         executable(
             'malc-smoke',
             malc_smoke_test_srcs,
-            include_directories : smoke_test_include_dirs,
+            include_directories : test_include_dirs,
             link_with           : malc_lib,
             link_args           : test_link_args,
             c_args              : cflags + test_cflags,
@@ -229,7 +225,7 @@ if not get_option ('bare')
         executable(
             'malcpp-smoke',
             malcpp_smoke_test_srcs,
-            include_directories : smoke_test_include_dirs,
+            include_directories : test_include_dirs,
             link_with           : [ malc_lib, malcpp_lib ],
             link_args           : test_link_args,
             cpp_args            : cflags + test_cflags,
@@ -238,8 +234,8 @@ if not get_option ('bare')
 
     executable(
             'malc-example-hello-malc',
-            [ 'example/src/c11/hello-malc.c' ],
-            include_directories : smoke_test_include_dirs,
+            [ 'example/src/malc//hello-malc.c' ],
+            include_directories : test_include_dirs,
             link_with           : malc_lib,
             link_args           : test_link_args,
             c_args              : cflags,
@@ -247,8 +243,8 @@ if not get_option ('bare')
         )
     executable(
             'malc-example-overwiew',
-            [ 'example/src/c11/overview.c' ],
-            include_directories : smoke_test_include_dirs,
+            [ 'example/src/malc//overview.c' ],
+            include_directories : test_include_dirs,
             link_with           : malc_lib,
             link_args           : test_link_args,
             c_args              : cflags,
@@ -256,8 +252,8 @@ if not get_option ('bare')
         )
     executable(
             'malc-example-thread-local-storage',
-            [ 'example/src/c11/thread_local_storage.c' ],
-            include_directories : smoke_test_include_dirs,
+            [ 'example/src/malc//thread_local_storage.c' ],
+            include_directories : test_include_dirs,
             link_with           : malc_lib,
             link_args           : test_link_args,
             c_args              : cflags,
@@ -265,8 +261,8 @@ if not get_option ('bare')
         )
     st = executable(
             'malc-example-stress-test',
-            [ 'example/src/c11/stress-test.c' ],
-            include_directories : smoke_test_include_dirs,
+            [ 'example/src/malc//stress-test.c' ],
+            include_directories : test_include_dirs,
             link_with           : malc_lib,
             link_args           : test_link_args,
             c_args              : cflags,
@@ -279,8 +275,8 @@ if not get_option ('bare')
 
     executable(
         'malcpp-example-overview',
-        [ 'example/src/c++11/overview.cpp' ],
-        include_directories : smoke_test_include_dirs,
+        [ 'example/src/malcpp/overview.cpp' ],
+        include_directories : test_include_dirs,
         link_with           : [ malcpp_lib, base_lib ],
         link_args           : test_link_args,
         cpp_args            : cflags,
@@ -288,8 +284,8 @@ if not get_option ('bare')
         )
     executable(
         'malcpp-example-custom-destination',
-        [ 'example/src/c++11/custom-destination.cpp' ],
-        include_directories : smoke_test_include_dirs,
+        [ 'example/src/malcpp/custom-destination.cpp' ],
+        include_directories : test_include_dirs,
         link_with           : malcpp_lib,
         link_args           : test_link_args,
         cpp_args            : cflags,
@@ -297,8 +293,8 @@ if not get_option ('bare')
         )
     executable(
         'malcpp-example-hello-malcpp',
-        [ 'example/src/c++11/hello-malcpp.cpp' ],
-        include_directories : smoke_test_include_dirs,
+        [ 'example/src/malcpp/hello-malcpp.cpp' ],
+        include_directories : test_include_dirs,
         link_with           : malcpp_lib,
         link_args           : test_link_args,
         cpp_args            : cflags,
@@ -306,8 +302,8 @@ if not get_option ('bare')
         )
     executable(
         'malcpp-example-custom-type',
-        [ 'example/src/c++11/custom-type.cpp' ],
-        include_directories : smoke_test_include_dirs,
+        [ 'example/src/malcpp/custom-type.cpp' ],
+        include_directories : test_include_dirs,
         link_with           : malcpp_lib,
         link_args           : test_link_args,
         cpp_args            : cflags,
@@ -315,8 +311,8 @@ if not get_option ('bare')
         )
     stcpp = executable(
             'malcpp-example-stress-test',
-            [ 'example/src/c++11/stress-test.cpp' ],
-            include_directories : smoke_test_include_dirs,
+            [ 'example/src/malcpp/stress-test.cpp' ],
+            include_directories : test_include_dirs,
             link_with           : malcpp_lib,
             link_args           : test_link_args,
             cpp_args            : cflags,

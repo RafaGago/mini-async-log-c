@@ -4,7 +4,7 @@
 #include <sstream>
 
 #include <thread>
-#include <malc/malc_lean.hpp>
+#include <malcpp/malcpp_lean.hpp>
 
 malcpp::malcpp<> log;
 //------------------------------------------------------------------------------

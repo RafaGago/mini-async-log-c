@@ -5,7 +5,7 @@
 #include <utility>
 #include <string>
 
-#include <malc/impl/serialization.hpp>
+#include <malcpp/impl/serialization.hpp>
 
 namespace malcpp { namespace detail { namespace serialization {
 //------------------------------------------------------------------------------

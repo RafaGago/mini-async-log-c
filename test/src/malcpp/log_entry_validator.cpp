@@ -1,4 +1,4 @@
-#include <malc/malc_lean.hpp>
+#include <malcpp/malcpp_lean.hpp>
 
 #include <bl/cmocka_pre.h>
 /* cmocka is so braindead to define a fail() macro!!!, which clashes with e.g.

@@ -5,7 +5,7 @@
 // ostreamable types, e.g. If you are using a project with exceptions disabled.
 
 /*------------------------------------------------------------------------------
-DOCUMENTATION: See "malc/impl/malc_base.hpp"
+DOCUMENTATION: See "malcpp/impl/malc_base.hpp"
 
 NOTICE: When MALC_LEAN == 0 you can log some objects by reference.
 
@@ -25,7 +25,7 @@ can be passed by value or wrapped in a smart pointer.
 If you need these, include "malc.hpp"; instead of this header.
 ------------------------------------------------------------------------------*/
 #define MALCPP_LEAN 1
-#include <malc/impl/malc_base.hpp>
+#include <malcpp/impl/malc_base.hpp>
 #undef MALCPP_LEAN
 
 #endif /* __MALC_LEAN_HPP__ */

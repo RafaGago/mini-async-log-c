@@ -9,7 +9,7 @@
 #include <bl/base/utility.h>
 #include <bl/base/thread.h>
 
-#include <malc/malc.hpp>
+#include <malcpp/malcpp.hpp>
 /* cmocka is so braindead to define a fail() macro!!!, which clashes with e.g.
 ostream's fail(), we include this header the last and hope it never breaks.*/
 #include <bl/cmocka_pre.h>
@@ -991,7 +991,7 @@ static void filtered_out_no_side_effects (void **state)
   int side_effect = 0;
   err = log_warning_if (false, "{}", ++side_effect);
   assert_int_equal (err.own, bl_ok);
-  
+
   assert_int_equal (0, side_effect);
 
   termination_check (c);

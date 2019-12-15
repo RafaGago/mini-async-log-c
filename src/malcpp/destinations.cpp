@@ -6,7 +6,7 @@
 #include <malc/destinations/array.h>
 #include <malc/destinations/file.h>
 #include <malc/destinations/stdouterr.h>
-#include <malc/malc.hpp>
+#include <malcpp/malcpp.hpp>
 
 namespace malcpp {
 

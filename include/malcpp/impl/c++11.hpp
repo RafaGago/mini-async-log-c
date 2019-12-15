@@ -12,11 +12,11 @@
 
 #include <bl/base/preprocessor_basic.h>
 
-#include <malc/impl/serialization.hpp>
-#include <malc/impl/compile_time_validation.hpp>
-#include <malc/impl/c++11_basic_types.hpp>
+#include <malcpp/impl/serialization.hpp>
+#include <malcpp/impl/compile_time_validation.hpp>
+#include <malcpp/impl/c++11_basic_types.hpp>
 #if MALC_LEAN == 0
-  #include <malc/impl/c++11_std_types.hpp>
+  #include <malcpp/impl/c++11_std_types.hpp>
 #endif
 
 #include <malc/impl/logging.h>

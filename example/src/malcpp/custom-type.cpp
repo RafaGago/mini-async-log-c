@@ -3,8 +3,8 @@
 //------------------------------------------------------------------------------
 #include <thread>
 #include <list>
-#include <malc/malc.hpp>
-#include <malc/custom_type.hpp>
+#include <malcpp/malcpp.hpp>
+#include <malcpp/custom_type.hpp>
 //------------------------------------------------------------------------------
 class mylogged_type :
   public malcpp::custom_log_type<mylogged_type> { // CRTP static inheritance.

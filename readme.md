@@ -366,3 +366,24 @@ Thread safety of values passed by reference to the logger
 
 All values passed by pointer to malc are assumed to never be modified again by
 any other thread. The results of doing so are undefined.
+
+Tradeoffs
+=========
+
+When using this library consider that it is an asynchronous logger designed to 
+optimize the caller/producer consider if you really need an asynchronous logger
+and if performance at the call site is very important for your application.
+
+Consequences on the design taken on this logger:
+
+-It trades code size at the call site for performance. On C each log macro 
+ call puts at least one branch and two function calls with error code checks at
+ the calling site. This is without counting parameters. For each parameter there
+ is at least a call to "memcpy" too.
+
+ On C++ it does exactly the same operations, but considering the language 
+ standards I wouldn't call it more bloated than any other implementation using
+ variadic templates for logging the calls.
+
+-Some C++ features may be harder to implement because the core is C. Time will
+ tell.

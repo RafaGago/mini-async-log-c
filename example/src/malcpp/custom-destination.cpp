@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <thread>
 
-#include <malc/malc_lean.hpp>
+#include <malcpp/malcpp_lean.hpp>
 
 //------------------------------------------------------------------------------
 class demo_destination {

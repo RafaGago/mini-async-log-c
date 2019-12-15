@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include <type_traits>
-#include <malc/malc.hpp>
+#include <malcpp/malcpp.hpp>
 
 // base resources to define custom log types. It won't work if you include
 // malc_lean.hpp before.

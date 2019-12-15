@@ -4,7 +4,7 @@
 // Include this file to use all malc's feature set.
 
 /*------------------------------------------------------------------------------
-DOCUMENTATION: See "malc/impl/malc_base.hpp"
+DOCUMENTATION: See "malcpp/impl/malc_base.hpp"
 
 NOTICE: When MALC_LEAN == 0 you can log some objects by reference.
 
@@ -24,7 +24,7 @@ can be passed by value or wrapped in a smart pointer.
 If you don't need these, include "malc_lean.hpp"; it's more lightweight.
 ------------------------------------------------------------------------------*/
 #define MALCPP_LEAN 0
-#include <malc/impl/malc_base.hpp>
+#include <malcpp/impl/malc_base.hpp>
 #undef MALCPP_LEAN
 
 #endif /* __MALC_HPP__ */

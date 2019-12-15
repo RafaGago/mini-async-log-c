@@ -2,8 +2,8 @@
 #define __MALC_COMPILE_TIME_VALIDATION__
 
 #include <cstdint>
-#include <malc/impl/metaprogramming_common.hpp>
-#include <malc/impl/serialization.hpp>
+#include <malcpp/impl/metaprogramming_common.hpp>
+#include <malcpp/impl/serialization.hpp>
 
 //------------------------------------------------------------------------------
 namespace malcpp { namespace detail { namespace fmt {

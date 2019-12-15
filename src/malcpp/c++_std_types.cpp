@@ -4,8 +4,8 @@
 #include <limits>
 #include <cassert>
 
-#include <malc/malc.hpp>
-#include <malc/custom_type.hpp>
+#include <malcpp/malcpp.hpp>
+#include <malcpp/custom_type.hpp>
 
 namespace malcpp {
 //------------------------------------------------------------------------------

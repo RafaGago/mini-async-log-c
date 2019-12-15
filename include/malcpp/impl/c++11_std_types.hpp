@@ -16,13 +16,12 @@
 
 #include <bl/base/static_integer_math.h>
 
-#include <malc/impl/c++11_basic_types.hpp>
+#include <malcpp/impl/c++11_basic_types.hpp>
 
 // A header including C++ types. To avoid header bloat and to make a clear
 // separation about what is C++ only.
 #if 1
 #warning "TODO: no pointer compression: fixed-user provided platform bytes"
-#warning "TODO: explain tradeoffs, e.g. call site overhead"
 #endif
 
 #ifndef MALC_CPP_NULL_SMART_PTR_STR

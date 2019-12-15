@@ -1,5 +1,5 @@
 #include <limits>
-#include <malc/custom_type.hpp>
+#include <malcpp/custom_type.hpp>
 
 namespace malcpp {
 
