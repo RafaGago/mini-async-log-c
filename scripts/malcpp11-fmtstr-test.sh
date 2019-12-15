@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Runs all the compile-time tests under "test/src/malcpp/compile-time". This
+# custom method is needed because some of them succeed by failing to compile.
+
 BUILDFOLDER="$1"
 if [[ ! -d "$BUILDFOLDER" ]]; then
   echo "The build folder doesn't exist" 1>&2
