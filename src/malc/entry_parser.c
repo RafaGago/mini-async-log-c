@@ -46,9 +46,7 @@ static const char* const sev_strings[] = {
   MALC_EP_CRIT,
 };
 /*----------------------------------------------------------------------------*/
-BL_EXPORT bl_err entry_parser_init(
-  entry_parser* ep, bl_alloc_tbl const* alloc
-  )
+bl_err entry_parser_init (entry_parser* ep, bl_alloc_tbl const* alloc)
 {
   ep->alloc = alloc;
   bl_dstr_init (&ep->str, alloc);
@@ -65,7 +63,7 @@ BL_EXPORT bl_err entry_parser_init(
   return err;
 }
 /*----------------------------------------------------------------------------*/
-BL_EXPORT void entry_parser_destroy (entry_parser* ep)
+void entry_parser_destroy (entry_parser* ep)
 {
   bl_dstr_destroy (&ep->fmt);
   bl_dstr_destroy (&ep->str);
@@ -599,7 +597,7 @@ static inline void destroy_objects(
   }
 }
 /*----------------------------------------------------------------------------*/
-BL_EXPORT bl_err entry_parser_get_log_strings(
+bl_err entry_parser_get_log_strings(
   entry_parser* ep, log_entry const* e, malc_log_strings* strs
   )
 {

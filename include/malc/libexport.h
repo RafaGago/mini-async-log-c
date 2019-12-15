@@ -5,12 +5,10 @@
 
 #define MALC_EXPORT
 
-#if defined (BL_GCC)
-  #if BL_GCC >= BL_GCC_VER (4, 0, 0)
-    #if !defined (MALC_PRIVATE_SYMS)
-      #undef MALC_EXPORT
-      #define MALC_EXPORT __attribute__ ((visibility ("default")))
-    #endif
+#if BL_COMPILER_IS (GCC) || BL_COMPILER_IS (CLANG)
+  #if !defined (MALC_PRIVATE_SYMS)
+    #undef MALC_EXPORT
+    #define MALC_EXPORT BL_VISIBILITY_DEFAULT
   #endif
 
 #elif defined (MALC_MSC)

@@ -15,7 +15,7 @@ boundedb;
 /*---------------------------------------------------------------------------*/
 extern void boundedb_init (boundedb* b);
 /*---------------------------------------------------------------------------*/
-bl_err boundedb_reset(
+extern bl_err boundedb_reset(
   boundedb*           b,
   bl_alloc_tbl const* alloc,
   u32                 bytes,
@@ -24,11 +24,11 @@ bl_err boundedb_reset(
   bool                per_cpu
   );
 /*---------------------------------------------------------------------------*/
-void boundedb_destroy (boundedb* b, bl_alloc_tbl const* alloc);
+extern void boundedb_destroy (boundedb* b, bl_alloc_tbl const* alloc);
 /*---------------------------------------------------------------------------*/
-bl_err boundedb_alloc (boundedb* b, u8** mem, u32 slots);
+extern bl_err boundedb_alloc (boundedb* b, u8** mem, u32 slots);
 /*---------------------------------------------------------------------------*/
-void boundedb_dealloc (boundedb* b, u8* mem, u32 slots);
+extern void boundedb_dealloc (boundedb* b, u8* mem, u32 slots);
 /*---------------------------------------------------------------------------*/
 
 #endif

@@ -52,11 +52,11 @@ typedef struct entry_parser {
 }
 entry_parser;
 /*----------------------------------------------------------------------------*/
-BL_EXPORT bl_err entry_parser_init (entry_parser* ep, bl_alloc_tbl const* alloc);
+extern bl_err entry_parser_init (entry_parser* ep, bl_alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
-BL_EXPORT void entry_parser_destroy (entry_parser* ep);
+extern void entry_parser_destroy (entry_parser* ep);
 /*----------------------------------------------------------------------------*/
-BL_EXPORT bl_err entry_parser_get_log_strings(
+extern bl_err entry_parser_get_log_strings(
   entry_parser* ep, log_entry const* e, malc_log_strings* strs
   );
 /*----------------------------------------------------------------------------*/
