@@ -172,13 +172,16 @@ As a reminder, "printf" format strings are composed like this:
 
 Where the valid chars for each field are (on C99):
 
-```
--flags: #, 0, +, -
--width: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
--precision: ., 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, .*
--length: h, hh, l, ll, j, z, t, L
--specifiers: d, i, u , o, x, X, f, F, e, E, g, G, a, A, c, s, p, n, %
-```
+- flags: `#, 0, +, -`
+
+- width: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
+
+- precision: `., 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, .*`
+
+- length: `h, hh, l, ll, j, z, t, L`
+
+- specifiers: `d, i, u , o, x, X, f, F, e, E, g, G, a, A, c, s, p, n, %`
+
 
 Malc autodetecs the datatypes passed to the log strings, so the "length"
 modifiers and signedness "specifiers" are never required. Which specifiers can
@@ -186,9 +189,10 @@ be used on which data type is also restricted only to those that make sense.
 
 Malc adds two non-numeric width specifiers 'W' and 'N':
 
--'W' represents the maximum digit count that the biggest/smallest value of an
- integer type can have.
--'N' represents the nibble count of a data type (useful to print hex).
+- 'W' represents the maximum digit count that the biggest/smallest value of an
+  integer type can have.
+
+- 'N' represents the nibble count of a data type (useful to print hex).
 
 On malc there are three width modifier groups [0-9], W and N. The three of them
 are mutually exclusive. Only one of them can be specified, the result of not
@@ -199,17 +203,22 @@ Next comes a summary of the valid modifiers for each type.
 integrals (or std::vector of integrals)
 ---------------------------------------
 
--flags: `#, 0, +, -`
--width: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9, W, N`
--specifiers: `o, x, X`
+- flags: `#, 0, +, -`
+
+- width: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9, W, N`
+
+- specifiers: `o, x, X`
 
 floating point (or std::vector of floating point)
 -------------------------------------------------
 
--flags: `#, 0, +, -`
--width: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
--precision: `., 0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
--specifiers: `f, F, e, E, g, G, a, A`
+- flags: `#, 0, +, -`
+
+- width: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
+
+- precision: `., 0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
+
+- specifiers: `f, F, e, E, g, G, a, A`
 
 others
 ------
@@ -238,15 +247,17 @@ Meson is used.
 
 debian/ubuntu example:
 
-`git submodule update --init --recursive`
+```sh
+git submodule update --init --recursive
 
-`sudo apt install ninja-build python3-pip`
-`sudo -H pip3 install meson`
+sudo apt install ninja-build python3-pip
+sudo -H pip3 install meson
 
-`MYBUILDDIR=build`
-`meson $MYBUILDDIR  --buildtype=release OR > meson`
-`ninja -C $MYBUILDDIR`
-`ninja -C $MYBUILDDIR test`
+MYBUILDDIR=build
+meson $MYBUILDDIR  --buildtype=release OR > meson
+ninja -C $MYBUILDDIR
+ninja -C $MYBUILDDIR test
+```
 
 Windows
 -------
@@ -261,11 +272,11 @@ Without build system (untested)
 Compile every file under "src" and use "include" as include dir. This will still
 have challenges:
 
--Compiling the "base-library" dependency. It follows the same structure.
- Compile everything under "src" and include "include". Statically link with
- the "base", "nonblock" and "time extras" libraries.
+- Compiling the "base-library" dependency. It follows the same structure.
+  Compile everything under "src" and include "include". Statically link with
+  the "base", "nonblock" and "time extras" libraries.
 
--Generating "include/malc/config.h", a sample from my machine as of now:
+- Generating "include/malc/config.h", a sample from my machine as of now:
 
 ```C
 #ifndef __MALC_CONFIG_H__
@@ -293,35 +304,35 @@ See "meson_options.txt". These parameters end up on "include/malc/config.h".
 Compile time macros
 -------------------
 
--"malc_fileline"
+- "malc_fileline"
 
- Prepends the file and the line to the log entry literal.
- ```C
- log_error (malc_fileline "Something happended").
- `--
--MALC_STRIP_LOG_\[DEBUG|TRACE|NOTICE|WARNING|ERROR|CRITICAL\]
+  Prepends the file and the line to the log entry literal.
+  ```C
+  log_error (malc_fileline "Something happended").
+  ```
+- MALC_STRIP_LOG_\[DEBUG|TRACE|NOTICE|WARNING|ERROR|CRITICAL\]
 
- Removes all the log entries with a serverity less or equal that the one 
- specified.
+  Removes all the log entries with a serverity less or equal that the one
+  specified.
 
--MALC_NO_SHORT_LOG_MACROS
+- MALC_NO_SHORT_LOG_MACROS
 
- Malc defines both logging macros called e.g. "malc_error" and "log_error", when
- "MALC_NO_SHORT_LOG_MACROS" is defined "log_" prefixed macros aren't defined.
+  Malc defines both logging macros called e.g. "malc_error" and "log_error", when
+  "MALC_NO_SHORT_LOG_MACROS" is defined "log_" prefixed macros aren't defined.
 
--MALC_CUSTOM_LOGGER_INSTANCE_EXPRESSION
- 
- On the macros that doesn't take a malc instance explictly (those that don't 
- have the "_i" suffix) malc invokes an macro containing an expression to get the
- logger instance. By default this macro contains "get_malc_instance()", so it 
- retrieves the logger instance by a call to a function called 
- "get_malc_instance() that has to be provided by the user"
-  
- To use an expression other than "get_malc_instance()" define the
- MALC_CUSTOM_LOGGER_INSTANCE_EXPRESSION.
+- MALC_CUSTOM_LOGGER_INSTANCE_EXPRESSION
 
- Notice that on C this expression has to return a pointer, on C++ it has to 
- return a reference.
+  On the macros that doesn't take a malc instance explictly (those that don't
+  have the "_i" suffix) malc invokes an macro containing an expression to get the
+  logger instance. By default this macro contains "get_malc_instance()", so it
+  retrieves the logger instance by a call to a function called
+  "get_malc_instance()" that has to be provided by the user.
+
+  To use an expression other than "get_malc_instance()" define the
+  MALC_CUSTOM_LOGGER_INSTANCE_EXPRESSION.
+
+  Notice that on C this expression has to return a pointer, on C++ it has to
+  return a reference.
 
 Gotchas
 =======
@@ -331,35 +342,41 @@ Lazy-evaluation of parameters
 
 Both the C and the C++ log functions doesn't have function-like semantics:
 
--The passed parameters are only evaluated if the log entry is going to be 
- logged. Log entries can be filtered out by severity or in case of the 
- "log_|severity|_if" macro family if the conditional parameter is evaluated to 
- be "false".
+- The passed parameters are only evaluated if the log entry is going to be
+  logged. Log entries can be filtered out by severity or in case of the
+  "log_|severity|_if" macro family if the conditional parameter is evaluated to
+  be "false".
 
--As with the C "assert" macro, log entries can be stripped at compile time by
- defining the "MALC_STRIP_LOG_|SEVERITY|" macro family.
+- As with the C "assert" macro, log entries can be stripped at compile time by
+  defining the "MALC_STRIP_LOG_|SEVERITY|" macro family.
 
 This is deliberate, so you can place expensive function calls as log arguments.
 
 Asynchronous logging
 --------------------
 
-When timestamping at the producer thread is enabled, there is the theoretical 
+When timestamping at the producer thread is enabled, there is the theoretical
 possibility that some entries show timestamps that go backwards in time some
 fractions of a second. This is expected. Consider this case:
 
--Thread 1: gets timestamp.
--Thread 1: gets preempted by the OS scheduler.
--Thread 2: gets timestamp.
--Thread 2: posts the log entry into the queue.
--Thread 1: is schedulead again 
--Thread 1: posts the log entry into the queue.
+- Thread 1: gets timestamp.
+
+- Thread 1: gets preempted by the OS scheduler.
+
+- Thread 2: gets timestamp.
+
+- Thread 2: posts the log entry into the queue.
+
+- Thread 1: is schedulead again
+
+- Thread 1: posts the log entry into the queue.
 
 A big mutex on the queue wouldn't theoretically show this behavior, but then:
 
--The timestamp would get more jitter, as it will account the time waiting for 
- the mutex.
--This logger wouldn't perform as it does.
+- The timestamp would get more jitter, as it will account the time waiting for
+  the mutex.
+
+- This logger wouldn't perform as it does.
 
 Thread safety of values passed by reference to the logger
 ---------------------------------------------------------
@@ -370,20 +387,20 @@ any other thread. The results of doing so are undefined.
 Tradeoffs
 =========
 
-When using this library consider that it is an asynchronous logger designed to 
+When using this library consider that it is an asynchronous logger designed to
 optimize the caller/producer consider if you really need an asynchronous logger
 and if performance at the call site is very important for your application.
 
 Consequences on the design taken on this logger:
 
--It trades code size at the call site for performance. On C each log macro 
- call puts at least one branch and two function calls with error code checks at
- the calling site. This is without counting parameters. For each parameter there
- is at least a call to "memcpy" too.
+- It trades code size at the call site for performance. On C each log macro
+  call puts at least one branch and two function calls with error code checks at
+  the calling site. This is without counting parameters. For each parameter
+  there is at least a call to "memcpy" too.
 
- On C++ it does exactly the same operations, but considering the language 
- standards I wouldn't call it more bloated than any other implementation using
- variadic templates for logging the calls.
+  On C++ it does exactly the same operations, but considering the language
+  standards I wouldn't call it more bloated than any other implementation using
+  variadic templates for logging the calls.
 
--Some C++ features may be harder to implement because the core is C. Time will
- tell.
+- Some C++ features may be harder to implement because the core is C. Time will
+  tell.
