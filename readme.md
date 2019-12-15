@@ -14,40 +14,40 @@ The life of a log message under this logger is.
 At compile time
 ---------------
 
--The format string is validated (C++ only).
+- The format string is validated (C++ only).
 
--A "static const" data structure is created containing the format string, the
- severity, a code for each data type and the number of compressed datatypes (if
- enabled). All the previous data can be passed with just the overhead of one
- pointer.
+- A "static const" data structure is created containing the format string, the
+  severity, a code for each data type and the number of compressed datatypes (if
+  enabled). All the previous data can be passed with just the overhead of one
+  pointer.
 
 At run time
 ---------------
 
--A log call is made.
+- A log call is made.
 
--The passed arguments are stored on the stack after being passed through a
- type-specific conversion function, which leaves the data type ready to
- serialize and to retrieve it size on the wire. The conversion function is most
- cases just doing nothing. Easy for the compiler to optimize away.
+- The passed arguments are stored on the stack after being passed through a
+  type-specific conversion function, which leaves the data type ready to
+  serialize and to retrieve it size on the wire. The conversion function is most
+  cases just doing nothing. Easy for the compiler to optimize away.
 
--The required payload size for serializing the unformatted log entry is
- computed, taking as input the transformed type on the step above. For simple
- cases it's just a compile time constant (sizeof (type)). Again easy to be
- optimized away.
+- The required payload size for serializing the unformatted log entry is
+  computed, taking as input the transformed type on the step above. For simple
+  cases it's just a compile time constant (sizeof (type)). Again easy to be
+  optimized away.
 
--Memory for an intrusive linked list node and all the serialization payload is
- requested from the logger in a single contiguous memory chunk.
+- Memory for an intrusive linked list node and all the serialization payload is
+  requested from the logger in a single contiguous memory chunk.
 
--The pointer to the "static const" data structure and the payload data is
- serialized on the memory chunk after the intrusive linked list node (unused at
- this point).
+- The pointer to the "static const" data structure and the payload data is
+  serialized on the memory chunk after the intrusive linked list node (unused at
+  this point).
 
--The intrusive node is passed to the logging queue.
+- The intrusive node is passed to the logging queue.
 
--At some point the consumer thread fetches the node, deserializes it, applies
- formatting, forwards it to the log destinations/sinks and then frees the node
- memory.
+- At some point the consumer thread fetches the node, deserializes it, applies
+  formatting, forwards it to the log destinations/sinks and then frees the node
+  memory.
 
 The log queue
 -------------
@@ -61,18 +61,19 @@ The memory
 
 3 configurable memory sources:
 
--Thread Local Storage. A per-thread bounded SPSC array-based cache-friendly
- memory queue that has to be explictly iniatized by each thread using it.
+- Thread Local Storage. A per-thread bounded SPSC array-based cache-friendly
+  memory queue that has to be explictly iniatized by each thread using it.
 
--Global bounded size queue. Again a Dmitry Vyukov queue. This time it's MPMC one
- but broken in prepare-commit blocks and with a custom modification to accept
- variable-size allocations (at the expense of fairness unfortunately). Can be
- configured to use one queue per CPU to try to fight contention. This queue has
- extremely good performance on the uncontended case but doesn't scale as good as
- the modern Linux heap allocator under big contention. It's included because
- bounded queues are desirable sometimes.
+- Global bounded size queue. Again a Dmitry Vyukov queue. This time it's MPMC
+  one but broken in prepare-commit blocks and with a custom modification to
+  accept variable-size allocations (at the expense of fairness unfortunately).
+  Can be configured to use one queue per CPU to try to fight contention. This
+  queue has extremely good performance on the uncontended case but doesn't scale
+  as good as the modern Linux heap allocator under big contention from many
+  threads. It's included because bounded queues are desirable sometimes.
 
--Allocator. Defaults to the heap but can allocate from any user-provided source.
+- Allocator. Defaults to the heap but can allocate from any user-provided
+  source.
 
 All three sources can be used together, separately or mixed. The priority order
 is: TLS, bounded, allocator.
