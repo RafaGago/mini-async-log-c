@@ -154,6 +154,8 @@ Usage Quickstart
 
 Look at the examples folder.
 
+https://github.com/RafaGago/mini-async-log-c/tree/master/example/src
+
 Log format strings
 ==================
 
