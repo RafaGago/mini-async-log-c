@@ -45,6 +45,7 @@ endif
 
 pkg_mod = import ('pkgconfig')
 install_subdir ('include/malc', install_dir : 'include')
+install_subdir ('include/malcpp', install_dir : 'include')
 
 cflags = base_library.get_variable ('cflags')
 cflags += [ '-DMALC_LIBRARY_COMPILATION' ]
