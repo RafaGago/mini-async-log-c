@@ -337,7 +337,7 @@ MALC_EXPORT bl_err malc_flush (malc* l)
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_terminate (malc* l, bool dont_block)
 {
-  qnode* n = bl_alloc (l->alloc, sizeof *n);
+  qnode* n = (qnode*) bl_alloc (l->alloc, sizeof *n);
   if (!n) {
     return bl_mkerr (bl_alloc);
   }

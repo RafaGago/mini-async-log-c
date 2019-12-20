@@ -1,5 +1,3 @@
-# TODO: version, tests, valgrind, visibility, config generation
-
 project(
     'mini-async-log-c',
     ['c', 'cpp'],
@@ -26,10 +24,6 @@ base_library = subproject(
 base_lib     = base_library.get_variable ('base_lib')
 nonblock_lib = base_library.get_variable ('nonblock_lib')
 t_extras_lib = base_library.get_variable ('t_extras_lib')
-if not get_option ('bare')
-    libcmocka_path = base_library.get_variable ('libcmocka_path')
-endif
-build_helpers_dir = base_library.get_variable ('build_helpers_dir')
 
 include_dirs = [
     include_directories ('include'),
@@ -53,7 +47,6 @@ lib_cflags = []
 
 if not get_option ('bare')
     test_cflags = []
-    test_link_args = [ libcmocka_path ]
 endif
 
 if get_option ('sharedlib')
@@ -63,16 +56,30 @@ else
 endif
 
 cc = meson.get_compiler ('c')
-if cc.get_id() == 'gcc' or cc.get_id() == 'clang'
+host_system = host_machine.system()
+if cc.get_id() == 'gcc' or cc.get_id() == 'clang' or cc.get_id() == 'intel'
+    cflags += ['-fvisibility=hidden', '-fno-stack-protector']
     if get_option ('pic_statlibs') and libtype == 'static_library'
         lib_cflags += ['-fPIC']
     endif
 endif
 
-host_system = host_machine.system()
+if not get_option ('bare')
+    cmocka = subproject('cmocka')
+    cmocka_dep = cmocka.get_variable ('dep_cmocka')
+endif
+
+cpp_only = false
+platform_deps = []
 if host_system == 'windows'
-    if not get_option ('bare')
-        test_link_args += ['-lwinmm.lib'] # Untested
+    platform_deps += cc.find_library ('winmm')
+
+    if cc.get_id() == 'msvc' or \
+       cc.get_id() == 'intel-cl' or \
+       cc.get_id() == 'clang-cl'
+
+        cpp_only = true
+        cflags += ['/TP'] # compile C as C++
     endif
 endif
 
@@ -195,9 +202,8 @@ if not get_option ('bare')
             malc_test_srcs,
             include_directories : test_include_dirs,
             link_with           : malc_lib,
-            link_args           : test_link_args,
             c_args              : cflags + test_cflags,
-            dependencies        : threads
+            dependencies        : [threads, cmocka_dep]
         ))
     test(
         'malcpp-test',
@@ -206,21 +212,21 @@ if not get_option ('bare')
             malc_test_cpp_srcs,
             include_directories : test_include_dirs,
             link_with           : [ malc_lib, malcpp_lib ],
-            link_args           : test_link_args,
             c_args              : cflags + test_cflags,
-            dependencies        : threads
+            dependencies        : [threads, cmocka_dep]
         ))
-    test(
-        'malc-smoke',
-        executable(
+    if not cpp_only
+        test(
             'malc-smoke',
-            malc_smoke_test_srcs,
-            include_directories : test_include_dirs,
-            link_with           : malc_lib,
-            link_args           : test_link_args,
-            c_args              : cflags + test_cflags,
-            dependencies        : threads
-        ))
+            executable(
+                'malc-smoke',
+                malc_smoke_test_srcs,
+                include_directories : test_include_dirs,
+                link_with           : malc_lib,
+                c_args              : cflags + test_cflags,
+                dependencies        : [threads, cmocka_dep]
+            ))
+    endif
     test(
         'malcpp-smoke',
         executable(
@@ -228,58 +234,55 @@ if not get_option ('bare')
             malcpp_smoke_test_srcs,
             include_directories : test_include_dirs,
             link_with           : [ malc_lib, malcpp_lib ],
-            link_args           : test_link_args,
             cpp_args            : cflags + test_cflags,
-            dependencies        : threads
+            dependencies        : [threads, cmocka_dep]
         ))
 
-    executable(
-            'malc-example-hello-malc',
-            [ 'example/src/malc//hello-malc.c' ],
-            include_directories : test_include_dirs,
-            link_with           : malc_lib,
-            link_args           : test_link_args,
-            c_args              : cflags,
-            dependencies        : threads
-        )
-    executable(
-            'malc-example-overwiew',
-            [ 'example/src/malc//overview.c' ],
-            include_directories : test_include_dirs,
-            link_with           : malc_lib,
-            link_args           : test_link_args,
-            c_args              : cflags,
-            dependencies        : threads
-        )
-    executable(
-            'malc-example-thread-local-storage',
-            [ 'example/src/malc//thread_local_storage.c' ],
-            include_directories : test_include_dirs,
-            link_with           : malc_lib,
-            link_args           : test_link_args,
-            c_args              : cflags,
-            dependencies        : threads
-        )
-    st = executable(
-            'malc-example-stress-test',
-            [ 'example/src/malc//stress-test.c' ],
-            include_directories : test_include_dirs,
-            link_with           : malc_lib,
-            link_args           : test_link_args,
-            c_args              : cflags,
-            dependencies        : threads
-        )
-    test ('malc-stress-test-tls', st, args : [ 'tls', '30', '1' ])
-    test ('malc-stress-test-heap', st, args : [ 'heap', '30', '1' ])
-    test ('malc-stress-test-queue', st, args : [ 'queue', '30', '1' ])
-    test ('malc-stress-test-queue-cpu', st, args : [ 'queue-cpu', '30', '1' ])
-
+    if not cpp_only
+        executable(
+                'malc-example-hello-malc',
+                [ 'example/src/malc//hello-malc.c' ],
+                include_directories : test_include_dirs,
+                link_with           : malc_lib,
+                c_args              : cflags,
+                dependencies        : threads
+            )
+        executable(
+                'malc-example-overwiew',
+                [ 'example/src/malc//overview.c' ],
+                include_directories : test_include_dirs,
+                link_with           : malc_lib,
+                c_args              : cflags,
+                dependencies        : threads
+            )
+        executable(
+                'malc-example-thread-local-storage',
+                [ 'example/src/malc//thread_local_storage.c' ],
+                include_directories : test_include_dirs,
+                link_with           : malc_lib,
+                c_args              : cflags,
+                dependencies        : threads
+            )
+        st = executable(
+                'malc-example-stress-test',
+                [ 'example/src/malc//stress-test.c' ],
+                include_directories : test_include_dirs,
+                link_with           : malc_lib,
+                c_args              : cflags,
+                dependencies        : threads
+            )
+        test ('malc-stress-test-tls', st, args : [ 'tls', '30', '1' ])
+        test ('malc-stress-test-heap', st, args : [ 'heap', '30', '1' ])
+        test ('malc-stress-test-queue', st, args : [ 'queue', '30', '1' ])
+        test(
+            'malc-stress-test-queue-cpu', st, args : [ 'queue-cpu', '30', '1' ]
+            )
+    endif
     executable(
         'malcpp-example-overview',
         [ 'example/src/malcpp/overview.cpp' ],
         include_directories : test_include_dirs,
         link_with           : [ malcpp_lib, base_lib ],
-        link_args           : test_link_args,
         cpp_args            : cflags,
         dependencies        : threads
         )
@@ -288,7 +291,6 @@ if not get_option ('bare')
         [ 'example/src/malcpp/custom-destination.cpp' ],
         include_directories : test_include_dirs,
         link_with           : malcpp_lib,
-        link_args           : test_link_args,
         cpp_args            : cflags,
         dependencies        : threads
         )
@@ -297,7 +299,6 @@ if not get_option ('bare')
         [ 'example/src/malcpp/hello-malcpp.cpp' ],
         include_directories : test_include_dirs,
         link_with           : malcpp_lib,
-        link_args           : test_link_args,
         cpp_args            : cflags,
         dependencies        : threads
         )
@@ -306,7 +307,6 @@ if not get_option ('bare')
         [ 'example/src/malcpp/custom-type.cpp' ],
         include_directories : test_include_dirs,
         link_with           : malcpp_lib,
-        link_args           : test_link_args,
         cpp_args            : cflags,
         dependencies        : threads
         )
@@ -315,7 +315,6 @@ if not get_option ('bare')
             [ 'example/src/malcpp/stress-test.cpp' ],
             include_directories : test_include_dirs,
             link_with           : malcpp_lib,
-            link_args           : test_link_args,
             cpp_args            : cflags,
             dependencies        : threads
         )

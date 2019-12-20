@@ -60,20 +60,20 @@ private:
 //------------------------------------------------------------------------------
 static inline malcpp::malcpp<false, false, true>& get_malc_instance()
 {
-  static malcpp::malcpp<false, false, true> log;
-  return log;
+  static malcpp::malcpp<false, false, true> logger;
+  return logger;
 }
 //------------------------------------------------------------------------------
 int main (int argc, char const* argv[])
 {
-  auto& log = get_malc_instance();
-  bl_err err = log.construct();
+  auto& logger = get_malc_instance();
+  bl_err err = logger.construct();
   if (err.own) {
     fprintf (stderr, "unable to construct malc\n");
     return err.own;
   }
   /* destination register */
-  auto dst = log.add_destination<demo_destination>();
+  auto dst = logger.add_destination<demo_destination>();
   if (!dst.is_valid()) {
     fprintf (stderr, "Error creating the stdout/stderr destination\n");
     return 1;
@@ -82,18 +82,19 @@ int main (int argc, char const* argv[])
 
   /* logger startup */
   malcpp::cfg cfg;
-  err = log.get_cfg (cfg);
+  err = logger.get_cfg (cfg);
   if (err.own) {
     fprintf (stderr, "bug when retrieving the logger configuration\n");
     return err.own;
   }
   cfg.consumer.start_own_thread = true;
-  err = log.init (cfg);
+  err = logger.init (cfg);
   if (err.own) {
     fprintf (stderr, "unable to start logger\n");
     return err.own;
   }
   err = log_error ("Hello malc");
+  err = log_warning ("testing {}", 1);
   err = log_warning ("testing {}, {}, {.1}", 1, 2, 3.f);
   return 0;
 }

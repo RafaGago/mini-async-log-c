@@ -4,6 +4,8 @@
 #include <limits>
 #include <cassert>
 
+#include <bl/base/platform.h>
+
 #include <malcpp/malcpp.hpp>
 #include <malcpp/custom_type.hpp>
 
@@ -129,7 +131,7 @@ MALC_EXPORT int ostringstream_get_data(
   static_cast<detail::serialization::ostreamable_table const*> (table);
   malc_obj_log_data ld;
   std::string str;
-  try {
+  BL_TRY {
     std::ostringstream ostream;
     bool notnull = tbl->print (obj->obj, ostream);
     if (notnull) {
@@ -140,7 +142,7 @@ MALC_EXPORT int ostringstream_get_data(
       ld = obj_log_data::get_null_smartptr();
     }
   }
-  catch (...) {
+  BL_CATCH (...) {
     return 1;
   }
   return malc_obj_push (pc, &ld);

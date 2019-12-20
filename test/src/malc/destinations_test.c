@@ -100,9 +100,9 @@ static void destinations_do_add(
   err = destinations_add (&c->d, &ids[1], &c->tbls[1]);
   assert_int_equal (bl_ok, err.own);
 
-  err = destinations_get_instance (&c->d, (void*) &mock[0], ids[0]);
+  err = destinations_get_instance (&c->d, (void**) &mock[0], ids[0]);
   assert_int_equal (bl_ok, err.own);
-  err = destinations_get_instance (&c->d, (void*) &mock[1], ids[1]);
+  err = destinations_get_instance (&c->d, (void**) &mock[1], ids[1]);
   assert_int_equal (bl_ok, err.own);
 }
 /*----------------------------------------------------------------------------*/

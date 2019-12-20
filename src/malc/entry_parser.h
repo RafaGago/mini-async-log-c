@@ -36,7 +36,7 @@
 #define TSTAMP_INTEGER  11
 #define TSTAMP_DECIMAL 9
 /*----------------------------------------------------------------------------*/
-#ifndef ___cplusplus
+#ifndef __cplusplus
   #define MALC_ALIGNAS(v) _Alignas (v)
 #else
   #define MALC_ALIGNAS(v) alignas (v)

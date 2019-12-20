@@ -198,8 +198,6 @@ public:
   using serializable_type = typename base::serializable_type;
   template <bool rvalue>
   using external_type     = typename base::template external_type<rvalue>;
-
-  static constexpr int compressed_count = serializable_type::compressed_count;
   //----------------------------------------------------------------------------
   static inline serializable_type to_serializable (external_type<true>&& v)
   {
@@ -455,10 +453,10 @@ private:
 //------------------------------------------------------------------------------
 template <class ptrtype>
 const smartptr_table smartptr_obj<ptrtype>::table{
-  .table = {
+  {
     smartpr_get_data_function<ptrtype>::value, destroy, sizeof (ptrtype)
   },
-  .dereference = dereference_smarptr<ptrtype>::run,
+  dereference_smarptr<ptrtype>::run,
 };
 //------------------------------------------------------------------------------
 template<class ptrtype, uint8_t flag_default>
@@ -630,10 +628,10 @@ private:
 };
 template <class T>
 const ostreamable_table ostreamable_table_get<T>::value{
-  .table = {
+  {
     ostringstream_get_data, destroy, sizeof (T)
   },
-  .print = ostreamable_printer<T>::run,
+  ostreamable_printer<T>::run,
 };
 //------------------------------------------------------------------------------
 }}} // namespace malcpp { namespace detail { namespace serialization {

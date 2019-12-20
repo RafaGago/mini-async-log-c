@@ -26,9 +26,9 @@ file_dst_context;
 static void remove_log_files (void)
 {
 #if !BL_OS_IS (WINDOWS)
-  system ("rm -f "FILE_PREFIX"* > /dev/null 2>&1");
+  system ("rm -f " FILE_PREFIX "* > /dev/null 2>&1");
 #else
-  system ("del "FILE_PREFIX"*");
+  system ("del " FILE_PREFIX "*");
 #endif
 }
 /*----------------------------------------------------------------------------*/

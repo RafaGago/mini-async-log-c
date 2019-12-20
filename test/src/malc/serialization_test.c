@@ -1,3 +1,5 @@
+#ifndef __cplusplus /* TODO, port to C++ compilation */
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -628,3 +630,11 @@ int serialization_tests (void)
   return cmocka_run_group_tests (tests, nullptr, nullptr);
 }
 /*----------------------------------------------------------------------------*/
+#else
+/*----------------------------------------------------------------------------*/
+int serialization_tests (void)
+{
+  return 0;
+}
+/*----------------------------------------------------------------------------*/
+#endif

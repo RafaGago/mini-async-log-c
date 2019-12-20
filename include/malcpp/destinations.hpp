@@ -3,9 +3,12 @@
 
 #include <cstddef>
 #include <cstdint>
+
+#include <bl/base/platform.h>
+#include <bl/base/error.h>
+
 #include <malc/libexport.h>
 #include <malc/common.h>
-#include <bl/base/error.h>
 
 namespace malcpp {
 
@@ -142,10 +145,10 @@ private:
   template <class runnable>
   static inline bl_err try_catch_wrap (const runnable& r)
   {
-    try {
+    BL_TRY {
       return r();
     }
-    catch (...) {
+    BL_CATCH (...) {
       return bl_mkerr (bl_error);
     }
   }

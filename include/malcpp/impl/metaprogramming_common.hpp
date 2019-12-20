@@ -41,12 +41,12 @@ public:
       : false;
   }
   //----------------------------------------------------------------------------
-  constexpr literal substr (int beg, int end)
+  constexpr literal substr (int beg, int end) const
   {
     return literal (m_lit + beg, end - beg);
   }
   //----------------------------------------------------------------------------
-  constexpr literal substr (int beg)
+  constexpr literal substr (int beg) const
   {
     return substr (beg, m_size);
   }

@@ -15,8 +15,8 @@ suffixed macros.
 */
 static inline malcpp::malcpp<>& get_malc_instance()
 {
-  static malcpp::malcpp<> log;
-  return log;
+  static malcpp::malcpp<> logger;
+  return logger;
 }
 //------------------------------------------------------------------------------
 static void malc_legacy_string_reference_types();
@@ -36,9 +36,9 @@ std::ostream & operator << (std::ostream &out, const ostreamable_type &t)
 //------------------------------------------------------------------------------
 int main (int argc, char const* argv[])
 {
-  auto& log = get_malc_instance();
+  auto& logger = get_malc_instance();
   /* destination register: adding logging to stdout/stderr */
-  auto stdouterr = log.add_destination<malcpp::stdouterr_dst>();
+  auto stdouterr = logger.add_destination<malcpp::stdouterr_dst>();
 
   /* generic configuration (provided by malc: available to all destinations) */
   malcpp::dst_cfg dcfg = stdouterr.get_cfg();
@@ -51,7 +51,7 @@ int main (int argc, char const* argv[])
   (void) stdouterr.get().set_stderr_severity (malcpp::sev_debug);
 
   /* destination register: logging to files */
-  auto file = log.add_destination<malcpp::file_dst>();
+  auto file = logger.add_destination<malcpp::file_dst>();
 
   /* generic configuration (provided by malc: available to all destinations) */
   dcfg = file.get_cfg();
@@ -67,14 +67,14 @@ int main (int argc, char const* argv[])
   (void) file.get().set_cfg (fcfg);
 
   /* logger startup */
-  malcpp::cfg cfg = log.get_cfg();
+  malcpp::cfg cfg = logger.get_cfg();
   cfg.consumer.start_own_thread = true;
-  log.init (cfg);
+  logger.init (cfg);
 
   /* threads can start logging */
   std::thread thr;
   thr = std::thread([](){
-    auto& log = get_malc_instance();
+    auto& logger = get_malc_instance();
     bl_err err;
     /* integers + printf modifiers */
     err = log_error ("10: {}", 10);
@@ -208,7 +208,7 @@ int main (int argc, char const* argv[])
 
     /* passing the instance explicitly instead of through
      "get_malc_instance()" */
-    err = log_error_i (log, "passing the log instance explicitly.");
+    err = log_error_i (logger, "passing the log instance explicitly.");
   });
   thr.join();
   return 0;

@@ -77,7 +77,7 @@ void bl_tss_dtor_callconv tls_buffer_out_of_scope_destroy (void* opaque)
 bl_err tls_buffer_alloc (u8** mem, u32 slots)
 {
   /* Some GDB versions segfault on TLS var access, set breakpoints afterwards*/
-  tls_buffer* t = malc_tls;
+  tls_buffer* t = (tls_buffer*) malc_tls;
   if (bl_unlikely (!t)) {
     return bl_mkerr (bl_alloc);
   }

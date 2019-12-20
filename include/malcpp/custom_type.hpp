@@ -4,6 +4,9 @@
 #include <string>
 #include <vector>
 #include <type_traits>
+
+#include <bl/base/platform.h>
+
 #include <malcpp/malcpp.hpp>
 
 // base resources to define custom log types. It won't work if you include
@@ -184,12 +187,12 @@ private:
     bl_alloc_tbl const*          alloc
     )
   {
-    try {
+    BL_TRY {
       return static_cast<inherited*> (obj->obj)->dump_value(
         log_entry_adder (*pc), obj->extra.context, obj->extra.flag, *alloc
         );
     }
-    catch (...) {
+    BL_CATCH (...) {
       return 1;
     }
   }

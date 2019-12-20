@@ -49,19 +49,19 @@ private:
   std::shared_ptr<std::list<int> > ptr;
 };
 //------------------------------------------------------------------------------
-malcpp::malcpp<> log;
+malcpp::malcpp<> logger;
 //------------------------------------------------------------------------------
 int main (int argc, char const* argv[])
 {
   /* destination register: adding logging to stdout/stderr */
-  log.add_destination<malcpp::stdouterr_dst>();
-  log.add_destination<malcpp::file_dst>();
-  log.init();
+  logger.add_destination<malcpp::stdouterr_dst>();
+  logger.add_destination<malcpp::file_dst>();
+  logger.init();
 
   std::thread thr;
   thr = std::thread ([](){
     log_error_i (
-      log,
+      logger,
       "logging a custom type: {}",
       malcpp::object (mylogged_type(), mylogged_type::get_table())
       );

@@ -3,7 +3,14 @@
 // producer side. Thought out to be running for hours. It adds a destination on RAM
 // with extra instrumentation.
 //------------------------------------------------------------------------------
+#if defined (_MSC_VER)
+  #define _CRTDBG_MAP_ALLOC
+  #include <stdlib.h>
+  #include <crtdbg.h>
+#endif
+
 #include <atomic>
+#include <array>
 #include <chrono>
 #include <map>
 #include <thread>

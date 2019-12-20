@@ -6,18 +6,18 @@
 #include <thread>
 #include <malcpp/malcpp_lean.hpp>
 
-malcpp::malcpp<> log;
+malcpp::malcpp<> logger;
 //------------------------------------------------------------------------------
 int main (int argc, char const* argv[])
 {
   /* destination register: adding logging to stdout/stderr */
-  log.add_destination<malcpp::stdouterr_dst>();
-  log.add_destination<malcpp::file_dst>();
-  log.init();
+  logger.add_destination<malcpp::stdouterr_dst>();
+  logger.add_destination<malcpp::file_dst>();
+  logger.init();
 
   std::thread thr;
   thr = std::thread ([](){
-    log_error_i (log, "Hello malc, testing {}, {}, {.1}", 1, 2, 3.f);
+    log_error_i (logger, "Hello malc, testing {}, {}, {.1}", 1, 2, 3.f);
   });
   thr.join();
   return 0;

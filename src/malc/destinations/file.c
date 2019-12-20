@@ -83,7 +83,7 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
     bl_timeoft64 tns = bl_fast_timept_get_fast();
     (void) bl_dstr_append_va(
       &name,
-      "_%016"FMT_X64"_%016"FMT_X64,
+      "_%016" FMT_X64 "_%016" FMT_X64,
       tns + bl_fast_timept_to_sysclock64_diff_ns(),
       tns
       );
@@ -98,7 +98,7 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
       }
       /* no bl_dstr error check: it has already the required space allocated */
       (void) bl_dstr_set_o (&name, &d->prefix);
-      (void) bl_dstr_append_va (&name, "_%"FMT_UWORD, d->name_seq_num++);
+      (void) bl_dstr_append_va (&name, "_%" FMT_UWORD, d->name_seq_num++);
       (void) bl_dstr_append_o (&name, &d->suffix);
       d->f = fopen (bl_dstr_get (&name), "r");
     }

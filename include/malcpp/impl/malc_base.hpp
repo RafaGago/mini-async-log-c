@@ -493,7 +493,7 @@ public:
   /*--------------------------------------------------------------------------*/
 protected:
   template <class, bool, bool> friend class detail::construct_enable;
-  template <class, bool, bool> friend class detail::destroy_enable;
+  template <class, bool>       friend class detail::destroy_enable;
   /*--------------------------------------------------------------------------*/
   void destroy_impl() noexcept;
   /*--------------------------------------------------------------------------*/
@@ -564,7 +564,7 @@ static inline detail::serialization::malc_strcp strcp (std::string const& s)
 /*----------------------------------------------------------------------------*/
 static inline detail::serialization::std_string_rvalue strcp (std::string&& s)
 {
-  return detail::serialization::std_string_rvalue{.s = std::move (s)};
+  return detail::serialization::std_string_rvalue{std::move (s)};
 }
 /*------------------------------------------------------------------------------
 Passes a memory area by value (deep copy) to malc. It will be printed as hex.

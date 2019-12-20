@@ -143,7 +143,7 @@ bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
     }
   }
   if (m->cfg.msg_allocator) {
-    *mem = bl_alloc (m->cfg.msg_allocator, slots * m->cfg.slot_size);
+    *mem = (u8*) bl_alloc (m->cfg.msg_allocator, slots * m->cfg.slot_size);
     *tag = alloc_tag_heap;
     return bl_mkerr (*mem ? bl_ok : bl_alloc);
   }

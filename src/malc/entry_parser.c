@@ -90,7 +90,7 @@ static bl_err append_int(
   length modifiers. A good printf implementation on any major platform should
   have its own battle-tested parser, no need to do it twice." */
   while (fmt_beg < fmt_end) {
-    char* v = memchr(
+    char* v = (char*) memchr(
       printf_int_modifs, *fmt_beg, sizeof printf_int_modifs - 1
       );
     if (v) {
@@ -182,7 +182,7 @@ static bl_err append_float(
   length modifiers. A good printf implementation on any major platform should
   have its own battle-tested parser, no need to do it twice." */
   while (fmt_beg < fmt_end) {
-    char* v = memchr(
+    char* v = (char*) memchr(
       printf_float_modifs, *fmt_beg, sizeof printf_float_modifs - 1
       );
     if (v) {
