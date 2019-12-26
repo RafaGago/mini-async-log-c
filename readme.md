@@ -6,12 +6,16 @@ asynchronous textual data logger with type-safe strings.
 
 Based on the lessons learned on its older C++-only counterpart "mini-async-log".
 
+AFAIK, this may be the fastest generic data logger for C or C++.
+
 Features
 ========
 
 Common:
 
 - Dual C/C++ library. The main implementation is C11.
+
+- wait-free fast-path (when using thread-local storage).
 
 - Very high performance. I have not found yet a faster data logger from the
   consumer side. Even when comparing against non-textual ones. The benchmarks
@@ -47,6 +51,13 @@ Common:
 - Able to log strings/memory ranges by passing ownership, so the serialization
   overhead becomes a pointer. A destruction callback that frees resources
   has to be provided in this mode of operation.
+
+- Program runtime not affected by clock changes. Doesn't use any non-monotonic
+  blocking mechanism.
+
+- Log files not affected by clock changes. The log files have a monotonic clock.
+  Conversion to calendar time is possible by using a timestamp embedded on the
+  file name.
 
 - Decent test coverage.
 
@@ -147,7 +158,7 @@ Formatting
 ----------
 
 This is already hinted, there is no formatting on the producer-side. It happens
-on the consumer side and it's cost is masked by file-io.
+on the consumer side and its cost is masked by file-io.
 
 Usage Quickstart
 ==================
@@ -257,7 +268,7 @@ sudo apt install ninja-build python3-pip
 sudo -H pip3 install meson
 
 MYBUILDDIR=build
-meson $MYBUILDDIR  --buildtype=release OR > meson
+meson $MYBUILDDIR  --buildtype=release
 ninja -C $MYBUILDDIR
 ninja -C $MYBUILDDIR test
 ```
@@ -265,9 +276,24 @@ ninja -C $MYBUILDDIR test
 Windows
 -------
 
-Untested. It's almost surely broken, as the thin-wrapping C multiplatform
-library I'm using hasn't been run in Windows since very long ago. I have no
-Windows installs available.
+Acquire meson and ninja, if you are already using Python on Windows you may want
+to intall meson by using a python package manager (e.g. pip) and then install
+Ninja (ninja-build) separately.
+
+If you don't, the easiest way to add all the dependecies is to download meson +
+Ninja as an MSI installer from meson's site:
+
+https://mesonbuild.com/Getting-meson.html
+
+Once you have meson installed the same steps as on Linux apply. Notice that:
+
+* meson can generate Visual Studio solutions.
+* If you use meson with Ninja and the Microsoft compiler you need to export the
+  Visual Studio environment before. This is done by running "vcvarsall.bat" or
+  "vcvars32.bat/vcvars64.bat" depending on the Visual Studio version you have
+  installed. In my machine with 2019 Community it lies in:
+
+  "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
 
 Without build system (untested)
 -------------------------------
@@ -296,6 +322,52 @@ have challenges:
 
 #endif /* __MALC_CONFIG_H__ */
 ```
+
+Linking
+=======
+
+This library links to a tiny own utility library that I use for C resources that
+aren't project specific, so I can reuse them.
+
+Both "malc" and this library are meant to be statically linked to your project.
+
+If you run
+
+```sh
+
+DESTDIR=$PWD/dummy-install ninja -C $MYBUILDDIR install
+
+```
+
+You may see these files on the library section:
+
+```
+└── lib
+    └── x86_64-linux-gnu
+        ├── libbl-base.a
+        ├── libbl-getopt.a
+        ├── libbl-nonblock.a
+        ├── libbl-serial.a
+        ├── libbl-taskqueue.a
+        ├── libbl-time-extras.a
+        ├── libcmocka.a
+        ├── libmalc.a
+        ├── libmalcpp.a
+        └── pkgconfig
+            ├── bl-base.pc
+            ├── bl-getopt.pc
+            ├── bl-nonblock.pc
+            ├── bl-serial.pc
+            ├── bl-taskqueue.pc
+            ├── bl-time-extras.pc
+            ├── malc.pc
+            └── malcpp.pc
+```
+
+Your C project will need to link against: "libbl-time-extras.a", "libbl-base.a"
+"libbl-nonblock.a" and "libmalc.a". Your C++ project will need also to link
+"libmalcpp.a".
+
 Some useful build parameters and compile time macros
 ====================================================
 
