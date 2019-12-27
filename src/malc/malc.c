@@ -203,28 +203,10 @@ memory_destroy:
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_destroy (malc* l)
 {
-  uword expected = st_stopped;
-  if (!bl_atomic_uword_strong_cas_rlx (&l->state, &expected, st_destructing)) {
-    if (expected != st_terminating && expected != st_running) {
-      return bl_mkerr (bl_preconditions);
-    }
-    /* trying to manually shut malc down */
-    bl_err err;
-    if (expected == st_running) {
-      err = malc_terminate (l, true);
-      if (bl_unlikely (err.own && err.own != bl_preconditions)) {
-        /* allocation or some very uncommon error */
-        return err;
-      }
-    }
-    do {
-      err = malc_run_consume_task (l, 0);
-    }
-    while (!err.own || err.own == bl_nothing_to_do);
-    if (err.own != bl_preconditions) {
-      /* allocation or some very uncommon error */
-      return err;
-    }
+  bl_err err = malc_terminate (l, true);
+  if (bl_unlikely (err.own != bl_ok && err.own != bl_preconditions)) {
+    /* real error contion*/
+    return err;
   }
   bl_mutex_destroy (&l->produce_mutex);
   bl_time_extras_destroy();
@@ -328,14 +310,14 @@ MALC_EXPORT bl_err malc_flush (malc* l)
 {
   uword current = st_get_updated_state_val;
   (void) bl_atomic_uword_strong_cas_rlx (&l->state, &current, st_invalid);
-  if (current != st_running) {
+  if (bl_unlikely (current != st_running)) {
     return bl_mkerr (bl_preconditions);
   }
   malc_send_blocking_flush (l);
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
-MALC_EXPORT bl_err malc_terminate (malc* l, bool dont_block)
+MALC_EXPORT bl_err malc_terminate (malc* l, bool nowait)
 {
   qnode* n = (qnode*) bl_alloc (l->alloc, sizeof *n);
   if (!n) {
@@ -360,16 +342,15 @@ MALC_EXPORT bl_err malc_terminate (malc* l, bool dont_block)
   bl_mpsc_i_node_set (&n->hook, nullptr, 0, 0);
   bl_mpsc_i_produce_notag (&l->q, &n->hook);
 
-  if (!dont_block) {
-    if (l->consumer.start_own_thread) {
-      bl_thread_join (&l->thread);
+  if (!nowait) {
+    bl_err err;
+    do {
+      err = malc_run_consume_task (l, 1000);
     }
-    else {
-      bl_nonblock_backoff b;
-      bl_nonblock_backoff_init_default (&b, 1000);
-      while (bl_atomic_uword_load (&l->state, bl_mo_acquire) != st_stopped) {
-        bl_nonblock_backoff_run (&b);
-      }
+    while (err.own == bl_ok || err.own == bl_nothing_to_do);
+    if (bl_unlikely (err.own != bl_preconditions)) {
+      /* real error condition */
+      return err;
     }
   }
   return bl_mkok();
@@ -387,7 +368,7 @@ MALC_EXPORT bl_err malc_producer_thread_local_init (malc* l, size_t bytes)
   bl_err err = memory_tls_init_unregistered(
     &l->mem, bytes, l->alloc, &malc_tls_destructor, l, &n->mem
     );
-  if (err.own) {
+  if (bl_unlikely (err.own)) {
     bl_dealloc (l->alloc, n);
     return err;
   }
@@ -559,7 +540,7 @@ MALC_EXPORT bl_err malc_run_consume_task (malc* l, unsigned timeout_us)
     else if (err.own == bl_empty) {
       bl_timeoft64 next_sleep_us =
         bl_nonblock_backoff_next_sleep_us (&l->cbackoff);
-      bool do_backoff       = true;
+      bool do_backoff = true;
       if (l->idle_boundary_us < next_sleep_us)  {
         do_backoff = !malc_try_run_idle_task (l, now);
       }

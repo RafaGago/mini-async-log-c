@@ -53,33 +53,36 @@ will block forever.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_flush (malc* l);
 /*------------------------------------------------------------------------------
-Prepares the logger for termination. After this is invoked the consumer task
-("malc_run_consume_task") will start the necessary steps to cleanly shutdown the
-logger and will eventually return "bl_preconditions" when the logger instance is
-in the terminated state.
+Sends the termination command to the logger.
 
-After "bl_preconditions" has been returned by "malc_run_consume_task" no further
-log messages can be enqueued by any thread.
+When the termination state is reached no further log messages can be enqueued;
+the logging functions will fail.
 
-If the "dontblock" parameter is set to "false" the calling thread will block
-until the consumer thread has acknowledged the termination (
-"malc_run_consume_task" returned "bl_preconditions" on the consumer thread).
+It has two operation modes depending on the "nowait" argument value.
 
-If the "dontblock" parameter is set to "true" this function won't block. This is
-useful if you either don't need to block or if you are manually running
-"malc_run_consume_task" from one of your threads. Blocking in the last case
-would deadlock, as the function would never return and hence
-"malc_run_consume_task" would never be called either.
+If "nowait" is "true", this function will just send a command to the consumer
+queue indicating that it has to switch to the "terminated" state and return
+immediately. The termination will happen when "malc_run_consume_task" processes
+the command.
 
-Notice that unfortunately this parameter name is negated because it previously
-was called "is_consume_task_thread" and I didn't want to silently break already
-working code.
+If "nowait" is "false", this function will send the "termination" command and
+run "malc_run_consume_task" until the command is processed, so when this
+function returns the log is guaranteed to be terminated and all messages in the
+log queue to be flushed.
 
-Calling this function on termination is optional. "malc_destroy" will always try
-to run the shutdown sequence described above. This is mostly useful when you
-want to disable logging before destroying malc.
+This functions returns:
+
+- "bl_ok": The command executed successfully.
+- "bl_preconditions": The termination command wasn't sent, as the logger wasn't
+  either recognized as being running or it was already terminated.
+- other errors: unexpected error conditions.
+
+"malc_destroy" always calls this function.
+
+It is recommended that if you have some global crash handler (e.g. signal traps)
+that you call this command from there, so all the messages are flushed.
 ------------------------------------------------------------------------------*/
-extern MALC_EXPORT bl_err malc_terminate (malc* l, bool dontblock);
+extern MALC_EXPORT bl_err malc_terminate (malc* l, bool nowait);
 /*------------------------------------------------------------------------------
 Activates the thread local buffer for the caller thread. Using this buffer makes
 the logger the fastest it can be. Logging becomes wait-free (as long as there
