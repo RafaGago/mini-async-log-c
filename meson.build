@@ -241,15 +241,15 @@ if not get_option ('bare')
     if not cpp_only
         executable(
                 'malc-example-hello-malc',
-                [ 'example/src/malc//hello-malc.c' ],
+                [ 'example/src/malc/hello-malc.c' ],
                 include_directories : test_include_dirs,
                 link_with           : malc_lib,
                 c_args              : cflags,
                 dependencies        : threads
             )
         executable(
-                'malc-example-overwiew',
-                [ 'example/src/malc//overview.c' ],
+                'malc-example-overview',
+                [ 'example/src/malc/overview.c' ],
                 include_directories : test_include_dirs,
                 link_with           : malc_lib,
                 c_args              : cflags,
@@ -257,7 +257,7 @@ if not get_option ('bare')
             )
         executable(
                 'malc-example-thread-local-storage',
-                [ 'example/src/malc//thread_local_storage.c' ],
+                [ 'example/src/malc/thread_local_storage.c' ],
                 include_directories : test_include_dirs,
                 link_with           : malc_lib,
                 c_args              : cflags,
@@ -265,7 +265,7 @@ if not get_option ('bare')
             )
         st = executable(
                 'malc-example-stress-test',
-                [ 'example/src/malc//stress-test.c' ],
+                [ 'example/src/malc/stress-test.c' ],
                 include_directories : test_include_dirs,
                 link_with           : malc_lib,
                 c_args              : cflags,
