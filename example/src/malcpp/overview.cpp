@@ -104,6 +104,15 @@ int main (int argc, char const* argv[])
     err = log_error ("1. using \"G\" specifier: {G}", 1.);
     err = log_error ("1. using \"A\" specifier: {A}", 1.);
 
+      /* a critical message */
+    err = log_critical(
+      "A message that I want to make sure its logged before continuing"
+      );
+    /* malc flush sends a dummy message to the log queue and returns when the
+    message is processed, so after returning it is guaranteed that the critical
+    message above is logged.*/
+    logger.flush();
+
     /*deferred logging using the "ostream operator<<" doing a copy by value of
     "ostreamable_type. copies the object by value */
     err = log_error ("{}", malcpp::ostr (ostreamable_type()));

@@ -267,7 +267,7 @@ public:
   /*--------------------------------------------------------------------------*/
   void flush()
   {
-    detail::throw_if_error (wrapper::init());
+    detail::throw_if_error (wrapper::flush());
   }
   /*--------------------------------------------------------------------------*/
   void terminate (bool dontblock = false)

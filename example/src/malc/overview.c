@@ -54,6 +54,14 @@ int log_thread (void* ctx)
   err = log_error ("1. using \"G\" specifier: {G}", 1.);
   err = log_error ("1. using \"A\" specifier: {A}", 1.);
 
+  /* a critical message */
+  err = log_critical(
+    "A message that I want to make sure its logged before continuing"
+    );
+  /* malc flush sends a dummy message to the log queue and returns when the
+  message is processed, so after returning it is guaranteed that the critical
+  message above is logged.*/
+  err = malc_flush (ilog);
 
   /* strings */
   char const str[] = "a demo string";
@@ -113,7 +121,7 @@ int log_thread (void* ctx)
   of parameter lists with side effects*/
   int side_effect = 0;
   err = log_debug(
-    "lazy-evaluation for filtered out entries: {}", 
+    "lazy-evaluation for filtered out entries: {}",
     ++side_effect
     );
   assert (side_effect == 0);
