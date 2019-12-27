@@ -379,7 +379,7 @@ public:
   // This function is NOT thread safe but is protected from multiple calls on
   // the same thread.
   //----------------------------------------------------------------------------
-  void destroy() noexcept
+  bl_err destroy() noexcept
   {
     return static_cast<impl*> (this)->destroy_impl();
   }
@@ -390,6 +390,7 @@ public:
     ~scoped_destructor()
     {
       if (m_instance) {
+        /* C++ gotcha swallowing errors, as it can't throw */
         m_instance->destroy();
         m_instance = nullptr;
       }
@@ -471,7 +472,7 @@ public:
   ~malcpp() noexcept
   {
     if (autodestroy) {
-      destroy_impl();
+      destroy_impl(); /* C++ gotcha swallowing errors, as it can't throw */
     }
   }
   /*--------------------------------------------------------------------------*/
@@ -495,7 +496,7 @@ protected:
   template <class, bool, bool> friend class detail::construct_enable;
   template <class, bool>       friend class detail::destroy_enable;
   /*--------------------------------------------------------------------------*/
-  void destroy_impl() noexcept;
+  bl_err destroy_impl() noexcept;
   /*--------------------------------------------------------------------------*/
   bl_err construct_impl (bl_alloc_tbl alloc) noexcept;
   /*--------------------------------------------------------------------------*/

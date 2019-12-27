@@ -16,14 +16,18 @@ this solution keeps the castings localized and under control.
 namespace malcpp {
 
 template <bool e, bool c, bool d>
-void malcpp<e,c,d>::destroy_impl() noexcept
+bl_err malcpp<e,c,d>::destroy_impl() noexcept
 {
   if (!this->handle()) {
-    return;
+    return bl_mkok();
   }
-  (void) malc_destroy (this->handle());
+  bl_err err = malc_destroy (this->handle());
+  if (err.own) {
+    return err;
+  }
   bl_dealloc (get_alloc_tbl(), this->handle());
   this->set_handle (nullptr);
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 template <bool e, bool c, bool d>
