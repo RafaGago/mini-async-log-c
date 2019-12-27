@@ -10,7 +10,7 @@ project(
         'default_library=static'
         ]
     )
-version_major = '1'
+version_major = '2'
 version_minor = '0'
 version_rev   = '0'
 version       = version_major + '.' + version_minor + '.' + version_rev
