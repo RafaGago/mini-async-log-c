@@ -412,6 +412,15 @@ Compile time macros
 Gotchas
 =======
 
+Crash handling
+--------------
+
+This library doesn't install any crash handlers because in my opionion it is out
+of the scope of a logging library.
+
+If you want to terminate and flush the logger from a signal/exception handler,
+you can call "malc_terminate (ptr, false)" from there.
+
 Lazy-evaluation of parameters
 -----------------------------
 
@@ -463,16 +472,17 @@ any other thread. The results of doing so are undefined.
 Tradeoffs
 =========
 
-When using this library consider that it is an asynchronous logger designed to
-optimize the caller/producer consider if you really need an asynchronous logger
-and if performance at the call site is very important for your application.
+When using this library remember that this is an asynchronous logger designed to
+optimize the caller/producer site. Consider if your application really needs an
+asynchronous logger and if performance at the call site is more important than
+the added complexity of having an asynchronous logger.
 
-Consequences on the design taken on this logger:
+Tradeoffs:
 
 - It trades code size at the call site for performance. On C each log macro
   call puts at least one branch and two function calls with error code checks at
   the calling site. This is without counting parameters. For each parameter
-  there is at least a call to "memcpy" too.
+  there is at least a (hopefully optimized away) call to "memcpy" too.
 
   On C++ it does exactly the same operations, but considering the language
   standards I wouldn't call it more bloated than any other implementation using
