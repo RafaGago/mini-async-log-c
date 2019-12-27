@@ -81,6 +81,11 @@ This functions returns:
 
 It is recommended that if you have some global crash handler (e.g. signal traps)
 that you call this command from there, so all the messages are flushed.
+
+Notice that logging messages after this function has called has undefined
+results. Unfortunately this has to be the user's responsibility, otherwise
+heavyweight synchronization would be required before logging every message,
+which would defeat the purpose of this library.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_terminate (malc* l, bool nowait);
 /*------------------------------------------------------------------------------
@@ -134,6 +139,13 @@ timeout_us: timeout to block before returning. 0 just runs one iteration.
 returns bl_ok:            Consumer not in idle-state.
         bl_nothing_to_do: Consumer in idle-state.
         bl_preconditions: Malc library not ready to run (no init, terminated...)
+
+Notice that when you run the consume task yourself you have to make sure by
+using your own means that your consumer thread doesn't call
+"malc_run_consume_task" after the logging instance has been destroyed. You can
+e.g. make a non-blocking terminate call ("malc_terminate(l, true)") from the
+destructor function and then join your consumer thread before starting to
+destruct malc.
 ------------------------------------------------------------------------------*/
 extern MALC_EXPORT bl_err malc_run_consume_task (malc* l, unsigned timeout_us);
 /*------------------------------------------------------------------------------

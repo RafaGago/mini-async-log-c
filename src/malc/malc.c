@@ -208,6 +208,10 @@ MALC_EXPORT bl_err malc_destroy (malc* l)
     /* real error contion*/
     return err;
   }
+  /* wait for our own launched thread to die */
+  if (l->consumer.start_own_thread) {
+    bl_thread_join (&l->thread);
+  }
   bl_mutex_destroy (&l->produce_mutex);
   bl_time_extras_destroy();
   memory_destroy (&l->mem, l->alloc);
