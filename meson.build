@@ -310,13 +310,23 @@ if not get_option ('bare')
         cpp_args            : cflags,
         dependencies        : threads
         )
-    stcpp = executable(
-            'malcpp-example-stress-test',
-            [ 'example/src/malcpp/stress-test.cpp' ],
+    test(
+        'malcpp-custom-allocators',
+        executable(
+            'malcpp-example-custom-allocators',
+            [ 'example/src/malcpp/custom-allocators.cpp' ],
             include_directories : test_include_dirs,
             link_with           : malcpp_lib,
             cpp_args            : cflags,
             dependencies        : threads
+            ))
+    stcpp = executable(
+        'malcpp-example-stress-test',
+        [ 'example/src/malcpp/stress-test.cpp' ],
+        include_directories : test_include_dirs,
+        link_with           : malcpp_lib,
+        cpp_args            : cflags,
+        dependencies        : threads
         )
     test ('malcpp-stress-test-tls', stcpp, args : [ 'tls', '30', '1' ])
     test ('malcpp-stress-test-heap', stcpp, args : [ 'heap', '30', '1' ])
