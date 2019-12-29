@@ -11,7 +11,9 @@ int main (int argc, char const* argv[])
   /* destination register: adding logging to stdout/stderr */
   logger.add_destination<malcpp::stdouterr_dst>();
   logger.add_destination<malcpp::file_dst>();
-  logger.init();
+  auto cfg = logger.get_cfg();
+  cfg.consumer.start_own_thread = true;
+  logger.init (cfg);
 
   std::thread thr;
   thr = std::thread ([](){
