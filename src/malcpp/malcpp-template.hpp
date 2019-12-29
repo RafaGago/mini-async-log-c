@@ -1,5 +1,10 @@
 #ifdef __cplusplus
 
+#include <type_traits>
+
+#include <bl/base/default_allocator.h>
+#include <bl/base/static_integer_math.h>
+
 #include <malc/libexport.h>
 #include <malc/malc.h>
 #include <malcpp/malcpp.hpp>
@@ -14,7 +19,26 @@ this solution keeps the castings localized and under control.
 */
 
 namespace malcpp {
+/*----------------------------------------------------------------------------*/
+struct malc_alloc_data {
+  bl_alloc_tbl const* alloc;
+  bl_alloc_tbl        alloc_table;
+};
+/*----------------------------------------------------------------------------*/
+template <class out_type>
+static out_type* get_aligned_footer_data (void* header_ptr, bl_word header_size)
+{
+  static constexpr bl_uword align = std::alignment_of<out_type>::value;
 
+  static_assert (sizeof (void*) == sizeof (bl_uword), "");
+  static_assert (bl_is_pow2 (align), "");
+
+  bl_uword footer_addr = ((bl_uword) header_ptr) + header_size;
+  footer_addr += align;
+  footer_addr &= ~(align - 1);
+  return static_cast<out_type*> ((void*) footer_addr);
+}
+/*----------------------------------------------------------------------------*/
 template <bool e, bool c, bool d>
 bl_err malcpp<e,c,d>::destroy_impl() noexcept
 {
@@ -31,36 +55,47 @@ bl_err malcpp<e,c,d>::destroy_impl() noexcept
 }
 /*----------------------------------------------------------------------------*/
 template <bool e, bool c, bool d>
-bl_err malcpp<e,c,d>::construct_impl (bl_alloc_tbl alloc) noexcept
+bl_err malcpp<e,c,d>::construct_impl (bl_alloc_tbl const* alloc) noexcept
 {
   if (this->handle()) {
     return bl_mkerr (bl_invalid);
   }
-  malc* ptr = (malc*) bl_alloc(
-    &alloc,
-    malc_get_size() + std::alignment_of<bl_alloc_tbl>::value + sizeof alloc
+  bl_alloc_tbl defalloc = bl_get_default_alloc();
+
+  void* ptr = bl_alloc(
+    (alloc) ? alloc : &defalloc,
+    malc_get_size() +
+      std::alignment_of<malc_alloc_data>::value +
+      sizeof (malc_alloc_data)
     );
   if (!ptr) {
     return bl_mkerr (bl_alloc);
   }
-  this->set_handle (ptr);
-  *get_alloc_tbl() = alloc;
-  bl_err err = malc_create (this->handle(), get_alloc_tbl());
+  this->set_handle (static_cast<malc*> (ptr));
+
+  malc_alloc_data* mad = get_aligned_footer_data<malc_alloc_data>(
+    ptr, malc_get_size()
+    );
+
+  mad->alloc_table = defalloc;
+  mad->alloc       = (alloc) ? alloc : &mad->alloc_table;
+
+  bl_err err = malc_create (this->handle(), mad->alloc);
   if (err.own) {
-    bl_dealloc (get_alloc_tbl(), ptr);
+    bl_dealloc (mad->alloc, ptr);
     this->set_handle (nullptr);
   }
   return err;
 }
 /*----------------------------------------------------------------------------*/
-/* packing an alloc table together with malc's memory */
+/* packing an malc_alloc_data together with malc's memory */
 template <bool e, bool c, bool d>
-bl_alloc_tbl* malcpp<e,c,d>::get_alloc_tbl() noexcept
+bl_alloc_tbl const* malcpp<e,c,d>::get_alloc_tbl() noexcept
 {
-  bl_uword tbl_addr = ((bl_uword) this->handle()) + malc_get_size();
-  tbl_addr         += std::alignment_of<bl_alloc_tbl>::value;
-  tbl_addr         &= ~(std::alignment_of<bl_alloc_tbl>::value - 1);
-  return (bl_alloc_tbl*) tbl_addr;
+  malc_alloc_data* mad = get_aligned_footer_data<malc_alloc_data>(
+    static_cast<void*> (this->handle()), malc_get_size()
+    );
+  return mad->alloc;
 }
 /*----------------------------------------------------------------------------*/
 

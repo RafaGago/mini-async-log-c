@@ -14,7 +14,7 @@
   #include <malc/config.h>
 #endif
 
-#include <bl/base/default_allocator.h>
+#include <bl/base/allocator.h>
 
 /* including the C structs in malcpp's namespace */
 #ifndef MALC_COMMON_NAMESPACED
@@ -352,7 +352,7 @@ class construct_enable {};
 template <class impl>
 class construct_enable<impl, true, false> {
 public:
-  void construct (bl_alloc_tbl alloc = bl_get_default_alloc())
+  void construct (bl_alloc_tbl const* alloc = nullptr)
   {
     static_cast<impl*> (this)->construct_throw_impl (alloc);
   }
@@ -361,7 +361,7 @@ public:
 template <class impl>
 class construct_enable<impl, false, false> {
 public:
-  bl_err construct (bl_alloc_tbl alloc = bl_get_default_alloc()) noexcept
+  bl_err construct (bl_alloc_tbl const* alloc = nullptr) noexcept
   {
     return static_cast<impl*> (this)->construct_impl (alloc);
   }
@@ -462,7 +462,7 @@ public:
   /*--------------------------------------------------------------------------*/
   static constexpr bool throws = use_except;
   /*--------------------------------------------------------------------------*/
-  malcpp (bl_alloc_tbl alloc = bl_get_default_alloc()) : base (nullptr)
+  malcpp (bl_alloc_tbl const* alloc = nullptr) : base (nullptr)
   {
     if (autoconstruct && use_except) {
       construct_throw_impl (alloc);
@@ -498,9 +498,9 @@ protected:
   /*--------------------------------------------------------------------------*/
   bl_err destroy_impl() noexcept;
   /*--------------------------------------------------------------------------*/
-  bl_err construct_impl (bl_alloc_tbl alloc) noexcept;
+  bl_err construct_impl (bl_alloc_tbl const* alloc) noexcept;
   /*--------------------------------------------------------------------------*/
-  void construct_throw_impl (bl_alloc_tbl alloc)
+  void construct_throw_impl (bl_alloc_tbl const* alloc)
   {
     bl_err e = construct_impl (alloc);
     if (e.own) {
@@ -516,7 +516,7 @@ private:
   malcpp(const malcpp&) = delete;
   malcpp& operator=(const malcpp&) = delete;
   /*--------------------------------------------------------------------------*/
-  bl_alloc_tbl* get_alloc_tbl() noexcept;
+  bl_alloc_tbl const* get_alloc_tbl() noexcept;
 };
 /*----------------------------------------------------------------------------*/
 /*
