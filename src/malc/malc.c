@@ -203,7 +203,7 @@ memory_destroy:
 /*----------------------------------------------------------------------------*/
 MALC_EXPORT bl_err malc_destroy (malc* l)
 {
-  bl_err err = malc_terminate (l, true);
+  bl_err err = malc_terminate (l, false);
   if (bl_unlikely (err.own != bl_ok && err.own != bl_preconditions)) {
     /* real error contion*/
     return err;
