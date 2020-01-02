@@ -440,7 +440,7 @@ static void integer_formats (void **state)
     );
 
   err = log_warning(
-    "{0Nx} {0Nx} {0Nx} {0Nx}",
+    "{.wx} {.wx} {.wx} {.wx}",
     (bl_u8) 0x0e,
     (bl_u16) 0x0ffe,
     (bl_u32) 0x0ffffffe,
@@ -654,7 +654,7 @@ static void timestamp_enabled_test (void **state)
   err = log_error ("{} {}", (bl_i64) -1ll, (bl_u16) 20000);
   assert_int_equal (err.own, bl_ok);
 
-  err = malc_run_consume_task (c->l, 10000);
+  err = malc_run_consume_task (c->l, 20000);
   assert_int_equal (err.own, bl_ok);
 
   assert_int_equal (malc_array_dst_size (c->dst), 1);

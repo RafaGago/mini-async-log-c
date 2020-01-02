@@ -34,7 +34,7 @@ static void vector_int_modifiers (void **state)
   assert_int_equal(
     exp,
     fmt(
-      "{0Nx}",
+      "{.wx}",
       make_shared<vector<int> >(
         initializer_list<int>{ 1, 2, 3, 4, 5, 6, 7}
         )

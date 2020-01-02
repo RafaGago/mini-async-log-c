@@ -183,8 +183,8 @@ static void configure_malcpp (malcpp::malc_cfg& cfg, pargs const& args)
 int main (int argc, char const* argv[])
 {
   pargs  args;
-  std::array<thr_context, max_threads> tcontext;
-  std::array<std::thread, max_threads> thrs;
+  std::array<thr_context, max_threads> tcontext {};
+  std::array<std::thread, max_threads> thrs {};
 
   if (!parse_args (args, argc, argv)) {
     return 1;
@@ -212,7 +212,6 @@ int main (int argc, char const* argv[])
       ilog.init (cfg);
 
       /*Thread start*/
-      memset (&tcontext, 0, sizeof tcontext);
       for (std::size_t th = 0; th < thread_count; ++th) {
         tcontext[th].msgs = expected_msgs / thread_count;
         if (args.alloc_mode == cfg_tls) {

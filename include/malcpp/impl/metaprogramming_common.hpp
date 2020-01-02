@@ -41,6 +41,14 @@ public:
       : false;
   }
   //----------------------------------------------------------------------------
+  constexpr int count (int beg, int end, char c, int countv = 0) const
+  {
+    return
+      (beg < end)
+      ? count (beg + 1, end, c, countv + (int) (c == m_lit[beg]))
+      : countv;
+  }
+  //----------------------------------------------------------------------------
   constexpr literal substr (int beg, int end) const
   {
     return literal (m_lit + beg, end - beg);

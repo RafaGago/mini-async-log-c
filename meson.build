@@ -24,6 +24,7 @@ base_library = subproject(
 base_lib     = base_library.get_variable ('base_lib')
 nonblock_lib = base_library.get_variable ('nonblock_lib')
 t_extras_lib = base_library.get_variable ('t_extras_lib')
+tostr_lib    = base_library.get_variable ('tostr_lib')
 
 include_dirs = [
     include_directories ('include'),
@@ -165,7 +166,7 @@ malc_lib = build_target(
     malc_srcs,
     target_type         : libtype,
     include_directories : include_dirs,
-    link_with           : [ base_lib, nonblock_lib, t_extras_lib ],
+    link_with           : [ base_lib, nonblock_lib, t_extras_lib, tostr_lib ],
     c_args              : cflags + lib_cflags,
     install             : true
     )

@@ -421,7 +421,7 @@ static void integer_formats (void **state)
   assert_string_equal ((*c->dst.try_get())[0], "1 -1 1 -1 1 -1 1 -1");
 
   err = log_warning(
-    "{0Nx} {0Nx} {0Nx} {0Nx}",
+    "{.wx} {.wx} {.wx} {.wx}",
     (bl_u8) 0x0e,
     (bl_u16) 0x0ffe,
     (bl_u32) 0x0ffffffe,

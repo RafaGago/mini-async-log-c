@@ -10,32 +10,9 @@
 #define BL_UNPREFIXED_PRINTF_FORMATS
 #include <bl/base/time.h>
 #include <bl/base/integer_printf_format.h>
-/*----------------------------------------------------------------------------*/
-static const char* const full_width_table[] = {
-  "3",     /* malc_type_i8     */
-  "3",     /* malc_type_u8     */
-  "5",     /* malc_type_i16    */
-  "5",     /* malc_type_u16    */
-  "10",    /* malc_type_i32    */
-  "10",    /* malc_type_u32    */
-  nullptr, /* malc_type_float  */
-  "20",    /* malc_type_i64    */
-  "20",    /* malc_type_u64    */
-  nullptr, /* malc_type_double */
-};
-/*----------------------------------------------------------------------------*/
-static const char* const nibbles_width_table[] = {
-  "2",  /* malc_type_i8     */
-  "2",  /* malc_type_u8     */
-  "4",  /* malc_type_i16    */
-  "4",  /* malc_type_u16    */
-  "8",  /* malc_type_i32    */
-  "8",  /* malc_type_u32    */
-  "8",  /* malc_type_float  */
-  "16", /* malc_type_i64    */
-  "16", /* malc_type_u64    */
-  "16", /* malc_type_double */
-};
+
+#include <bl/tostr/itostr.h>
+#define MALC_EP_SEPARATOR " "
 /*----------------------------------------------------------------------------*/
 static const char* const sev_strings[] = {
   MALC_EP_DEBUG,
@@ -69,102 +46,7 @@ void entry_parser_destroy (entry_parser* ep)
   bl_dstr_destroy (&ep->str);
 }
 /*----------------------------------------------------------------------------*/
-static char const printf_int_modifs[]       = "# -+0123456789WNxXo";
-static char const printf_int_modifs_order[] = "aaaaabbbbbbbbbccddd";
-/*----------------------------------------------------------------------------*/
 static bl_err append_int(
-  entry_parser*       ep,
-  log_argument const* arg,
-  char                type,
-  char const*         fmt_beg,
-  char const*         fmt_end,
-  char const*         printf_length,
-  char                printf_type
-  )
-{
-  bl_dstr_append_char (&ep->fmt, '%');
-  char order = 'a' - 1;
-  bl_err err = bl_mkok();
-  /*this is just intended as a quick filter for the most egregious things that
-  could be passed to printf, e.g. added "%", ".*", etc. and to add the extra
-  length modifiers. A good printf implementation on any major platform should
-  have its own battle-tested parser, no need to do it twice." */
-  while (fmt_beg < fmt_end) {
-    char* v = (char*) memchr(
-      printf_int_modifs, *fmt_beg, sizeof printf_int_modifs - 1
-      );
-    if (v) {
-      char new_order = printf_int_modifs_order[v - printf_int_modifs];
-      /* '0' is allowed as a flag and as a width number. manually
-      correcting the new_order */
-      new_order = (order != 'b' || *v != '0') ? new_order : 'b';
-      if (new_order < order) {
-        continue;
-      }
-      if (new_order == 'c' && (order == 'b' || order == 'c')) {
-        /* own length modifs only if there were no length modifs before*/
-        continue;
-      }
-      order = new_order;
-      switch (order) {
-      case 'a': /* deliberate fall-through */
-      case 'b':
-        err = bl_dstr_append_char (&ep->fmt, *v);
-        break;
-      case 'c':
-        if (*v == 'W') {
-          err = bl_dstr_append(
-            &ep->fmt, full_width_table[type - malc_type_i8]
-            );
-        }
-        else {
-          err = bl_dstr_append(
-            &ep->fmt, nibbles_width_table[type - malc_type_i8]
-            );
-        }
-        break;
-      case 'd':
-        printf_type = *v;
-      default: /* deliberate fall-through */
-        goto done;
-      }
-      if (err.own) {
-        return err;
-      }
-    }
-    ++fmt_beg;
-  }
-done:
-  err = bl_dstr_append (&ep->fmt, printf_length);
-  if (err.own) {
-    return err;
-  }
-  err = bl_dstr_append_char (&ep->fmt, printf_type);
-  if (err.own) {
-    return err;
-  }
-  switch (type) {
-  case malc_type_i8:
-  case malc_type_u8:
-    return bl_dstr_append_va (&ep->str, 1, bl_dstr_get (&ep->fmt), arg->vu8);
-  case malc_type_i16:
-  case malc_type_u16:
-    return bl_dstr_append_va (&ep->str, 1, bl_dstr_get (&ep->fmt), arg->vi16);
-  case malc_type_i32:
-  case malc_type_u32:
-    return bl_dstr_append_va (&ep->str, 1, bl_dstr_get (&ep->fmt), arg->vi32);
-  case malc_type_i64:
-  case malc_type_u64:
-    return bl_dstr_append_va (&ep->str, 1, bl_dstr_get (&ep->fmt), arg->vi64);
-  default:
-    return bl_mkerr (bl_invalid);
-  }
-}
-/*----------------------------------------------------------------------------*/
-static char const printf_float_modifs[]       = "# -+0123456789.fFeEgGaA";
-static char const printf_float_modifs_order[] = "aaaaabbbbbbbbbbcccccccc";
-/*----------------------------------------------------------------------------*/
-static bl_err append_float(
   entry_parser*       ep,
   log_argument const* arg,
   char                type,
@@ -172,6 +54,71 @@ static bl_err append_float(
   char const*         fmt_end
   )
 {
+  bl_dstr_append_l (&ep->fmt, fmt_beg, fmt_end - fmt_beg);
+  bl_dstrbuf str = bl_dstr_steal_ownership (&ep->str);
+  bl_err err;
+
+  switch (type) {
+  case malc_type_i8:
+    err = bl_itostr_dyn_i (&str, bl_dstr_get (&ep->fmt), arg->vi8);
+    break;
+  case malc_type_u8:
+    err = bl_itostr_dyn_u (&str, bl_dstr_get (&ep->fmt), arg->vu8);
+    break;
+  case malc_type_i16:
+    err = bl_itostr_dyn_i (&str, bl_dstr_get (&ep->fmt), arg->vi16);
+    break;
+  case malc_type_u16:
+    err = bl_itostr_dyn_u (&str, bl_dstr_get (&ep->fmt), arg->vu16);
+    break;
+  case malc_type_i32:
+    err = bl_itostr_dyn_i (&str, bl_dstr_get (&ep->fmt), arg->vi32);
+    break;
+  case malc_type_u32:
+    err = bl_itostr_dyn_u (&str, bl_dstr_get (&ep->fmt), arg->vu32);
+    break;
+  case malc_type_i64:
+    err = bl_itostr_dyn_i (&str, bl_dstr_get (&ep->fmt), arg->vi64);
+    break;
+  case malc_type_u64:
+    err = bl_itostr_dyn_u (&str, bl_dstr_get (&ep->fmt), arg->vu64);
+    break;
+  default:
+    err = bl_mkerr (bl_invalid);
+    break;
+  }
+  bl_dstr_transfer_ownership (&ep->str, &str);
+  return err;
+}
+/*----------------------------------------------------------------------------*/
+static bl_err append_int_array(
+  entry_parser* ep,
+  char const*   fmt_beg,
+  char const*   fmt_end,
+  char const*   sep,
+  void const*   v,
+  size_t        v_count,
+  bool          is_signed,
+  bl_uword      sz_log2
+  )
+{
+  bl_dstr_append_l (&ep->fmt, fmt_beg, fmt_end - fmt_beg);
+  bl_dstrbuf str = bl_dstr_steal_ownership (&ep->str);
+  bl_err err = bl_itostr_dyn_arr(
+    &str, bl_dstr_get (&ep->fmt), sep, v, v_count, is_signed, sz_log2
+    );
+  bl_dstr_transfer_ownership (&ep->str, &str);
+  return err;
+}
+/*----------------------------------------------------------------------------*/
+static char const printf_float_modifs[]       = "# -+0123456789.fFeEgGaA";
+static char const printf_float_modifs_order[] = "aaaaabbbbbbbbbbcccccccc";
+/*----------------------------------------------------------------------------*/
+static bl_err build_float_format_on_ep_fmt(
+  entry_parser* ep, char const* fmt_beg, char const* fmt_end
+  )
+{
+  /*fills ep->fmt*/
   bl_dstr_append_char (&ep->fmt, '%');
   char order        = 'a' - 1;
   bl_err err        = bl_mkok();
@@ -218,14 +165,28 @@ static bl_err append_float(
   }
 done:
   err = bl_dstr_append_char (&ep->fmt, printf_type);
-  if (err.own) {
+  return err;
+}
+/*----------------------------------------------------------------------------*/
+static bl_err append_float(
+  entry_parser*       ep,
+  log_argument const* arg,
+  char                type,
+  char const*         fmt_beg,
+  char const*         fmt_end
+  )
+{
+  bl_err err = build_float_format_on_ep_fmt (ep, fmt_beg, fmt_end);
+  if (bl_unlikely (err.own)) {
     return err;
   }
   if (type == malc_type_float) {
     return bl_dstr_append_va (&ep->str, 1, bl_dstr_get (&ep->fmt), arg->vfloat);
   }
   else {
-    return bl_dstr_append_va (&ep->str, 1, bl_dstr_get (&ep->fmt), arg->vdouble);
+    return bl_dstr_append_va(
+      &ep->str, 1, bl_dstr_get (&ep->fmt), arg->vdouble
+      );
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -305,75 +266,68 @@ static int push_obj_data(
   bl_err err;
 
   if (bl_unlikely (!ep || !fmt_beg || !fmt_end || !ld)) {
-    bl_assert (false);
+    bl_assert (false && "bug");
     return bl_invalid;
   }
+
+  bl_dstr_clear (&ep->fmt);
   if (ld->is_str) {
     err = bl_dstr_append_l (&ep->str, ld->data.str.ptr, ld->data.str.len);
     return (int) err.own;
+  }
+
+  if (bl_unlikely (ld->data.builtin.type > malc_obj_double)) {
+    bl_assert (false && "bug");
+    return bl_invalid;
   }
 
   if (ld->data.builtin.count == 0 || ld->data.builtin.ptr == nullptr) {
     //empty
     return 0;
   }
-  log_argument arg;
+
+  if (ld->data.builtin.type <= malc_obj_i64) {
+    return (int) append_int_array(
+      ep,
+      fmt_beg,
+      fmt_end,
+      MALC_EP_SEPARATOR,
+      ld->data.builtin.ptr,
+      ld->data.builtin.count,
+      ld->data.builtin.type >= malc_obj_i8,
+      ld->data.builtin.type & 3 /* mask on last two bits */
+      ).own;
+  }
+
+  /* using printf for floats */
   uword prev_len = bl_dstr_len (&ep->str);
-  err.own = 0;
-  for (uword i = 0; i < ld->data.builtin.count && !err.own; ++i) {
+  err = build_float_format_on_ep_fmt (ep, fmt_beg, fmt_end);
+
+  for (uword i = 0; (i < ld->data.builtin.count) && !err.own; ++i) {
     uword len = bl_dstr_len (&ep->str);
     if (prev_len < len) {
-      /* space separation between values */
-      err = bl_dstr_append_lit (&ep->str, " ");
+      /* separator between values */
+      err = bl_dstr_append_lit (&ep->str, MALC_EP_SEPARATOR);
       if (err.own) {
         break;
       }
       prev_len = len;
     }
-    switch (ld->data.builtin.type) {
-    case malc_obj_u8:
-      arg.vu8 = ((u8 const*) ld->data.builtin.ptr)[i];
-      err = append_arg (ep, &arg, malc_type_u8, fmt_beg, fmt_end);
-      break;
-    case malc_obj_u16:
-      arg.vu16 = ((u16 const*) ld->data.builtin.ptr)[i];
-      err = append_arg (ep, &arg, malc_type_u16, fmt_beg, fmt_end);
-      break;
-    case malc_obj_u32:
-      arg.vu32 = ((u32 const*) ld->data.builtin.ptr)[i];
-      err = append_arg (ep, &arg, malc_type_u32, fmt_beg, fmt_end);
-      break;
-    case malc_obj_u64:
-      arg.vu64 = ((u64 const*) ld->data.builtin.ptr)[i];
-      err = append_arg (ep, &arg, malc_type_u64, fmt_beg, fmt_end);
-      break;
-    case malc_obj_i8:
-      arg.vu8 = ((bl_i8 const*) ld->data.builtin.ptr)[i];
-      err = append_arg (ep, &arg, malc_type_i8, fmt_beg, fmt_end);
-      break;
-    case malc_obj_i16:
-      arg.vi16 = ((bl_i16 const*) ld->data.builtin.ptr)[i];
-      err = append_arg (ep, &arg, malc_type_i16, fmt_beg, fmt_end);
-      break;
-    case malc_obj_i32:
-      arg.vi32 = ((bl_i32 const*) ld->data.builtin.ptr)[i];
-      err = append_arg (ep, &arg, malc_type_i32, fmt_beg, fmt_end);
-      break;
-    case malc_obj_i64:
-      arg.vi64 = ((bl_i64 const*) ld->data.builtin.ptr)[i];
-      err = append_arg (ep, &arg, malc_type_i64, fmt_beg, fmt_end);
-      break;
-    case malc_obj_float:
-      arg.vfloat = ((float const*) ld->data.builtin.ptr)[i];
-      err = append_arg (ep, &arg, malc_type_float, fmt_beg, fmt_end);
-      break;
-    case malc_obj_double:
-      arg.vdouble = ((double const*) ld->data.builtin.ptr)[i];
-      err = append_arg (ep, &arg, malc_type_double, fmt_beg, fmt_end);
-      break;
-    default:
-      err = bl_mkerr (bl_invalid);
-      break;
+    if (ld->data.builtin.type == malc_type_float) {
+      err = bl_dstr_append_va(
+        &ep->str,
+        10,
+        bl_dstr_get (&ep->fmt),
+        ((float const*) ld->data.builtin.ptr)[i]
+        );
+    }
+    else {
+      err = bl_dstr_append_va(
+        &ep->str,
+        10,
+        bl_dstr_get (&ep->fmt),
+        ((double const*) ld->data.builtin.ptr)[i]
+        );
     }
   }
   return (int) err.own;
@@ -410,23 +364,23 @@ static bl_err append_arg(
   bl_dstr_clear (&ep->fmt);
   switch (type) {
   case malc_type_i8:
-    return append_int (ep, arg, type, fmt_beg, fmt_end, FMT_L8, 'd');
+    return append_int (ep, arg, type, fmt_beg, fmt_end);
   case malc_type_u8:
-    return append_int (ep, arg, type, fmt_beg, fmt_end, FMT_L8, 'u');
+    return append_int (ep, arg, type, fmt_beg, fmt_end);
   case malc_type_i16:
-    return append_int (ep, arg, type, fmt_beg, fmt_end, FMT_L16, 'd');
+    return append_int (ep, arg, type, fmt_beg, fmt_end);
   case malc_type_u16:
-    return append_int (ep, arg, type, fmt_beg, fmt_end, FMT_L16, 'u');
+    return append_int (ep, arg, type, fmt_beg, fmt_end);
   case malc_type_i32:
-    return append_int (ep, arg, type, fmt_beg, fmt_end, FMT_L32, 'd');
+    return append_int (ep, arg, type, fmt_beg, fmt_end);
   case malc_type_u32:
-    return append_int (ep, arg, type, fmt_beg, fmt_end, FMT_L32, 'u');
+    return append_int (ep, arg, type, fmt_beg, fmt_end);
   case malc_type_float:
     return append_float (ep, arg, type, fmt_beg, fmt_end);
   case malc_type_i64:
-    return append_int (ep, arg, type, fmt_beg, fmt_end, FMT_L64, 'd');
+    return append_int (ep, arg, type, fmt_beg, fmt_end);
   case malc_type_u64:
-    return append_int (ep, arg, type, fmt_beg, fmt_end, FMT_L64, 'u');
+    return append_int (ep, arg, type, fmt_beg, fmt_end);
   case malc_type_double:
     return append_float (ep, arg, type, fmt_beg, fmt_end);
   case malc_type_ptr:

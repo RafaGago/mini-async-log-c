@@ -201,15 +201,14 @@ Malc autodetecs the datatypes passed to the log strings, so the "length"
 modifiers and signedness "specifiers" are never required. Which specifiers can
 be used on which data type is also restricted only to those that make sense.
 
-Malc adds two non-numeric width specifiers 'W' and 'N':
+Malc adds a non-numeric precision specifier: 'w'
 
-- 'W' represents the maximum digit count that the biggest/smallest value of an
-  integer type can have.
+'w' represents the maximum digit count excluding sign that the maximum value of
+a given type can have. It is aware if the type is going to be printed in
+decimal, hexadecimal or octal base.
 
-- 'N' represents the nibble count of a data type (useful to print hex).
-
-On malc there are three width modifier groups [0-9], W and N. The three of them
-are mutually exclusive. Only one of them can be specified, the result of not
+On malc there are two precision modifier groups [0-9], w. Both of them are
+mutually exclusive. Only one of them can be specified, the result of not
 doing so is undefined.
 
 Next comes a summary of the valid modifiers for each type.
@@ -219,7 +218,9 @@ integrals (or std::vector of integrals)
 
 - flags: `#, 0, +, -`
 
-- width: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9, W, N`
+- width: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
+
+- precision: `., 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, w`
 
 - specifiers: `o, x, X`
 
@@ -246,9 +247,9 @@ examples
 
 `"hex 8 char width zero padded integer: {08x}"`
 
-`"0-padded integer to the digits that the datatype's max/min value has: {0W}"`
+`"0-padded integer to the digits that the datatype's max/min value has: {.w}"`
 
-`"0-padded hex integer to the datatype's nibble count: {0Nx}"`
+`"0-padded hex integer to the datatype's nibble count: {.wx}"`
 
 `"Escaped open brace: {{"`
 

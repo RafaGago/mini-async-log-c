@@ -83,14 +83,17 @@ int main (int argc, char const* argv[])
     err = log_error ("10 using \"03x\" specifier: {03x}", 10);
     err = log_error ("10 using \"03x\" specifier: {03X}", 10);
     err = log_error(
-      "10 using \"0Nx\" custom specifier. N = number of nibbles: {0Nx}",
+      "((uint32) 10) using \".wx\" auto precision. max digits (10): {.wx}",
       (bl_u32) 10
       );
     err = log_error(
-      "10 using \"0Wx\" custom specifier. W = max number of int digits: {0W}",
+      "((uint32) 10) using \".w\" auto precision. max nibbles (8): {.w}",
       (bl_u32) 10
       );
-
+    err = log_error(
+      "((uint32) 10) using \".wo\" auto precision. max digits (12): {.wo}",
+      (bl_u32) 10
+      );
     /* floating point + printf modifiers */
     err = log_error ("1.: {}", 1.);
     err = log_error ("1. using \".3\" specifier: {.3}", 1.);
@@ -171,7 +174,7 @@ int main (int argc, char const* argv[])
     if they are wrapped by a shared ptr. As with the string the vector itself
     is not thread safe for writes.*/
     err = log_error(
-      "shared_ptr<std::vector<T>>: \"{0Nx}\" \"{g}\" \"{}\"",
+      "shared_ptr<std::vector<T>>: \"{.wx}\" \"{g}\" \"{}\"",
       std::make_shared<std::vector<bl_u8> >(
         std::initializer_list<bl_u8>{ 1, 2, 9, 10, 11}
         ),
@@ -182,13 +185,13 @@ int main (int argc, char const* argv[])
       );
 
     err = log_error(
-      "unique_ptr<std::vector<T>>: \"{0Nx}\"",
+      "unique_ptr<std::vector<T>>: \"{#.wx}\"",
       std::unique_ptr<std::vector<bl_u8> >(
         new std::vector<bl_u8>{ 5, 4, 3, 2, 1}
         )
       );
     err = log_error(
-      "weak_ptr<std::vector<T>> without reference: \"{0Nx}\"",
+      "weak_ptr<std::vector<T>> without reference: \"{.wx}\"",
       std::weak_ptr<std::vector<bl_u8>>(
         std::make_shared<std::vector<bl_u8> >(
           std::initializer_list<bl_u8>{ 1, 2, 9, 10, 11}

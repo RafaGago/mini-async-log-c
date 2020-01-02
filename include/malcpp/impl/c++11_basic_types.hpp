@@ -30,7 +30,7 @@ public:
   {
     return (l.size() == 0)
       ? true
-      : validate (l, 0, l.size(), literal (" #+-0"), 0);
+      : validate_flags (l, 0, 0, l.size(), literal (" #+-0"));
   }
   //----------------------------------------------------------------------------
 private:
@@ -54,33 +54,57 @@ private:
       : true;
   }
   //----------------------------------------------------------------------------
-  static constexpr bool validate_width(
+  static constexpr bool validate_precision(
     const literal& l,
+    int stgbeg,
     int beg,
     int end,
     const literal& modf,
-    int own = 0,
-    int num = 0
+    int maxchars = 3 /* matches the implementation */
     )
   {
     return
       (beg < end)
-      ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
-        //keep validating the same stage
-        ? (l[beg] == 'W' || l[beg] == 'N')
-          ? (own == 0 && num == 0)
-            ? validate_width (l, beg + 1, end, modf, own + 1, num)
+      ? ((beg - stgbeg) > maxchars)
+        ? false // too wide
+        : (modf.find (l[beg], 0, modf.size(), -1) != -1)
+          // current stage
+          ? (l[beg] == '.' && beg != stgbeg)
+            ? false /* dot not in beggining */
+            : (l[beg] == 'w' && beg != stgbeg + 1)
+              ? false /* 'w' not after '.' */
+              : ((l[beg] >= '0' && l[beg] <= '9') &&
+                  ((l[beg + 1] == 'w') || beg == stgbeg))
+                ? false /* 0-9 after 'w' */
+                : validate_precision(l, stgbeg, beg + 1, end, modf)
+          // next stage
+          : ((beg - stgbeg) != 1)
+            ? validate_specifiers (l, beg, end, literal ("xXo"))
             : false
-          : (own == 0)
-            ? validate_width (l, beg + 1, end, modf, own, num + 1 )
-            : false
-        //next stage
-        : validate_specifiers (l, beg, end, literal ("xXo"))
-      : true;
+      : ((beg - stgbeg) > 1) && ((beg - stgbeg) <= maxchars);
   }
   //----------------------------------------------------------------------------
-  static constexpr bool validate(
-    const literal& l, int beg, int end, const literal& modf, int stgbeg
+  static constexpr bool validate_width(
+    const literal& l,
+    int stgbeg,
+    int beg,
+    int end,
+    const literal& modf,
+    int maxchars = 2 /* matches the implementation */
+    )
+  {
+    return
+      (beg < end)
+      ? ((beg - stgbeg) > maxchars)
+        ? false // too wide
+        : (modf.find (l[beg], 0, modf.size(), -1) != -1)
+          ? validate_width (l, stgbeg, beg + 1, end, modf)
+          : validate_precision (l, beg, beg, end, literal (".w0123456789"))
+      : ((beg - stgbeg) <= maxchars) ;
+  }
+  //----------------------------------------------------------------------------
+  static constexpr bool validate_flags(
+    const literal& l, int stgbeg, int beg, int end, const literal& modf
     )
   {
     // this function validates the flags or jumps to the width modifiers
@@ -88,11 +112,11 @@ private:
       (beg < end)
       ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
         //keep validating the same stage
-        ? validate (l, beg + 1, end, modf, stgbeg)
+        ? validate_flags (l, stgbeg, beg + 1, end, modf)
         //next stage
         : l.has_repeated_chars (stgbeg, beg)
           ? false
-          : validate_width (l, beg, end, literal ("WN0123456789"))
+          : validate_width (l, beg, beg, end, literal ("0123456789"))
       : l.has_repeated_chars (stgbeg, beg)
         ? false
         : true;
@@ -107,7 +131,7 @@ public:
   {
     return (l.size() == 0)
       ? true
-      : validate (l, 0, l.size(), literal (" #+-0"), 0);
+      : validate_flags (l, 0, l.size(), literal (" #+-0"), 0);
   }
   //----------------------------------------------------------------------------
 private:
@@ -141,7 +165,7 @@ private:
       : true;
   }
   //----------------------------------------------------------------------------
-  static constexpr bool validate(
+  static constexpr bool validate_flags(
     const literal& l, int beg, int end, const literal& modf, int stgbeg
     )
   {
@@ -151,7 +175,7 @@ private:
       (beg < end)
       ? (modf.find (l[beg], 0, modf.size(), -1) != -1)
         //keep validating the same stage
-        ? validate (l, beg + 1, end, modf, stgbeg)
+        ? validate_flags (l, beg + 1, end, modf, stgbeg)
         //next stage
         : l.has_repeated_chars (stgbeg, beg)
           ? false

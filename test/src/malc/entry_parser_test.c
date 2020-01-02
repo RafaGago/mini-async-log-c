@@ -296,51 +296,51 @@ static void entry_parser_test_ints_with_malc_modifs (void **state)
   char cmp[512];
   eparser_context* c = (eparser_context*) *state;
 
-  parser_run_integer_arg (c, "PREFIX {0Nx} SUFFIX", (bl_u8) 15);
+  parser_run_integer_arg (c, "PREFIX {.wx} SUFFIX", (bl_u8) 15);
   assert_true(
-    snprintf (cmp, sizeof cmp, "PREFIX %02" PRIx8 " SUFFIX", (bl_u16) 15) > 0
+    snprintf (cmp, sizeof cmp, "PREFIX %.2" PRIx8 " SUFFIX", (bl_u16) 15) > 0
     );
   assert_string_equal (cmp, c->strs.text);
 
-  parser_run_integer_arg (c, "PREFIX {0Nx} SUFFIX", (bl_u16) 15);
+  parser_run_integer_arg (c, "PREFIX {.wx} SUFFIX", (bl_u16) 15);
   assert_true(
-    snprintf (cmp, sizeof cmp, "PREFIX %04" PRIx16 " SUFFIX", (bl_u16) 15) > 0
+    snprintf (cmp, sizeof cmp, "PREFIX %.4" PRIx16 " SUFFIX", (bl_u16) 15) > 0
     );
   assert_string_equal (cmp, c->strs.text);
 
-  parser_run_integer_arg (c, "PREFIX {0Nx} SUFFIX", (bl_u32) 15);
+  parser_run_integer_arg (c, "PREFIX {.wx} SUFFIX", (bl_u32) 15);
   assert_true(
-    snprintf (cmp, sizeof cmp, "PREFIX %08" PRIx32 " SUFFIX", (bl_u32) 15) > 0
+    snprintf (cmp, sizeof cmp, "PREFIX %.8" PRIx32 " SUFFIX", (bl_u32) 15) > 0
     );
   assert_string_equal (cmp, c->strs.text);
 
-  parser_run_integer_arg (c, "PREFIX {0Nx} SUFFIX", (bl_u64) 15);
+  parser_run_integer_arg (c, "PREFIX {.wx} SUFFIX", (bl_u64) 15);
   assert_true(
-    snprintf (cmp, sizeof cmp, "PREFIX %016" PRIx64 " SUFFIX", (bl_u64) 15) > 0
+    snprintf (cmp, sizeof cmp, "PREFIX %.16" PRIx64 " SUFFIX", (bl_u64) 15) > 0
     );
   assert_string_equal (cmp, c->strs.text);
 
-  parser_run_integer_arg (c, "PREFIX {0W} SUFFIX", (bl_u8) 15);
+  parser_run_integer_arg (c, "PREFIX {.w} SUFFIX", (bl_u8) 15);
   assert_true(
-    snprintf (cmp, sizeof cmp, "PREFIX %03" PRIu8 " SUFFIX", (bl_u16) 15) > 0
+    snprintf (cmp, sizeof cmp, "PREFIX %.3" PRIu8 " SUFFIX", (bl_u16) 15) > 0
     );
   assert_string_equal (cmp, c->strs.text);
 
-  parser_run_integer_arg (c, "PREFIX {0W} SUFFIX", (bl_u16) 15);
+  parser_run_integer_arg (c, "PREFIX {.w} SUFFIX", (bl_u16) 15);
   assert_true(
-    snprintf (cmp, sizeof cmp, "PREFIX %05" PRIu16 " SUFFIX", (bl_u16) 15) > 0
+    snprintf (cmp, sizeof cmp, "PREFIX %.5" PRIu16 " SUFFIX", (bl_u16) 15) > 0
     );
   assert_string_equal (cmp, c->strs.text);
 
-  parser_run_integer_arg (c, "PREFIX {0W} SUFFIX", (bl_u32) 15);
+  parser_run_integer_arg (c, "PREFIX {.w} SUFFIX", (bl_u32) 15);
   assert_true(
-    snprintf (cmp, sizeof cmp, "PREFIX %010" PRIu32 " SUFFIX", (bl_u32) 15) > 0
+    snprintf (cmp, sizeof cmp, "PREFIX %.10" PRIu32 " SUFFIX", (bl_u32) 15) > 0
     );
   assert_string_equal (cmp, c->strs.text);
 
-  parser_run_integer_arg (c, "PREFIX {0W} SUFFIX", (bl_u64) 15);
+  parser_run_integer_arg (c, "PREFIX {.w} SUFFIX", (bl_u64) 15);
   assert_true(
-    snprintf (cmp, sizeof cmp, "PREFIX %020" PRIu64 " SUFFIX", (bl_u64) 15) > 0
+    snprintf (cmp, sizeof cmp, "PREFIX %.20" PRIu64 " SUFFIX", (bl_u64) 15) > 0
     );
   assert_string_equal (cmp, c->strs.text);
 }

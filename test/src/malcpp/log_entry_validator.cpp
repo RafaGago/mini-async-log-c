@@ -140,19 +140,44 @@ static void int_modifiers_width (void **state)
   assert_int_equal (exp, fmt ("{77}", 1));
   assert_int_equal (exp, fmt ("{88}", 1));
   assert_int_equal (exp, fmt ("{99}", 1));
-  assert_int_equal (exp, fmt ("{W}", 1));
-  assert_int_equal (exp, fmt ("{N}", 1));
 }
 /*----------------------------------------------------------------------------*/
-static void int_modifiers_width_no_mixing_types (void **state)
+static void int_modifiers_width_too_wide (void **state)
 {
   int exp = fmterr_invalid_modifiers;
-  assert_int_equal (exp, fmt ("{1W}", 1));
-  assert_int_equal (exp, fmt ("{1N}", 1));
-  assert_int_equal (exp, fmt ("{N1}", 1));
-  assert_int_equal (exp, fmt ("{W1}", 1));
-  assert_int_equal (exp, fmt ("{NW1}", 1));
-  assert_int_equal (exp, fmt ("{1NW}", 1));
+  assert_int_equal (exp, fmt ("{0101}", 1));
+  assert_int_equal (exp, fmt ("{101}", 1));
+}
+/*----------------------------------------------------------------------------*/
+static void int_modifiers_precision (void **state)
+{
+  int exp = fmterr_success;
+  assert_int_equal (exp, fmt ("{.1}", 1));
+  assert_int_equal (exp, fmt ("{.20}", 1));
+  assert_int_equal (exp, fmt ("{.11}", 1));
+  assert_int_equal (exp, fmt ("{.22}", 1));
+  assert_int_equal (exp, fmt ("{.33}", 1));
+  assert_int_equal (exp, fmt ("{.44}", 1));
+  assert_int_equal (exp, fmt ("{.55}", 1));
+  assert_int_equal (exp, fmt ("{.66}", 1));
+  assert_int_equal (exp, fmt ("{.77}", 1));
+  assert_int_equal (exp, fmt ("{.88}", 1));
+  assert_int_equal (exp, fmt ("{.99}", 1));
+  assert_int_equal (exp, fmt ("{.w}", 1));
+}
+/*----------------------------------------------------------------------------*/
+static void int_modifiers_precision_no_mixing_types (void **state)
+{
+  int exp = fmterr_invalid_modifiers;
+  assert_int_equal (exp, fmt ("{.1w}", 1));
+}
+/*----------------------------------------------------------------------------*/
+static void int_modifiers_precision_too_wide (void **state)
+{
+  int exp = fmterr_invalid_modifiers;
+  assert_int_equal (exp, fmt ("{.1012}", 1));
+  assert_int_equal (exp, fmt ("{.001}", 1));
+  assert_int_equal (exp, fmt ("{.101}", 1));
 }
 /*----------------------------------------------------------------------------*/
 static void int_modifiers_specifiers (void **state)
@@ -176,27 +201,27 @@ static void int_modifiers_specifiers_only_one (void **state)
 static void int_modifiers_stages_combined (void **state)
 {
   int exp = fmterr_success;
-  assert_int_equal (exp, fmt ("{0Nx}", 1));
+  assert_int_equal (exp, fmt ("{.wx}", 1));
   assert_int_equal (exp, fmt ("{+12o}", 1));
   assert_int_equal (exp, fmt ("{-11X}", 1));
-  assert_int_equal (exp, fmt ("{#W}", 1));
-  assert_int_equal (exp, fmt ("{NX}", 1));
+  assert_int_equal (exp, fmt ("{#.w}", 1));
+  assert_int_equal (exp, fmt ("{.wX}", 1));
 }
 /*----------------------------------------------------------------------------*/
 static void int_modifiers_bad_stage_orderings (void **state)
 {
   int exp = fmterr_invalid_modifiers;
-  assert_int_equal (exp, fmt ("{0xN}", 1));
+  assert_int_equal (exp, fmt ("{0x.w}", 1));
   assert_int_equal (exp, fmt ("{12+o}", 1));
   assert_int_equal (exp, fmt ("{11X-}", 1));
-  assert_int_equal (exp, fmt ("{W#}", 1));
-  assert_int_equal (exp, fmt ("{XN}", 1));
+  assert_int_equal (exp, fmt ("{.w#}", 1));
+  assert_int_equal (exp, fmt ("{X.w}", 1));
 }
 /*----------------------------------------------------------------------------*/
 static void int_modifiers_multiple_values (void **state)
 {
   int exp = fmterr_success;
-  assert_int_equal (exp, fmt ("{0Nx}{x} paco {+o}", 1, 2, 3));
+  assert_int_equal (exp, fmt ("{.wx}{x} paco {+o}", 1, 2, 3));
 }
 /*----------------------------------------------------------------------------*/
 static void float_modifiers_flags (void **state)
@@ -333,7 +358,10 @@ static const struct CMUnitTest tests[] = {
   cmocka_unit_test (int_modifiers_flags),
   cmocka_unit_test (int_modifiers_flags_no_repetitions),
   cmocka_unit_test (int_modifiers_width),
-  cmocka_unit_test (int_modifiers_width_no_mixing_types),
+  cmocka_unit_test (int_modifiers_width_too_wide),
+  cmocka_unit_test (int_modifiers_precision),
+  cmocka_unit_test (int_modifiers_precision_no_mixing_types),
+  cmocka_unit_test (int_modifiers_precision_too_wide),
   cmocka_unit_test (int_modifiers_specifiers),
   cmocka_unit_test (int_modifiers_specifiers_only_one),
   cmocka_unit_test (int_modifiers_stages_combined),

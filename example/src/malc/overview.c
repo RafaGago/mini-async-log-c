@@ -33,14 +33,17 @@ int log_thread (void* ctx)
   err = log_error ("10 using \"03x\" specifier: {03x}", 10);
   err = log_error ("10 using \"03x\" specifier: {03X}", 10);
   err = log_error(
-    "10 using \"0Nx\" specifier. N = number of nibbles: {0Nx}",
+    "((uint32) 10) using \".wx\" auto precision. max digits (10): {.wx}",
     (bl_u32) 10
     );
   err = log_error(
-    "10 using \"0Wx\" specifier. W = max number of int digits: {0W}",
+    "((uint32) 10) using \".w\" auto precision. max nibbles (8): {.w}",
     (bl_u32) 10
     );
-
+  err = log_error(
+    "((uint32) 10) using \".wo\" auto precision. max digits (12): {.wo}",
+    (bl_u32) 10
+    );
   /* floating point */
   err = log_error ("1.: {}", 1.);
   err = log_error ("1. using \".3\" specifier: {.3}", 1.);
