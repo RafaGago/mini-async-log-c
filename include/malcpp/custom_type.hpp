@@ -96,7 +96,7 @@ struct MALC_EXPORT obj_log_data {
   template <class T>
   static inline malc_obj_log_data get (std::vector<T> const &v)
   {
-    return obj_log_data::get (&v[0], v.size());
+    return obj_log_data::get (v.size() ? &v[0] : nullptr, v.size());
   }
   //------------------------------------------------------------------------------
 };
