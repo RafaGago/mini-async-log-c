@@ -71,9 +71,10 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
   bl_dstr name = bl_dstr_init_rv (d->alloc);
   bl_assert (d->file_size == 0);
 
-  bl_err err = bl_dstr_set_capacity(
-      &name, bl_dstr_len (&d->prefix) + 1 + 16 + 1 + 16 + bl_dstr_len (&d->suffix)
-      );
+  bl_uword maxlen =
+    bl_dstr_len (&d->prefix) + 1 + 16 + 1 + 16 + bl_dstr_len (&d->suffix);
+
+  bl_err err = bl_dstr_set_capacity (&name, maxlen);
   if (err.own) {
       return err;
   }
@@ -83,6 +84,7 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
     bl_timeoft64 tns = bl_fast_timept_get_fast();
     (void) bl_dstr_append_va(
       &name,
+      maxlen,
       "_%016" FMT_X64 "_%016" FMT_X64,
       tns + bl_fast_timept_to_sysclock64_diff_ns(),
       tns
@@ -98,7 +100,7 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
       }
       /* no bl_dstr error check: it has already the required space allocated */
       (void) bl_dstr_set_o (&name, &d->prefix);
-      (void) bl_dstr_append_va (&name, "_%" FMT_UWORD, d->name_seq_num++);
+      (void) bl_dstr_append_va (&name, 2, "_%" FMT_UWORD, d->name_seq_num++);
       (void) bl_dstr_append_o (&name, &d->suffix);
       d->f = fopen (bl_dstr_get (&name), "r");
     }
@@ -109,15 +111,15 @@ static bl_err malc_file_dst_open_new_file (malc_file_dst* d)
       return err;
     }
   }
-  char* fname = bl_dstr_steal_ownership (&name);
-  d->f = fopen (fname, "w");
+  bl_dstrbuf strbuf = bl_dstr_steal_ownership (&name);
+  d->f = fopen (strbuf.str, "w");
   if (!d->f) {
     err.own  = (bl_err_uint) bl_file;
     err.sys = (bl_err_uint) errno;
-    bl_dealloc (d->alloc, fname);
+    bl_dealloc (d->alloc, strbuf.str);
     return err;
   }
-  past_files_insert_tail (&d->files, &fname);
+  past_files_insert_tail (&d->files, &strbuf.str);
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/

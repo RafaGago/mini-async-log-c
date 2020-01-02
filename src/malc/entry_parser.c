@@ -146,16 +146,16 @@ done:
   switch (type) {
   case malc_type_i8:
   case malc_type_u8:
-    return bl_dstr_append_va (&ep->str, bl_dstr_get (&ep->fmt), arg->vu8);
+    return bl_dstr_append_va (&ep->str, 1, bl_dstr_get (&ep->fmt), arg->vu8);
   case malc_type_i16:
   case malc_type_u16:
-    return bl_dstr_append_va (&ep->str, bl_dstr_get (&ep->fmt), arg->vi16);
+    return bl_dstr_append_va (&ep->str, 1, bl_dstr_get (&ep->fmt), arg->vi16);
   case malc_type_i32:
   case malc_type_u32:
-    return bl_dstr_append_va (&ep->str, bl_dstr_get (&ep->fmt), arg->vi32);
+    return bl_dstr_append_va (&ep->str, 1, bl_dstr_get (&ep->fmt), arg->vi32);
   case malc_type_i64:
   case malc_type_u64:
-    return bl_dstr_append_va (&ep->str, bl_dstr_get (&ep->fmt), arg->vi64);
+    return bl_dstr_append_va (&ep->str, 1, bl_dstr_get (&ep->fmt), arg->vi64);
   default:
     return bl_mkerr (bl_invalid);
   }
@@ -222,10 +222,10 @@ done:
     return err;
   }
   if (type == malc_type_float) {
-    return bl_dstr_append_va (&ep->str, bl_dstr_get (&ep->fmt), arg->vfloat);
+    return bl_dstr_append_va (&ep->str, 1, bl_dstr_get (&ep->fmt), arg->vfloat);
   }
   else {
-    return bl_dstr_append_va (&ep->str, bl_dstr_get (&ep->fmt), arg->vdouble);
+    return bl_dstr_append_va (&ep->str, 1, bl_dstr_get (&ep->fmt), arg->vdouble);
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -430,7 +430,7 @@ static bl_err append_arg(
   case malc_type_double:
     return append_float (ep, arg, type, fmt_beg, fmt_end);
   case malc_type_ptr:
-    return bl_dstr_append_va (&ep->str, "%p", arg->vptr);
+    return bl_dstr_append_va (&ep->str, 1, "%p", arg->vptr);
   case malc_type_lit:
     return bl_dstr_append (&ep->str, arg->vlit.lit);
   case malc_type_strcp:
