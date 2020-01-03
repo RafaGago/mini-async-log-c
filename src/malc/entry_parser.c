@@ -2,7 +2,7 @@
 
 #include <malc/entry_parser.h>
 
-#include <bl/base/preprocessor.h>
+#include <bl/base/preprocessor_basic.h>
 #include <bl/base/integer_short.h>
 #include <bl/base/static_assert.h>
 #include <bl/base/hex_string.h>
