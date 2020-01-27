@@ -1,0 +1,46 @@
+name: ci_windows
+
+on:
+  push:
+    paths:
+      - "**.c"
+      - "**.h"
+      - "**.cpp"
+      - "**.hpp"
+      - ".github/workflows/windows_ci.yml"
+  pull_request:
+    paths:
+      - "**.h"
+      - "**.h"
+      - "**.cpp"
+      - "**.hpp"
+      - ".github/workflows/windows_ci.yml"
+jobs:
+
+  windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - run: pip install meson ninja
+
+    - name: Build
+      run: |
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        git submodule update --init --recursive
+        meson build
+        ninja -C build
+      shell: cmd
+
+    - name: Test
+      run: |
+        ninja -C build test
+      shell: cmd
+
+    - uses: actions/upload-artifact@v1
+      if: failure()
+      with:
+        name: Windows_Meson_Testlog
+        path: build/meson-logs/testlog.txt
