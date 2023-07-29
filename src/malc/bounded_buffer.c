@@ -71,7 +71,9 @@ void boundedb_destroy (boundedb* b, bl_alloc_tbl const* alloc)
   cpuq_destroy (&b->queues, alloc);
 }
 /*---------------------------------------------------------------------------*/
-bl_err boundedb_alloc (boundedb* b, u8** mem, u32 slots)
+bl_err boundedb_alloc (
+  boundedb* b, u8** mem, u32* slots, u32 n_bytes, u32 max_n_slots
+  )
 {
   uword size = cpuq_size (&b->queues);
   bl_assert (size);
@@ -83,7 +85,12 @@ bl_err boundedb_alloc (boundedb* b, u8** mem, u32 slots)
     ++b_cpu.calls;
     qidx = b_cpu.cpu;
   }
-  *mem = bl_mpmc_bpm_alloc (cpuq_at (&b->queues, qidx), slots);
+  bl_mpmc_bpm* q = cpuq_at (&b->queues, qidx);
+  *slots = bl_mpmc_bpm_required_slots (q, n_bytes);
+  if (*slots > max_n_slots) {
+    return bl_mkerr (bl_range);
+  }
+  *mem = bl_mpmc_bpm_alloc (q, *slots);
   return bl_mkerr (*mem ? bl_ok : bl_alloc);
 }
 /*---------------------------------------------------------------------------*/

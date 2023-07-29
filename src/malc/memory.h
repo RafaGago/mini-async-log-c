@@ -48,8 +48,9 @@ extern bl_err memory_tls_init_unregistered(
 /*----------------------------------------------------------------------------*/
 extern bl_err memory_bounded_buffer_init (memory* m, bl_alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
-extern bl_err
-  memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots);
+extern bl_err memory_alloc(
+  memory* m, u8** mem, alloc_tag* tag, u32* slots, u32 n_bytes, u32 max_n_slots
+  );
 /*----------------------------------------------------------------------------*/
 extern void memory_dealloc (memory* m, u8* mem, alloc_tag tag, u32 slots);
 /*----------------------------------------------------------------------------*/
@@ -64,4 +65,4 @@ extern void memory_tls_destroy_all (memory* m, bl_alloc_tbl const* alloc);
 extern bl_err memory_tls_try_run_destructor (memory* m);
 /*----------------------------------------------------------------------------*/
 
-#endif /* __MALC_ALLOCATOR__ */
+#endif // __MALC_ALLOCATOR__

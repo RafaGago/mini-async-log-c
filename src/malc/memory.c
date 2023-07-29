@@ -127,23 +127,33 @@ extern bl_err memory_tls_try_run_destructor (memory* m)
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
-bl_err memory_alloc (memory* m, u8** mem, alloc_tag* tag, u32 slots)
+bl_err memory_alloc(
+  memory* m, u8** mem, alloc_tag* tag, u32* slots, u32 n_bytes, u32 max_n_slots
+  )
 {
   bl_assert (m && mem && tag && slots);
-  bl_err err = tls_buffer_alloc (mem, slots);
+  *slots = bl_div_ceil (n_bytes, m->cfg.slot_size);
+  if (*slots > max_n_slots) {
+    return bl_mkerr (bl_range);
+  }
+  bl_err err = tls_buffer_alloc (mem, *slots);
   if (bl_likely (!err.own)) {
     *tag = alloc_tag_tls;
     return bl_mkok();
   }
   if (m->cfg.fixed_allocator_bytes > 0) {
-    err = boundedb_alloc (&m->bb, mem, slots);
+    err = boundedb_alloc (&m->bb, mem, slots, n_bytes, max_n_slots);
     *tag = alloc_tag_bounded;
     if (bl_likely (!err.own)) {
       return bl_mkok();
     }
   }
   if (m->cfg.msg_allocator) {
-    *mem = (u8*) bl_alloc (m->cfg.msg_allocator, slots * m->cfg.slot_size);
+    *slots = bl_div_ceil (n_bytes, m->cfg.slot_size);
+    if (*slots > max_n_slots) {
+      return bl_mkerr (bl_range);
+    }
+    *mem = (u8*) bl_alloc (m->cfg.msg_allocator, *slots * m->cfg.slot_size);
     *tag = alloc_tag_heap;
     return bl_mkerr (*mem ? bl_ok : bl_alloc);
   }

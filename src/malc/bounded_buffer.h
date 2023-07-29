@@ -26,7 +26,9 @@ extern bl_err boundedb_reset(
 /*---------------------------------------------------------------------------*/
 extern void boundedb_destroy (boundedb* b, bl_alloc_tbl const* alloc);
 /*---------------------------------------------------------------------------*/
-extern bl_err boundedb_alloc (boundedb* b, u8** mem, u32 slots);
+extern bl_err boundedb_alloc(
+  boundedb* b, u8** mem, u32* slots, u32 n_bytes, u32 max_n_slots
+  );
 /*---------------------------------------------------------------------------*/
 extern void boundedb_dealloc (boundedb* b, u8* mem, u32 slots);
 /*---------------------------------------------------------------------------*/

@@ -635,14 +635,12 @@ MALC_EXPORT bl_err malc_log_entry_prepare(
   serializer_init (&se, entry, l->producer.timestamp);
   size_t size  =
     sizeof (qnode) + serializer_log_entry_size (&se, payload_size);
-  size_t slots = bl_div_ceil (size, l->mem.cfg.slot_size);
-  if (bl_unlikely (slots) > (1 << (bl_sizeof_member (qnode, slots) * 8))) {
-    /*entries are limited at 8KB*/
-    return bl_mkerr (bl_range);
-  }
   alloc_tag tag;
-  u8* mem    = nullptr;
-  bl_err err = memory_alloc (&l->mem, &mem, &tag, slots);
+  u8* mem = nullptr;
+  /*entries are limited at 8KB*/
+  u32 max_n_slots = (1 << (bl_sizeof_member (qnode, slots) * 8));
+  u32 slots = 0;
+  bl_err err = memory_alloc (&l->mem, &mem, &tag, &slots, size, max_n_slots);
   if (bl_unlikely (err.own)) {
     return err;
   }
