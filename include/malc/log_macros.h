@@ -13,7 +13,7 @@
 /*----------------------------------------------------------------------------*/
 #if !defined (MALC_STRIP_LOG_FILELINE)
   #define MALC_TO_STR(s) #s
-  #define MALC_CONCAT_FILELINE(file, line) "(" file ":" MALC_TO_STR (lin) ") "
+  #define MALC_CONCAT_FILELINE(file, line) "(" file ":" MALC_TO_STR (line)") "
   #define malc_fileline MALC_CONCAT_FILELINE (__FILE__, __LINE__)
 #else
   #define malc_fileline
